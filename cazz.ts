@@ -27,7 +27,7 @@ function createVocabulary(): Vocabulary {
         txt: "print",
         arity: 1,
         position: InstructionPosition.PREFIX,
-        priority: 100,
+        priority: 10,
     });
     voc.set(TokenType.PLUS, {
         txt: "+",
@@ -39,7 +39,7 @@ function createVocabulary(): Vocabulary {
         txt: "!",
         arity: 1,
         position: InstructionPosition.POSTFIX,
-        priority: 10,
+        priority: 100,
     });
 
     return voc;
@@ -90,11 +90,14 @@ function parse(vocabulary: Vocabulary, program: Listing): AST {
         } as ASTElement;
     });
 
-    const priorityList = ast
+    const priorityList = [...new Set(ast
         .filter(element => element.instruction !== undefined)
         .map(element => element.instruction.priority)
-        .sort((a, b) => b - a);
+        .sort((a, b) => b - a)
+    )];
 
+    console.log("INIZIALE ---------------");
+    dumpAst(ast);        
     for (let i = 0; i < priorityList.length; i++) {
         const priority = priorityList[i];
         for (let j = 0; j < ast.length; j++) {
@@ -129,6 +132,9 @@ function parse(vocabulary: Vocabulary, program: Listing): AST {
                 }
             }
         }
+        console.log("DOPO ITERAZIONE " + i + " pri: " + priority + " --------------");
+        dumpAst(ast);        
+
     }
 
     return ast;
@@ -143,7 +149,7 @@ function dumpProgram(program: Listing) {
 
 function dumpAst(ast: AST, prefix = "") {
     ast.forEach(element => {
-        console.log(prefix + element.token);
+        console.log(prefix, element.token);
         dumpAst(element.childs, prefix + "  ");
     });
 }
@@ -152,8 +158,6 @@ const vocabulary = createVocabulary();
 
 const text = await Deno.readTextFile("esempio.cazz");
 const program = tokenizer(vocabulary, text);
-//dumpProgram(program);
 
 const ast = parse(vocabulary, program);
-//console.log(ast);
-dumpAst(ast);
+//dumpAst(ast);
