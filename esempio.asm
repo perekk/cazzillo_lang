@@ -2,79 +2,79 @@
 	ORG $0801 ; BASIC STARTS HERE
 	HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00
 	ORG $0810 ; MY PROGRAM STARTS HERE
-; value
+	; value
 	LDA #147
 	PHA
-; PRINT
+	; 1:1 print
 	PLA
 	JSR $FFD2 ; C64 print char on the screen
-; value
+	; value
 	LDA #10
 	PHA
-; value
+	; value
 	LDA #22
 	PHA
-; ADD
+	; 2:10 +
 	PLA
 	STA ADD_AUX
 	PLA
 	ADC ADD_AUX
 	PHA
-; value
+	; value
 	LDA #35
 	PHA
-; ADD
+	; 2:15 +
 	PLA
 	STA ADD_AUX
 	PLA
 	ADC ADD_AUX
 	PHA
-; PRINT
+	; 2:1 print
 	PLA
 	JSR $FFD2 ; C64 print char on the screen
-; value
+	; value
 	LDA #30
 	PHA
-; value
+	; value
 	LDA #35
 	PHA
-; ADD
+	; 3:10 +
 	PLA
 	STA ADD_AUX
 	PLA
 	ADC ADD_AUX
 	PHA
-; PRINT
+	; 3:1 print
 	PLA
 	JSR $FFD2 ; C64 print char on the screen
-; value
+	; value
 	LDA #30
 	PHA
-; value
+	; value
 	LDA #34
 	PHA
-; ADD
+	; 4:10 +
 	PLA
 	STA ADD_AUX
 	PLA
 	ADC ADD_AUX
 	PHA
-; value
+	; value
 	LDA #26
 	PHA
-; ADD
+	; 4:15 +
 	PLA
 	STA ADD_AUX
 	PLA
 	ADC ADD_AUX
 	PHA
-; PRINT
+	; 4:1 print
 	PLA
 	JSR $FFD2 ; C64 print char on the screen
-; value
+	; value
 	LDA #90
 	PHA
-; PRINT
+	; 5:1 print
 	PLA
 	JSR $FFD2 ; C64 print char on the screen
 	RTS

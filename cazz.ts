@@ -29,6 +29,7 @@ type Instruction = {
     arity: number;
     position: InstructionPosition;
     priority: number;
+    generateAsm: () => Assembly
 };
 
 type Vocabulary = Map<TokenType, Instruction>;
@@ -52,18 +53,34 @@ function createVocabulary(): Vocabulary {
         arity: 1,
         position: InstructionPosition.PREFIX,
         priority: 10,
+        generateAsm: () => [
+            "PLA",
+            "JSR $FFD2 ; C64 print char on the screen"
+        ]
     });
     voc.set(TokenType.PLUS, {
         txt: "+",
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 80,
+        generateAsm: () => [
+            "PLA",
+            "STA ADD_AUX",
+            "PLA",
+            "ADC ADD_AUX",
+            "PHA"
+        ]
     });
     voc.set(TokenType.FACT, {
         txt: "!",
         arity: 1,
         position: InstructionPosition.POSTFIX,
         priority: 100,
+        generateAsm: () => [
+            "PLA",
+            "EOR $FF",
+            "PHA"
+        ]
     });
 
     return voc;
@@ -231,33 +248,13 @@ function compile(ast: AST | ASTElement): Assembly {
             ret = ret.concat(asm)
         }
         // lets' compile for real
-        switch (ast.token.type) {
-            case TokenType.VALUE:
-                ret.push(`; value`);
-                ret.push(`\tLDA #${ast.token.txt}`);
-                ret.push(`\tPHA`);
-                break;
-            case TokenType.PLUS:
-                ret.push(`; ADD`);
-                ret.push(`\tPLA`);
-                ret.push(`\tSTA ADD_AUX`);
-                ret.push(`\tPLA`);
-                ret.push(`\tADC ADD_AUX`);
-                ret.push(`\tPHA`);
-                break;
-            case TokenType.PRINT:
-                ret.push(`; PRINT`);
-                ret.push(`\tPLA`);
-                ret.push(`\tJSR $FFD2 ; C64 print char on the screen`);
-                break;
-            case TokenType.FACT:
-                ret.push(`; FACT`);
-                ret.push(`\tPLA`);
-                ret.push(`\tEOR $FF`);
-                ret.push(`\tPHA`);
-            default:
-                logError(ast.token.loc, `Compiler error: Token type ${ast.token.type} not found. this should never happen`);
-                Deno.exit(1);
+        if (ast.token.type === TokenType.VALUE) {
+            ret.push(`\t; value`);
+            ret.push(`\tLDA #${ast.token.txt}`);
+            ret.push(`\tPHA`);
+        } else {
+            const instr = [`\t; ${ast.token.loc.row}:${ast.token.loc.col} ${ast.instruction.txt}`].concat(ast.instruction.generateAsm().map(instr => "\t" + instr));
+            ret = ret.concat(instr);
         }
         return ret;
     }
