@@ -90,31 +90,38 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<List
     const ret: Listing = [];
     let row = 1;
     let col = 1;
+    let ignore = false;
 
     const isSpace = (x: string) => " \t\n\r".includes(x);
 
     while (index < text.length) {
         const char = text[index];
-        if (isSpace(char)) {
-            if (tokenStart > -1) {
-                // space but was parsing a word
-                const tokenText = text.substring(tokenStart, index);
-                const loc = { row, col: colStart, filename };
-                const type = identifyToken(vocabulary, tokenText);
-                if (type === undefined) {
-                    logError(loc, `unknown token '${tokenText}'`);
-                    Deno.exit(1);
-                }
-                ret.push({ type, txt: tokenText, loc, });
+        if (!ignore) {
+            if (isSpace(char)) {
+                if (tokenStart > -1) {
+                    // space but was parsing a word
+                    const tokenText = text.substring(tokenStart, index);
+                    const loc = { row, col: colStart, filename };
+                    const type = identifyToken(vocabulary, tokenText);
+                    if (type === undefined) {
+                        logError(loc, `unknown token '${tokenText}'`);
+                        Deno.exit(1);
+                    }
+                    ret.push({ type, txt: tokenText, loc, });
 
-                tokenStart = -1;
-                colStart = -1;
-            }
-        } else {
-            // not space, start parsing a word
-            if (tokenStart === -1) {
-                colStart = col;
-                tokenStart = index;
+                    tokenStart = -1;
+                    colStart = -1;
+                }
+            } else {
+                // not space, start parsing a word
+                if (char === "/" && index + 1 < text.length && text[index + 1] === "/") {
+                    ignore = true;
+                } else {
+                    if (tokenStart === -1) {
+                        colStart = col;
+                        tokenStart = index;
+                    }
+                }
             }
         }
 
@@ -123,6 +130,7 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<List
         if (char === "\n") {
             col = 1;
             row++;
+            ignore = false;
         }
     }
     if (tokenStart > -1) {
@@ -156,8 +164,6 @@ function parse(vocabulary: Vocabulary, program: Listing): AST {
         .sort((a, b) => b - a)
     )];
 
-    console.log("INIZIALE ---------------");
-    dumpAst(ast);        
     for (let i = 0; i < priorityList.length; i++) {
         const priority = priorityList[i];
         for (let j = 0; j < ast.length; j++) {
@@ -205,9 +211,6 @@ function parse(vocabulary: Vocabulary, program: Listing): AST {
                 }
             }
         }
-        console.log("DOPO ITERAZIONE " + i + " pri: " + priority + " --------------");
-        dumpAst(ast);        
-
     }
 
     return ast;
@@ -294,6 +297,7 @@ function dumpAst(ast: AST, prefix = "") {
 
 const vocabulary = createVocabulary();
 const program = await tokenizer("esempio.cazz", vocabulary);
+dumpProgram(program);
 const ast = parse(vocabulary, program);
 const asm = asmHeader().concat(compile(ast)).concat(asmFooter());
 await Deno.writeTextFile("esempio.asm", asm.join("\n"));
