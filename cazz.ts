@@ -3,6 +3,7 @@ enum TokenType {
     PLUS,
     PRINT,
     FACT,
+    LESS,
     TOKEN_COUNT,
 }
 
@@ -67,6 +68,7 @@ function createVocabulary(): Vocabulary {
             "PLA",
             "STA ADD_AUX",
             "PLA",
+            "CLC",
             "ADC ADD_AUX",
             "PHA"
         ]
@@ -80,6 +82,23 @@ function createVocabulary(): Vocabulary {
             "PLA",
             "EOR $FF",
             "PHA"
+        ]
+    });
+    voc.set(TokenType.LESS, {
+        txt: "<",
+        arity: 2,
+        position: InstructionPosition.INFIX,
+        priority: 110,
+        generateAsm: () => [
+            "PLA",
+            "STA ADD_AUX ; second operand",
+            "PLA ; first operand",
+            "CMP ADD_AUX",
+            "BCC @1; salta se < ",
+            "LDA #0",
+            "JMP @2",
+            "@1: LDA #1",
+            "@2: PHA"
         ]
     });
 
@@ -233,6 +252,8 @@ function parse(vocabulary: Vocabulary, program: Listing): AST {
     return ast;
 }
 
+let labelIndex = 0;
+
 function compile(ast: AST | ASTElement): Assembly {
     if (ast instanceof Array) {
         let ret: Assembly = [];
@@ -253,7 +274,22 @@ function compile(ast: AST | ASTElement): Assembly {
             ret.push(`\tLDA #${ast.token.txt}`);
             ret.push(`\tPHA`);
         } else {
-            const instr = [`\t; ${ast.token.loc.row}:${ast.token.loc.col} ${ast.instruction.txt}`].concat(ast.instruction.generateAsm().map(instr => "\t" + instr));
+            const generated = ast.instruction.generateAsm();
+            let maxLabel = 0;
+            for (let i = 0; i < generated.length; i++) {
+                const hasLabel = /^\S+\:/.test(generated[i]);
+                if (!hasLabel) generated[i] = "\t" + generated[i];
+
+                const pos = generated[i].search(/@\d/);
+                if (pos > -1) {
+                    const val = parseInt(generated[i][pos + 1], 10);
+                    if (val > maxLabel) maxLabel = val;
+                    const newLabelIndex = labelIndex + val;
+                    generated[i] = generated[i].substr(0, pos) + "I_" + newLabelIndex + generated[i].substr(pos + 2);
+                }
+            }
+            labelIndex = labelIndex + maxLabel;
+            const instr = [`\t; ${ast.token.loc.row}:${ast.token.loc.col} ${ast.instruction.txt}`].concat(generated);
             ret = ret.concat(instr);
         }
         return ret;
@@ -292,19 +328,22 @@ function dumpAst(ast: AST, prefix = "") {
     });
 }
 
+const filename = "comparison.cazz";
+const basename = filename.substring(0, filename.lastIndexOf('.')) || filename;
+
 const vocabulary = createVocabulary();
-const program = await tokenizer("esempio.cazz", vocabulary);
-dumpProgram(program);
+const program = await tokenizer(filename, vocabulary);
 const ast = parse(vocabulary, program);
+dumpAst(ast);
 const asm = asmHeader().concat(compile(ast)).concat(asmFooter());
-await Deno.writeTextFile("esempio.asm", asm.join("\n"));
-const dasm = Deno.run({ cmd: ["dasm", "esempio.asm", "-oesempio.prg"] });
+await Deno.writeTextFile(basename + ".asm", asm.join("\n"));
+const dasm = Deno.run({ cmd: ["dasm", basename + ".asm", "-o" + basename + ".prg"] });
 const dasmStatus = await dasm.status();
 
-const emu = Deno.run({ cmd: ["x64sc", "-silent", "esempio.prg"] });
+const emu = Deno.run({ cmd: ["x64sc", "-silent", basename + ".prg"] });
 const emuStatus = await emu.status();
 
 
 console.log("Done");
 
-//dumpAst(ast);
+
