@@ -1,9 +1,12 @@
 enum TokenType {
     VALUE,
     PLUS,
+    MINUS,
     PRINT,
     FACT,
-    LESS,
+    LT,
+    EQ,
+    GT,    
     TOKEN_COUNT,
 }
 
@@ -55,8 +58,8 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.PREFIX,
         priority: 10,
         generateAsm: () => [
-            "PLA",
-            "JSR $FFD2 ; C64 print char on the screen"
+            "JSR POP16",
+            "JSR PRINT_INT"
         ]
     });
     voc.set(TokenType.PLUS, {
@@ -65,40 +68,105 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.INFIX,
         priority: 80,
         generateAsm: () => [
-            "PLA",
-            "STA ADD_AUX",
-            "PLA",
-            "CLC",
-            "ADC ADD_AUX",
-            "PHA"
+            "JSR ADD16"
         ]
     });
+    voc.set(TokenType.MINUS, {
+        txt: "-",
+        arity: 2,
+        position: InstructionPosition.INFIX,
+        priority: 80,
+        generateAsm: () => [
+            "JSR SUB16"
+        ]
+    });
+
     voc.set(TokenType.FACT, {
         txt: "!",
         arity: 1,
         position: InstructionPosition.POSTFIX,
         priority: 100,
         generateAsm: () => [
-            "PLA",
+            "LDA stackbase + 1,X",
             "EOR $FF",
-            "PHA"
+            "STA stackbase + 1,X",
+            "LDA stackbase + 2,X",
+            "EOR $FF",
+            "STA stackbase + 2,X"
         ]
     });
-    voc.set(TokenType.LESS, {
+    voc.set(TokenType.LT, {
         txt: "<",
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 110,
+        // + 4 HI first
+        // + 3 LO
+        // + 2 HI second
+        // + 1 LO
+        // first < second
         generateAsm: () => [
-            "PLA",
-            "STA ADD_AUX ; second operand",
-            "PLA ; first operand",
-            "CMP ADD_AUX",
-            "BCC @1; salta se < ",
-            "LDA #0",
-            "JMP @2",
-            "@1: LDA #1",
-            "@2: PHA"
+            "LDA stackbase + 4,X",
+            "CMP stackbase + 2,X",
+            "BCC @1; jump isLower",
+            "BNE @2; jump isHigher",
+            "LDA stackbase + 3,X",
+            "CMP stackbase + 1,X",
+            "BCC @1; jump isLower",
+            "@2: LDA #00",
+            "JMP @3; store",
+            "@1: LDA #01",
+            "@3: INX",
+            "INX",
+            "STA stackbase + 1,X",
+            "LDA #00",
+            "STA stackbase + 2",
+        ]
+    });
+    voc.set(TokenType.EQ, {
+        txt: "=",
+        arity: 2,
+        position: InstructionPosition.INFIX,
+        priority: 110,
+        generateAsm: () => [
+            "LDA stackbase + 4,X",
+            "CMP stackbase + 2,X",
+            "BNE @1; jump different",
+            "LDA stackbase + 3,X",
+            "CMP stackbase + 1,X",
+            "BNE @1; jump different",
+            "LDA #01",
+            "JMP @2; store",
+            "@1: LDA #00",
+            "@2: INX",
+            "INX",
+            "STA stackbase + 1,X",
+            "LDA #00",
+            "STA stackbase + 2"
+        ]
+    });
+    voc.set(TokenType.GT, {
+        txt: ">",
+        arity: 2,
+        position: InstructionPosition.INFIX,
+        priority: 110,
+        generateAsm: () => [
+            "LDA stackbase + 2,X",
+            "CMP stackbase + 4,X",
+            "BCC @1; jump isLower",
+            "BNE @2; jump isHigher",
+            "LDA stackbase + 1,X",
+            "CMP stackbase + 3,X",
+            "BCC @1; jump isLower",
+            "@2: LDA #00",
+            "JMP @3; store",
+            "@1: LDA #01",
+            "@3: INX",
+            "INX",
+            "STA stackbase + 1,X",
+            "LDA #00",
+            "STA stackbase + 2",
+
         ]
     });
 
@@ -270,16 +338,18 @@ function compile(ast: AST | ASTElement): Assembly {
         }
         // lets' compile for real
         if (ast.token.type === TokenType.VALUE) {
-            ret.push(`\t; value`);
-            ret.push(`\tLDA #${ast.token.txt}`);
-            ret.push(`\tPHA`);
+            ret.push(`; value`);
+            const MSB = (parseInt(ast.token.txt) >> 8) & 255;
+            ret.push(`LDA #${MSB}`);
+            ret.push(`STA stackaccess+1`);
+            const LSB = parseInt(ast.token.txt) & 255;
+            ret.push(`LDA #${LSB}`);
+            ret.push(`STA stackaccess`);
+            ret.push(`JSR PUSH16`);
         } else {
             const generated = ast.instruction.generateAsm();
             let maxLabel = 0;
             for (let i = 0; i < generated.length; i++) {
-                const hasLabel = /^\S+\:/.test(generated[i]);
-                if (!hasLabel) generated[i] = "\t" + generated[i];
-
                 const pos = generated[i].search(/@\d/);
                 if (pos > -1) {
                     const val = parseInt(generated[i][pos + 1], 10);
@@ -296,20 +366,204 @@ function compile(ast: AST | ASTElement): Assembly {
     }
 }
 
+function addIndent(code: Assembly) {
+    for (let i = 0; i < code.length; i++) {
+        const isAssignment = code[i].includes(" = ");
+        if (isAssignment) continue;
+        const isDeclareSpace = code[i].includes(" DS ");
+        if (isDeclareSpace) continue;
+        const hasLabel = /^\S+\:/.test(code[i]);
+        if (hasLabel) continue;
+
+        code[i] = "\t" + code[i];
+    }
+}
+
 function asmHeader(): Assembly {
     return [
-        "\tprocessor 6502 ; TEH BEAST",
-        "\tORG $0801 ; BASIC STARTS HERE",
-        "\tHEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00",
-        "\tORG $0810 ; MY PROGRAM STARTS HERE",
-
+        "processor 6502 ; TEH BEAST",
+        "ORG $0801 ; BASIC STARTS HERE",
+        "HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00",
+        "ORG $0810 ; MY PROGRAM STARTS HERE",
+        "JSR INITSTACK"
     ]
 }
 
 function asmFooter(): Assembly {
     return [
-        "\tRTS",
-        "ADD_AUX DS 1 ; USED IN ADD INSTRUCTION"
+        "RTS",
+        "AUX_REG DS 1 ; USED IN ADD INSTRUCTION",
+        "BCD DS 3 ; USED IN BIN TO BCD",
+        "stackaccess = $0080",
+        "stackbase = $0000",
+
+        "INITSTACK:",
+        "ldx #$FF",
+        "rts",
+
+        "PUSH16:",
+        "lda stackaccess + 1          ; first byte(big end)",
+        "sta stackbase,X",
+        "dex",
+        "lda stackaccess            ; second byte(little end)",
+        "sta stackbase,X",
+        "dex",
+        "rts",
+
+        "POP16:",
+        "lda stackbase + 1,X          ; the little end",
+        "sta stackaccess",
+        "inx",
+        "lda stackbase + 1,X          ; retrieve second byte",
+        "sta stackaccess + 1",
+        "inx",
+        "rts",
+
+        "dup16:",
+        "lda stackbase + 2,X          ; copy big end byte to next available slot",
+        "sta stackbase,X",
+        "dex",
+        "lda stackbase + 2,X          ; do again for little end",
+        "sta stackbase,X",
+        "dex",
+        "rts",
+
+        "swap16:",
+        "; first, do a dup",
+        "lda stackbase + 2,X; copy big end byte to next available slot",
+        "sta stackbase,X",
+        "dex",
+        "lda stackbase + 2,X; do again for little end",
+        "sta stackbase,X",
+        "dex",
+        "; stack has now grown by one",
+        "; now copy item from slot 3 to slot 2",
+        "; low end byte is already in accumulator",
+        "lda stackbase + 5,X",
+        "sta stackbase + 3,X",
+        "lda stackbase + 6,X",
+        "sta stackbase + 4,X",
+        "; now copy top-of-stack item into slot 3",
+        "lda stackbase + 1,X",
+        "sta stackbase + 5,X",
+        "lda stackbase + 2,X",
+        "sta stackbase + 6,X",
+        "; discard temporary value on the top of the stack",
+        "inx",
+        "inx",
+        "rts",
+
+        ";; Add the two 16 - byte words on the top of the stack, leaving",
+        ";; the result on the stack in their place.",
+        "ADD16:",
+        "clc; clear carry",
+        "lda stackbase + 1,X; add the lower byte",
+        "adc stackbase + 3,X",
+        "sta stackbase + 3,X; put it back in the second slot",
+        "lda stackbase + 2,X; then the upper byte",
+        "adc stackbase + 4,X",
+        "sta stackbase + 4,X; again, back in the second slot",
+        "inx; shink the stack so that sum is now",
+        "inx; in the top slot",
+        "rts",
+
+        ";; Subtract the two 16 - byte words on the top of the stack, leaving",
+        ";; the result on the stack in their place.",
+        "SUB16:",
+        "sec; set the carry",
+        "lda stackbase + 3,X; substract the lower byte",
+        "sbc stackbase + 1,X",
+        "sta stackbase + 3,X; put it back in the second slot",
+        "lda stackbase + 4,X; then the upper byte",
+        "sbc stackbase + 2,X",
+        "sta stackbase + 4,X; again, back in the second slot",
+        "inx; shink the stack so that result is now",
+        "inx; in the top slot",
+        "rts",
+
+        "BINBCD16: SED ; Switch to decimal mode",
+        "LDA #0 ; Ensure the result is clear",
+        "STA BCD + 0",
+        "STA BCD + 1",
+        "STA BCD + 2",
+        "LDX #16 ; The number of source bits",
+        "CNVBIT: ASL stackaccess + 0 ; Shift out one bit",
+        "ROL stackaccess + 1",
+        "LDA BCD + 0 ; And add into result",
+        "ADC BCD + 0",
+        "STA BCD + 0",
+        "LDA BCD + 1 ; propagating any carry",
+        "ADC BCD + 1",
+        "STA BCD + 1",
+        "LDA BCD + 2 ; ...thru whole result",
+        "ADC BCD + 2",
+        "STA BCD + 2",
+        "DEX ; And repeat for next bit",
+        "BNE CNVBIT",
+        "CLD; Back to binary",
+        "RTS",
+
+        "PRINT_INT:",
+        "JSR BINBCD16",
+        "LDA BCD+2",
+        "TAY",
+        "BEQ DIGIT2",
+        "AND #$0F",
+        "CLC",
+        "ADC #$30",
+        "JSR $FFD2",
+
+        "DIGIT2:",
+        "LDA BCD+1",
+        "LSR",
+        "LSR",
+        "LSR",
+        "LSR",
+        "BNE PRINT_DIGIT_2",
+        "CPY #00",
+        "BEQ DIGIT_3",
+        "PRINT_DIGIT_2:",
+        "TAY",
+        "CLC",
+        "ADC #$30",
+        "JSR $FFD2",
+
+        "DIGIT_3:",
+        "LDA BCD+1",
+        "AND #$0F",
+        "BNE PRINT_DIGIT_3",
+        "CPY #00",
+        "BEQ DIGIT_4",
+        "PRINT_DIGIT_3:",
+        "TAY",
+        "CLC",
+        "ADC #$30",
+        "JSR $FFD2",
+
+        "DIGIT_4:",
+        "LDA BCD+0",
+        "LSR",
+        "LSR",
+        "LSR",
+        "LSR",
+        "BNE PRINT_DIGIT_4",
+        "CPY #00",
+        "BEQ DIGIT_5",
+        "PRINT_DIGIT_4:",
+        "TAY",
+        "CLC",
+        "ADC #$30",
+        "JSR $FFD2",
+
+        "DIGIT_5:",
+        "LDA BCD+0",
+        "AND #$0F",
+        "CLC",
+        "ADC #$30",
+        "JSR $FFD2",
+        "LDA #13",
+        "JSR $FFD2",
+        "RTS",
     ]
 }
 
@@ -328,7 +582,7 @@ function dumpAst(ast: AST, prefix = "") {
     });
 }
 
-const filename = "comparison.cazz";
+const filename = "compare.cazz";
 const basename = filename.substring(0, filename.lastIndexOf('.')) || filename;
 
 const vocabulary = createVocabulary();
@@ -336,9 +590,14 @@ const program = await tokenizer(filename, vocabulary);
 const ast = parse(vocabulary, program);
 dumpAst(ast);
 const asm = asmHeader().concat(compile(ast)).concat(asmFooter());
+addIndent(asm);
 await Deno.writeTextFile(basename + ".asm", asm.join("\n"));
 const dasm = Deno.run({ cmd: ["dasm", basename + ".asm", "-o" + basename + ".prg"] });
 const dasmStatus = await dasm.status();
+if (dasmStatus.success === false) {
+    console.log("ERROR: dasm returned an error " + dasmStatus.code);
+    Deno.exit(1);
+}
 
 const emu = Deno.run({ cmd: ["x64sc", "-silent", basename + ".prg"] });
 const emuStatus = await emu.status();
