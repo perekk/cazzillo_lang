@@ -3,352 +3,343 @@
 	HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00
 	ORG $0810 ; MY PROGRAM STARTS HERE
 	JSR INITSTACK
-	; value
+	; 1:7 VAL 12365
 	LDA #48
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #77
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-	; value
+	; 1:15 VAL 20
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #20
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-	; value
+	; 1:20 VAL 30
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #30
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-		; 1:18 <
-	LDA stackbase + 4,X
-	CMP stackbase + 2,X
-	BCC I_1; jump isLower
-	BNE I_2; jump isHigher
-	LDA stackbase + 3,X
-	CMP stackbase + 1,X
-	BCC I_1; jump isLower
-I_2: LDA #00
-	JMP I_3; store
-I_1: LDA #01
-I_3: INX
+	; 1:18 <
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BCC L1
+	BNE L2
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BCC L1
+L2: LDA #00
+	JMP L3
+L1: LDA #01
+L3: INX
 	INX
-	STA stackbase + 1,X
+	STA STACKBASE + 1,X
 	LDA #00
-	STA stackbase + 2
-		; 1:13 +
+	STA STACKBASE + 2
+	; 1:13 +
 	JSR ADD16
-	; value
+	; 1:25 VAL 10
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #10
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-	; value
+	; 1:30 VAL 15
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #15
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-		; 1:28 <
-	LDA stackbase + 4,X
-	CMP stackbase + 2,X
-	BCC I_4; jump isLower
-	BNE I_5; jump isHigher
-	LDA stackbase + 3,X
-	CMP stackbase + 1,X
-	BCC I_4; jump isLower
-I_5: LDA #00
-	JMP I_6; store
-I_4: LDA #01
-I_6: INX
+	; 1:28 <
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BCC L4
+	BNE L5
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BCC L4
+L5: LDA #00
+	JMP L6
+L4: LDA #01
+L6: INX
 	INX
-	STA stackbase + 1,X
+	STA STACKBASE + 1,X
 	LDA #00
-	STA stackbase + 2
-		; 1:23 +
+	STA STACKBASE + 2
+	; 1:23 +
 	JSR ADD16
-	; value
+	; 1:35 VAL 30
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #30
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-	; value
+	; 1:40 VAL 10
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #10
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-		; 1:38 <
-	LDA stackbase + 4,X
-	CMP stackbase + 2,X
-	BCC I_7; jump isLower
-	BNE I_8; jump isHigher
-	LDA stackbase + 3,X
-	CMP stackbase + 1,X
-	BCC I_7; jump isLower
-I_8: LDA #00
-	JMP I_9; store
-I_7: LDA #01
-I_9: INX
+	; 1:38 <
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BCC L7
+	BNE L8
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BCC L7
+L8: LDA #00
+	JMP L9
+L7: LDA #01
+L9: INX
 	INX
-	STA stackbase + 1,X
+	STA STACKBASE + 1,X
 	LDA #00
-	STA stackbase + 2
-		; 1:33 +
+	STA STACKBASE + 2
+	; 1:33 +
 	JSR ADD16
-		; 1:1 print
+	; 1:1 print
 	JSR POP16
 	JSR PRINT_INT
-	; value
+	; 2:7 VAL 1064
 	LDA #4
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #40
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-	; value
+	; 2:14 VAL 1
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #1
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-	; value
+	; 2:18 VAL 0
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #0
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-		; 2:16 =
-	LDA stackbase + 4,X
-	CMP stackbase + 2,X
-	BNE I_10; jump different
-	LDA stackbase + 3,X
-	CMP stackbase + 1,X
-	BNE I_10; jump different
+	; 2:16 =
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BNE L10
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE L10
 	LDA #01
-	JMP I_11; store
-I_10: LDA #00
-I_11: INX
+	JMP L11
+L10: LDA #00
+L11: INX
 	INX
-	STA stackbase + 1,X
+	STA STACKBASE + 1,X
 	LDA #00
-	STA stackbase + 2
-		; 2:12 +
+	STA STACKBASE + 2
+	; 2:12 +
 	JSR ADD16
-	; value
+	; 2:22 VAL 255
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #255
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-	; value
+	; 2:28 VAL 255
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #255
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-		; 2:26 =
-	LDA stackbase + 4,X
-	CMP stackbase + 2,X
-	BNE I_12; jump different
-	LDA stackbase + 3,X
-	CMP stackbase + 1,X
-	BNE I_12; jump different
+	; 2:26 =
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BNE L12
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE L12
 	LDA #01
-	JMP I_13; store
-I_12: LDA #00
-I_13: INX
+	JMP L13
+L12: LDA #00
+L13: INX
 	INX
-	STA stackbase + 1,X
+	STA STACKBASE + 1,X
 	LDA #00
-	STA stackbase + 2
-		; 2:20 +
+	STA STACKBASE + 2
+	; 2:20 +
 	JSR ADD16
-		; 2:1 print
+	; 2:1 print
 	JSR POP16
 	JSR PRINT_INT
-	; value
+	; 3:7 VAL 90
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #90
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-	; value
+	; 3:12 VAL 32
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #32
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-	; value
+	; 3:17 VAL 33
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #33
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-		; 3:15 >
-	LDA stackbase + 2,X
-	CMP stackbase + 4,X
-	BCC I_14; jump isLower
-	BNE I_15; jump isHigher
-	LDA stackbase + 1,X
-	CMP stackbase + 3,X
-	BCC I_14; jump isLower
-I_15: LDA #00
-	JMP I_16; store
-I_14: LDA #01
-I_16: INX
+	; 3:15 >
+	LDA STACKBASE + 2,X
+	CMP STACKBASE + 4,X
+	BCC L14
+	BNE L15
+	LDA STACKBASE + 1,X
+	CMP STACKBASE + 3,X
+	BCC L14
+L15: LDA #00
+	JMP L16
+L14: LDA #01
+L16: INX
 	INX
-	STA stackbase + 1,X
+	STA STACKBASE + 1,X
 	LDA #00
-	STA stackbase + 2
-		; 3:10 -
+	STA STACKBASE + 2
+	; 3:10 -
 	JSR SUB16
-		; 3:1 print
+	; 3:1 print
 	JSR POP16
 	JSR PRINT_INT
-	; value
+	; 4:7 VAL 0
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #0
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-	; value
+	; 4:11 VAL 255
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #255
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-	; value
+	; 4:17 VAL 1
 	LDA #0
-	STA stackaccess+1
+	STA STACKACCESS+1
 	LDA #1
-	STA stackaccess
+	STA STACKACCESS
 	JSR PUSH16
-		; 4:15 >
-	LDA stackbase + 2,X
-	CMP stackbase + 4,X
-	BCC I_17; jump isLower
-	BNE I_18; jump isHigher
-	LDA stackbase + 1,X
-	CMP stackbase + 3,X
-	BCC I_17; jump isLower
-I_18: LDA #00
-	JMP I_19; store
-I_17: LDA #01
-I_19: INX
+	; 4:15 >
+	LDA STACKBASE + 2,X
+	CMP STACKBASE + 4,X
+	BCC L17
+	BNE L18
+	LDA STACKBASE + 1,X
+	CMP STACKBASE + 3,X
+	BCC L17
+L18: LDA #00
+	JMP L19
+L17: LDA #01
+L19: INX
 	INX
-	STA stackbase + 1,X
+	STA STACKBASE + 1,X
 	LDA #00
-	STA stackbase + 2
-		; 4:9 -
+	STA STACKBASE + 2
+	; 4:9 -
 	JSR SUB16
-		; 4:1 print
+	; 4:1 print
 	JSR POP16
 	JSR PRINT_INT
 	RTS
 AUX_REG DS 1 ; USED IN ADD INSTRUCTION
 BCD DS 3 ; USED IN BIN TO BCD
-stackaccess = $0080
-stackbase = $0000
+	; stack.a65 from https://github.com/dourish/mitemon/blob/master/stack.a65
+STACKACCESS = $0080
+STACKBASE = $0000
 INITSTACK:
-	ldx #$FF
-	rts
+	LDX #$FF
+	RTS
 PUSH16:
-	lda stackaccess + 1          ; first byte(big end)
-	sta stackbase,X
-	dex
-	lda stackaccess            ; second byte(little end)
-	sta stackbase,X
-	dex
-	rts
+	LDA STACKACCESS + 1
+	STA STACKBASE,X
+	DEX
+	LDA STACKACCESS
+	STA STACKBASE,X
+	DEX
+	RTS
 POP16:
-	lda stackbase + 1,X          ; the little end
-	sta stackaccess
-	inx
-	lda stackbase + 1,X          ; retrieve second byte
-	sta stackaccess + 1
-	inx
-	rts
-dup16:
-	lda stackbase + 2,X          ; copy big end byte to next available slot
-	sta stackbase,X
-	dex
-	lda stackbase + 2,X          ; do again for little end
-	sta stackbase,X
-	dex
-	rts
-swap16:
-	; first, do a dup
-	lda stackbase + 2,X; copy big end byte to next available slot
-	sta stackbase,X
-	dex
-	lda stackbase + 2,X; do again for little end
-	sta stackbase,X
-	dex
-	; stack has now grown by one
-	; now copy item from slot 3 to slot 2
-	; low end byte is already in accumulator
-	lda stackbase + 5,X
-	sta stackbase + 3,X
-	lda stackbase + 6,X
-	sta stackbase + 4,X
-	; now copy top-of-stack item into slot 3
-	lda stackbase + 1,X
-	sta stackbase + 5,X
-	lda stackbase + 2,X
-	sta stackbase + 6,X
-	; discard temporary value on the top of the stack
-	inx
-	inx
-	rts
-	;; Add the two 16 - byte words on the top of the stack, leaving
-	;; the result on the stack in their place.
+	LDA STACKBASE + 1,X
+	STA STACKACCESS
+	INX
+	LDA STACKBASE + 1,X
+	STA STACKACCESS + 1
+	INX
+	RTS
+DUP16:
+	LDA STACKBASE + 2,X
+	STA STACKBASE,X
+	DEX
+	LDA STACKBASE + 2,X
+	STA STACKBASE,X
+	DEX
+	RTS
+SWAP16:
+	LDA STACKBASE + 2,X
+	STA STACKBASE,X
+	DEX
+	LDA STACKBASE + 2,X
+	STA STACKBASE,X
+	DEX
+	LDA STACKBASE + 5,X
+	STA STACKBASE + 3,X
+	LDA STACKBASE + 6,X
+	STA STACKBASE + 4,X
+	LDA STACKBASE + 1,X
+	STA STACKBASE + 5,X
+	LDA STACKBASE + 2,X
+	STA STACKBASE + 6,X
+	INX
+	INX
+	RTS
 ADD16:
-	clc; clear carry
-	lda stackbase + 1,X; add the lower byte
-	adc stackbase + 3,X
-	sta stackbase + 3,X; put it back in the second slot
-	lda stackbase + 2,X; then the upper byte
-	adc stackbase + 4,X
-	sta stackbase + 4,X; again, back in the second slot
-	inx; shink the stack so that sum is now
-	inx; in the top slot
-	rts
-	;; Subtract the two 16 - byte words on the top of the stack, leaving
-	;; the result on the stack in their place.
+	CLC
+	LDA STACKBASE + 1,X;
+	ADC STACKBASE + 3,X
+	STA STACKBASE + 3,X
+	LDA STACKBASE + 2,X
+	ADC STACKBASE + 4,X
+	STA STACKBASE + 4,X
+	INX
+	INX
+	RTS
 SUB16:
-	sec; set the carry
-	lda stackbase + 3,X; substract the lower byte
-	sbc stackbase + 1,X
-	sta stackbase + 3,X; put it back in the second slot
-	lda stackbase + 4,X; then the upper byte
-	sbc stackbase + 2,X
-	sta stackbase + 4,X; again, back in the second slot
-	inx; shink the stack so that result is now
-	inx; in the top slot
-	rts
-BINBCD16: SED ; Switch to decimal mode
-	LDA #0 ; Ensure the result is clear
+	SEC
+	LDA STACKBASE + 3,X
+	SBC STACKBASE + 1,X
+	STA STACKBASE + 3,X
+	LDA STACKBASE + 4,X
+	SBC STACKBASE + 2,X
+	STA STACKBASE + 4,X
+	INX
+	INX
+	RTS
+BINBCD16: SED
+	LDA #0
 	STA BCD + 0
 	STA BCD + 1
 	STA BCD + 2
-	LDX #16 ; The number of source bits
-CNVBIT: ASL stackaccess + 0 ; Shift out one bit
-	ROL stackaccess + 1
-	LDA BCD + 0 ; And add into result
+	LDX #16
+CNVBIT: ASL STACKACCESS + 0
+	ROL STACKACCESS + 1
+	LDA BCD + 0
 	ADC BCD + 0
 	STA BCD + 0
-	LDA BCD + 1 ; propagating any carry
+	LDA BCD + 1
 	ADC BCD + 1
 	STA BCD + 1
-	LDA BCD + 2 ; ...thru whole result
+	LDA BCD + 2
 	ADC BCD + 2
 	STA BCD + 2
-	DEX ; And repeat for next bit
+	DEX
 	BNE CNVBIT
-	CLD; Back to binary
+	CLD
 	RTS
 PRINT_INT:
 	JSR BINBCD16

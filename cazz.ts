@@ -87,12 +87,12 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.POSTFIX,
         priority: 100,
         generateAsm: () => [
-            "LDA stackbase + 1,X",
+            "LDA STACKBASE + 1,X",
             "EOR $FF",
-            "STA stackbase + 1,X",
-            "LDA stackbase + 2,X",
+            "STA STACKBASE + 1,X",
+            "LDA STACKBASE + 2,X",
             "EOR $FF",
-            "STA stackbase + 2,X"
+            "STA STACKBASE + 2,X"
         ]
     });
     voc.set(TokenType.LT, {
@@ -106,21 +106,21 @@ function createVocabulary(): Vocabulary {
         // + 1 LO
         // first < second
         generateAsm: () => [
-            "LDA stackbase + 4,X",
-            "CMP stackbase + 2,X",
-            "BCC @1; jump isLower",
-            "BNE @2; jump isHigher",
-            "LDA stackbase + 3,X",
-            "CMP stackbase + 1,X",
-            "BCC @1; jump isLower",
+            "LDA STACKBASE + 4,X",
+            "CMP STACKBASE + 2,X",
+            "BCC @1",
+            "BNE @2",
+            "LDA STACKBASE + 3,X",
+            "CMP STACKBASE + 1,X",
+            "BCC @1",
             "@2: LDA #00",
-            "JMP @3; store",
+            "JMP @3",
             "@1: LDA #01",
             "@3: INX",
             "INX",
-            "STA stackbase + 1,X",
+            "STA STACKBASE + 1,X",
             "LDA #00",
-            "STA stackbase + 2",
+            "STA STACKBASE + 2",
         ]
     });
     voc.set(TokenType.EQ, {
@@ -129,20 +129,20 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.INFIX,
         priority: 110,
         generateAsm: () => [
-            "LDA stackbase + 4,X",
-            "CMP stackbase + 2,X",
-            "BNE @1; jump different",
-            "LDA stackbase + 3,X",
-            "CMP stackbase + 1,X",
-            "BNE @1; jump different",
+            "LDA STACKBASE + 4,X",
+            "CMP STACKBASE + 2,X",
+            "BNE @1",
+            "LDA STACKBASE + 3,X",
+            "CMP STACKBASE + 1,X",
+            "BNE @1",
             "LDA #01",
-            "JMP @2; store",
+            "JMP @2",
             "@1: LDA #00",
             "@2: INX",
             "INX",
-            "STA stackbase + 1,X",
+            "STA STACKBASE + 1,X",
             "LDA #00",
-            "STA stackbase + 2"
+            "STA STACKBASE + 2"
         ]
     });
     voc.set(TokenType.GT, {
@@ -151,21 +151,21 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.INFIX,
         priority: 110,
         generateAsm: () => [
-            "LDA stackbase + 2,X",
-            "CMP stackbase + 4,X",
-            "BCC @1; jump isLower",
-            "BNE @2; jump isHigher",
-            "LDA stackbase + 1,X",
-            "CMP stackbase + 3,X",
-            "BCC @1; jump isLower",
+            "LDA STACKBASE + 2,X",
+            "CMP STACKBASE + 4,X",
+            "BCC @1",
+            "BNE @2",
+            "LDA STACKBASE + 1,X",
+            "CMP STACKBASE + 3,X",
+            "BCC @1",
             "@2: LDA #00",
-            "JMP @3; store",
+            "JMP @3",
             "@1: LDA #01",
             "@3: INX",
             "INX",
-            "STA stackbase + 1,X",
+            "STA STACKBASE + 1,X",
             "LDA #00",
-            "STA stackbase + 2",
+            "STA STACKBASE + 2",
 
         ]
     });
@@ -338,13 +338,13 @@ function compile(ast: AST | ASTElement): Assembly {
         }
         // lets' compile for real
         if (ast.token.type === TokenType.VALUE) {
-            ret.push(`; value`);
+            ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} VAL ${ast.token.txt}`);
             const MSB = (parseInt(ast.token.txt) >> 8) & 255;
             ret.push(`LDA #${MSB}`);
-            ret.push(`STA stackaccess+1`);
+            ret.push(`STA STACKACCESS+1`);
             const LSB = parseInt(ast.token.txt) & 255;
             ret.push(`LDA #${LSB}`);
-            ret.push(`STA stackaccess`);
+            ret.push(`STA STACKACCESS`);
             ret.push(`JSR PUSH16`);
         } else {
             const generated = ast.instruction.generateAsm();
@@ -355,11 +355,11 @@ function compile(ast: AST | ASTElement): Assembly {
                     const val = parseInt(generated[i][pos + 1], 10);
                     if (val > maxLabel) maxLabel = val;
                     const newLabelIndex = labelIndex + val;
-                    generated[i] = generated[i].substr(0, pos) + "I_" + newLabelIndex + generated[i].substr(pos + 2);
+                    generated[i] = generated[i].substr(0, pos) + "L" + newLabelIndex + generated[i].substr(pos + 2);
                 }
             }
             labelIndex = labelIndex + maxLabel;
-            const instr = [`\t; ${ast.token.loc.row}:${ast.token.loc.col} ${ast.instruction.txt}`].concat(generated);
+            const instr = [`; ${ast.token.loc.row}:${ast.token.loc.col} ${ast.instruction.txt}`].concat(generated);
             ret = ret.concat(instr);
         }
         return ret;
@@ -394,113 +394,104 @@ function asmFooter(): Assembly {
         "RTS",
         "AUX_REG DS 1 ; USED IN ADD INSTRUCTION",
         "BCD DS 3 ; USED IN BIN TO BCD",
-        "stackaccess = $0080",
-        "stackbase = $0000",
+        "; stack.a65 from https://github.com/dourish/mitemon/blob/master/stack.a65",
+        "STACKACCESS = $0080",
+        "STACKBASE = $0000",
 
         "INITSTACK:",
-        "ldx #$FF",
-        "rts",
+        "LDX #$FF",
+        "RTS",
 
         "PUSH16:",
-        "lda stackaccess + 1          ; first byte(big end)",
-        "sta stackbase,X",
-        "dex",
-        "lda stackaccess            ; second byte(little end)",
-        "sta stackbase,X",
-        "dex",
-        "rts",
+        "LDA STACKACCESS + 1",
+        "STA STACKBASE,X",
+        "DEX",
+        "LDA STACKACCESS",
+        "STA STACKBASE,X",
+        "DEX",
+        "RTS",
 
         "POP16:",
-        "lda stackbase + 1,X          ; the little end",
-        "sta stackaccess",
-        "inx",
-        "lda stackbase + 1,X          ; retrieve second byte",
-        "sta stackaccess + 1",
-        "inx",
-        "rts",
+        "LDA STACKBASE + 1,X",
+        "STA STACKACCESS",
+        "INX",
+        "LDA STACKBASE + 1,X",
+        "STA STACKACCESS + 1",
+        "INX",
+        "RTS",
 
-        "dup16:",
-        "lda stackbase + 2,X          ; copy big end byte to next available slot",
-        "sta stackbase,X",
-        "dex",
-        "lda stackbase + 2,X          ; do again for little end",
-        "sta stackbase,X",
-        "dex",
-        "rts",
+        "DUP16:",
+        "LDA STACKBASE + 2,X",
+        "STA STACKBASE,X",
+        "DEX",
+        "LDA STACKBASE + 2,X",
+        "STA STACKBASE,X",
+        "DEX",
+        "RTS",
 
-        "swap16:",
-        "; first, do a dup",
-        "lda stackbase + 2,X; copy big end byte to next available slot",
-        "sta stackbase,X",
-        "dex",
-        "lda stackbase + 2,X; do again for little end",
-        "sta stackbase,X",
-        "dex",
-        "; stack has now grown by one",
-        "; now copy item from slot 3 to slot 2",
-        "; low end byte is already in accumulator",
-        "lda stackbase + 5,X",
-        "sta stackbase + 3,X",
-        "lda stackbase + 6,X",
-        "sta stackbase + 4,X",
-        "; now copy top-of-stack item into slot 3",
-        "lda stackbase + 1,X",
-        "sta stackbase + 5,X",
-        "lda stackbase + 2,X",
-        "sta stackbase + 6,X",
-        "; discard temporary value on the top of the stack",
-        "inx",
-        "inx",
-        "rts",
+        "SWAP16:",
+        "LDA STACKBASE + 2,X",
+        "STA STACKBASE,X",
+        "DEX",
+        "LDA STACKBASE + 2,X",
+        "STA STACKBASE,X",
+        "DEX",
+        "LDA STACKBASE + 5,X",
+        "STA STACKBASE + 3,X",
+        "LDA STACKBASE + 6,X",
+        "STA STACKBASE + 4,X",
+        "LDA STACKBASE + 1,X",
+        "STA STACKBASE + 5,X",
+        "LDA STACKBASE + 2,X",
+        "STA STACKBASE + 6,X",
+        "INX",
+        "INX",
+        "RTS",
 
-        ";; Add the two 16 - byte words on the top of the stack, leaving",
-        ";; the result on the stack in their place.",
         "ADD16:",
-        "clc; clear carry",
-        "lda stackbase + 1,X; add the lower byte",
-        "adc stackbase + 3,X",
-        "sta stackbase + 3,X; put it back in the second slot",
-        "lda stackbase + 2,X; then the upper byte",
-        "adc stackbase + 4,X",
-        "sta stackbase + 4,X; again, back in the second slot",
-        "inx; shink the stack so that sum is now",
-        "inx; in the top slot",
-        "rts",
+        "CLC",
+        "LDA STACKBASE + 1,X;",
+        "ADC STACKBASE + 3,X",
+        "STA STACKBASE + 3,X",
+        "LDA STACKBASE + 2,X",
+        "ADC STACKBASE + 4,X",
+        "STA STACKBASE + 4,X",
+        "INX",
+        "INX",
+        "RTS",
 
-        ";; Subtract the two 16 - byte words on the top of the stack, leaving",
-        ";; the result on the stack in their place.",
         "SUB16:",
-        "sec; set the carry",
-        "lda stackbase + 3,X; substract the lower byte",
-        "sbc stackbase + 1,X",
-        "sta stackbase + 3,X; put it back in the second slot",
-        "lda stackbase + 4,X; then the upper byte",
-        "sbc stackbase + 2,X",
-        "sta stackbase + 4,X; again, back in the second slot",
-        "inx; shink the stack so that result is now",
-        "inx; in the top slot",
-        "rts",
+        "SEC",
+        "LDA STACKBASE + 3,X",
+        "SBC STACKBASE + 1,X",
+        "STA STACKBASE + 3,X",
+        "LDA STACKBASE + 4,X",
+        "SBC STACKBASE + 2,X",
+        "STA STACKBASE + 4,X",
+        "INX",
+        "INX",
+        "RTS",
 
-        "BINBCD16: SED ; Switch to decimal mode",
-        "LDA #0 ; Ensure the result is clear",
+        "BINBCD16: SED",
+        "LDA #0",
         "STA BCD + 0",
         "STA BCD + 1",
         "STA BCD + 2",
-        "LDX #16 ; The number of source bits",
-        "CNVBIT: ASL stackaccess + 0 ; Shift out one bit",
-        "ROL stackaccess + 1",
-        "LDA BCD + 0 ; And add into result",
+        "LDX #16",
+        "CNVBIT: ASL STACKACCESS + 0",
+        "ROL STACKACCESS + 1",
+        "LDA BCD + 0",
         "ADC BCD + 0",
         "STA BCD + 0",
-        "LDA BCD + 1 ; propagating any carry",
+        "LDA BCD + 1",
         "ADC BCD + 1",
         "STA BCD + 1",
-        "LDA BCD + 2 ; ...thru whole result",
+        "LDA BCD + 2",
         "ADC BCD + 2",
         "STA BCD + 2",
-        "DEX ; And repeat for next bit",
+        "DEX",
         "BNE CNVBIT",
-        "CLD; Back to binary",
+        "CLD",
         "RTS",
 
         "PRINT_INT:",
