@@ -8,6 +8,11 @@ enum TokenType {
     EQ,
     GT,    
     TOKEN_COUNT,
+    OPEN_BRACKETS,
+    CLOSE_BRACKETS,
+    IF,
+    EITHER,
+    BLOCK,
 }
 
 enum ValueType {
@@ -32,8 +37,9 @@ type Instruction = {
     txt: string;
     arity: number;
     position: InstructionPosition;
-    priority: number;
+    priority: number | undefined;
     generateAsm: () => Assembly
+    generateBlockPreludeAsm?: (childIndex: number) => Assembly
 };
 
 type Vocabulary = Map<TokenType, Instruction>;
@@ -42,8 +48,9 @@ type AST = ASTElement[];
 
 type ASTElement = {
     token: Token;
-    instruction: Instruction
-    childs: ASTElement[];
+    instruction: Instruction;
+    parent: ASTElement | undefined;
+    childs: AST;
 };
 
 type Listing = Array<Token>;
@@ -99,7 +106,7 @@ function createVocabulary(): Vocabulary {
         txt: "<",
         arity: 2,
         position: InstructionPosition.INFIX,
-        priority: 110,
+        priority: 70,
         // + 4 HI first
         // + 3 LO
         // + 2 HI second
@@ -127,7 +134,7 @@ function createVocabulary(): Vocabulary {
         txt: "=",
         arity: 2,
         position: InstructionPosition.INFIX,
-        priority: 110,
+        priority: 70,
         generateAsm: () => [
             "LDA STACKBASE + 4,X",
             "CMP STACKBASE + 2,X",
@@ -149,7 +156,7 @@ function createVocabulary(): Vocabulary {
         txt: ">",
         arity: 2,
         position: InstructionPosition.INFIX,
-        priority: 110,
+        priority: 70,
         generateAsm: () => [
             "LDA STACKBASE + 2,X",
             "CMP STACKBASE + 4,X",
@@ -167,6 +174,72 @@ function createVocabulary(): Vocabulary {
             "LDA #00",
             "STA STACKBASE + 2",
 
+        ]
+    });
+    voc.set(TokenType.IF, {
+        txt: "if",
+        arity: 2,
+        position: InstructionPosition.PREFIX,
+        priority: 10,
+        generateBlockPreludeAsm: () => [
+            "LDA STACKBASE + 1,X",
+            "BNE NONZERO",
+            "LDA STACKBASE + 2,X",
+            "BNE NONZERO",
+            "JMP endblock ; if all zero",
+            "NONZERO:"
+        ],
+        generateAsm: () => [
+            "endblock:"
+        ],
+    });
+    voc.set(TokenType.EITHER, {
+        txt: "either",
+        arity: 3,
+        position: InstructionPosition.PREFIX,
+        priority: 15,
+        generateBlockPreludeAsm: (n) => n === 1 ? [
+            "LDA STACKBASE + 1,X",
+            "BNE trueblock",
+            "LDA STACKBASE + 2,X",
+            "BNE trueblock",
+            "JMP elseblock ; if all zero",
+            "trueblock:"
+        ] : n === 2 ? [
+            "JMP endblock",
+            "elseblock:"
+        ] : [],
+        generateAsm: () => [
+            "endblock:"
+        ],
+    });
+    voc.set(TokenType.OPEN_BRACKETS, {
+        txt: "[",
+        arity: 0,
+        position: InstructionPosition.PREFIX,
+        priority: 150,
+        generateAsm: () => [
+            "; TODO: ["
+        ]
+    });
+
+    voc.set(TokenType.CLOSE_BRACKETS, {
+        txt: "]",
+        arity: 0,
+        position: InstructionPosition.POSTFIX,
+        priority: 150,
+        generateAsm: () => [
+            "; TODO: ]"
+        ]
+    });
+
+    voc.set(TokenType.BLOCK, {
+        txt: "",
+        arity: 0,
+        position: InstructionPosition.PREFIX,
+        priority: 150,
+        generateAsm: () => [
+            "; TODO"
         ]
     });
 
@@ -220,6 +293,25 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<List
                 // not space, start parsing a word
                 if (char === "/" && index + 1 < text.length && text[index + 1] === "/") {
                     ignore = true;
+                } else if (char === "[") {
+                    const loc = { row, col, filename };
+                    ret.push({ type: TokenType.OPEN_BRACKETS, txt: "[", loc, });
+                } else if (char === "]") {
+                    if (tokenStart > -1) {
+                        // space but was parsing a word
+                        const tokenText = text.substring(tokenStart, index);
+                        const loc = { row, col: colStart, filename };
+                        const type = identifyToken(vocabulary, tokenText);
+                        if (type === undefined) {
+                            logError(loc, `unknown token '${tokenText}'`);
+                            Deno.exit(1);
+                        }
+                        ret.push({ type, txt: tokenText, loc, });
+                        tokenStart = -1;
+                        colStart = -1;
+                    }
+                    const loc = { row, col, filename };
+                    ret.push({ type: TokenType.CLOSE_BRACKETS, txt: "]", loc, });
                 } else {
                     if (tokenStart === -1) {
                         colStart = col;
@@ -251,68 +343,83 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<List
     return ret;
 }
 
-function parse(vocabulary: Vocabulary, program: Listing): AST {
+function parseWithBrackets(vocabulary: Vocabulary, program: Listing): AST {
 
-    let ast = program.map(token => {
-        return {
-            type: "astElement",
-            token,
-            instruction: token.type === TokenType.VALUE ? undefined : vocabulary.get(token.type),
-            childs: [],
-        } as ASTElement;
-    });
+    const ast: AST = [];
+    const stack = [];
+    for (let j = 0; j < program.length; j++) {
+        const token = program[j];
+        if (token.type === TokenType.OPEN_BRACKETS) {
+            stack.push(ast.length);
+        } else if (token.type === TokenType.CLOSE_BRACKETS) {
+            const matchingIndex = stack.pop();
+            if (matchingIndex === undefined) {
+                logError(token.loc, "close brackets not bilanced");
+                Deno.exit(1);
+            }
+            const matchingToken = ast[matchingIndex];
+            const sequence = ast.splice(matchingIndex, j - matchingIndex + 1);
+            //console.log(`sequence from ${matchingIndex} to ${j}`, sequence);
+
+            const block: ASTElement = {
+                token: { type: TokenType.BLOCK, loc: matchingToken.token.loc, txt: "[...]" },
+                instruction: vocabulary.get(TokenType.BLOCK)!,
+                childs: [],
+                parent: undefined
+            };
+            block.childs = parse(sequence).map(element => { return { ...element, parent: block } });
+
+            ast.push(block);
+
+        } else {
+            ast.push({
+                token,
+                instruction: token.type === TokenType.VALUE ? undefined : vocabulary.get(token.type),
+                childs: [],
+                parent: undefined
+            } as ASTElement);
+        }
+    }
+    if (stack.length !== 0) {
+        const token = program[stack.pop()!];
+        logError(token.loc, "open brackets not bilanced");
+        Deno.exit(1);
+    }
+    return parse(ast);
+}
+
+function parse(ast: AST): AST {
 
     const priorityList = [...new Set(ast
-        .filter(element => element.instruction !== undefined)
+        .filter(element => element.instruction !== undefined && element.instruction.priority !== undefined)
         .map(element => element.instruction.priority)
-        .sort((a, b) => b - a)
+        .sort((a, b) => (b ?? 0) - (a ?? 0))
     )];
 
     for (let i = 0; i < priorityList.length; i++) {
         const priority = priorityList[i];
         for (let j = 0; j < ast.length; j++) {
             const element = ast[j];
-            if (element.instruction?.priority === priority) {
-                if (element.instruction.position === InstructionPosition.PREFIX) {
-                    const startPos = j;
-                    const childs = ast.splice(startPos, element.instruction.arity + 1);
-                    if (childs.length !== element.instruction.arity + 1) {
-                        logError(childs[0].token.loc, `the function ${childs[0].instruction.txt} expexts ${childs[0].instruction.arity} parameters, ${childs.length - 1} got!`);
-                        Deno.exit(1);
-                    }
-                    const toInsert = {
-                        ...childs[0], childs: childs.filter((value, index) => index !== 0)
-                    }
-                    ast.splice(startPos, 0, toInsert);
-                    j = startPos;
-                } else if (element.instruction.position === InstructionPosition.INFIX) {
-                    const startPos = j - 1;
-                    const childs = ast.splice(startPos, element.instruction.arity + 1);
-                    if (childs.length !== element.instruction.arity + 1) {
-                        logError(childs[1].token.loc, `the function ${childs[1].instruction.txt} expexts ${childs[1].instruction.arity} parameters, ${childs.length - 1} got!`);
-                        Deno.exit(1);
-                    }
-                    const toInsert = {
-                        ...childs[1], childs: childs.filter((value, index) => index !== 1)
-                    }
-                    ast.splice(startPos, 0, toInsert);
-                    j = startPos;
-                } else if (element.instruction.position === InstructionPosition.POSTFIX) {
-                    const startPos = j - element.instruction.arity;
-                    const childs = ast.splice(startPos, element.instruction.arity + 1);
-                    if (childs.length !== element.instruction.arity + 1) {
-                        logError(childs[childs.length - 1].token.loc, `the function ${childs[childs.length - 1].instruction.txt} expexts ${childs[childs.length - 1].instruction.arity} parameters, ${childs.length - 1} got!`);
-                        Deno.exit(1);
-                    }
-                    const toInsert = {
-                        ...childs[childs.length - 1], childs: childs.filter((value, index) => index !== childs.length - 1)
-                    }
-                    ast.splice(startPos, 0, toInsert);
-                    j = startPos;
-                } else {
-                    throw new Error("ERROR: unknown instruction position: " + element.instruction.position);
+            if (!element.instruction || element.instruction.arity === 0) continue;
+            if (element.token.type === TokenType.VALUE ||
+                element.token.type === TokenType.OPEN_BRACKETS ||
+                element.token.type === TokenType.CLOSE_BRACKETS) continue;
+
+            if (element.instruction.priority === priority) {
+                const instrPos = element.instruction.position;
+                const startPos = instrPos === InstructionPosition.PREFIX ? j : (instrPos === InstructionPosition.INFIX ? j - 1 : j - element.instruction.arity);
+                const childs = ast.splice(startPos, element.instruction.arity + 1);
+                const functionElement = childs[j - startPos];
+                if (childs.length !== element.instruction.arity + 1) {
+                    logError(functionElement.token.loc, `the function ${functionElement.instruction.txt} expexts ${functionElement.instruction.arity} parameters, ${childs.length - 1} got!`);
                     Deno.exit(1);
                 }
+                const childOfTheFunction = childs
+                    .filter((value, index) => index !== j - startPos)
+                    .map(element => { return { ...element, parent: functionElement } });
+                const toInsert = { ...functionElement, childs: childOfTheFunction };
+                ast.splice(startPos, 0, toInsert);
+                j = startPos;
             }
         }
     }
@@ -332,10 +439,14 @@ function compile(ast: AST | ASTElement): Assembly {
         return ret;
     } else {
         let ret: Assembly = [];
-        for (let i = 0; i < ast.childs.length; i++) {
-            const asm = compile(ast.childs[i]);
-            ret = ret.concat(asm)
+
+        for (let i = 0; i < ast.childs.length; i++) {            
+            if (ast.instruction.generateBlockPreludeAsm) {
+                ret = ret.concat(ast.instruction.generateBlockPreludeAsm(i));
+            }
+            ret = ret.concat(compile(ast.childs[i]))
         }
+
         // lets' compile for real
         if (ast.token.type === TokenType.VALUE) {
             ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} VAL ${ast.token.txt}`);
@@ -345,23 +456,25 @@ function compile(ast: AST | ASTElement): Assembly {
             const LSB = parseInt(ast.token.txt) & 255;
             ret.push(`LDA #${LSB}`);
             ret.push(`STA STACKACCESS`);
-            ret.push(`JSR PUSH16`);
+            ret.push(`JSR PUSH16`);        
         } else {
-            const generated = ast.instruction.generateAsm();
-            let maxLabel = 0;
-            for (let i = 0; i < generated.length; i++) {
-                const pos = generated[i].search(/@\d/);
-                if (pos > -1) {
-                    const val = parseInt(generated[i][pos + 1], 10);
-                    if (val > maxLabel) maxLabel = val;
-                    const newLabelIndex = labelIndex + val;
-                    generated[i] = generated[i].substr(0, pos) + "L" + newLabelIndex + generated[i].substr(pos + 2);
-                }
-            }
-            labelIndex = labelIndex + maxLabel;
-            const instr = [`; ${ast.token.loc.row}:${ast.token.loc.col} ${ast.instruction.txt}`].concat(generated);
-            ret = ret.concat(instr);
+            ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} ${ast.token.txt}`);
+            ret = ret.concat(ast.instruction.generateAsm());
         }
+
+        // LABEL NUMBERING
+        let maxLabel = 0;
+        for (let i = 0; i < ret.length; i++) {
+            const pos = ret[i].search(/@\d/);
+            if (pos > -1) {
+                const val = parseInt(ret[i][pos + 1], 10);
+                if (val > maxLabel) maxLabel = val;
+                const newLabelIndex = labelIndex + val;
+                ret[i] = ret[i].substr(0, pos) + "L" + newLabelIndex + ret[i].substr(pos + 2);
+            }
+        }
+        labelIndex = labelIndex + maxLabel;
+
         return ret;
     }
 }
@@ -562,27 +675,33 @@ function asmFooter(): Assembly {
 function dumpProgram(program: Listing) {
     console.log(`-------------------`);
     for (let i = 0; i < program.length; i++) {
-        console.log(`istr: ${program[i].type}, ${program[i].txt}`);
+        const token = program[i];
+        //logError(token.loc, `istr: ${token.type}, ${token.txt}`)
+        console.log(token);
     }
 }
 
 function dumpAst(ast: AST, prefix = "") {
     ast.forEach(element => {
-        console.log(prefix, element.token);
+        //console.log(prefix, element.token, );
+        console.log(prefix, element.token.txt + "(" + element.childs.length + ") parent: " + element.parent?.token.txt);
         dumpAst(element.childs, prefix + "  ");
     });
 }
 
-const filename = "compare.cazz";
+const filename = "if.cazz";
 const basename = filename.substring(0, filename.lastIndexOf('.')) || filename;
 
 const vocabulary = createVocabulary();
 const program = await tokenizer(filename, vocabulary);
-const ast = parse(vocabulary, program);
-dumpAst(ast);
+const ast = parseWithBrackets(vocabulary, program);
+
 const asm = asmHeader().concat(compile(ast)).concat(asmFooter());
 addIndent(asm);
 await Deno.writeTextFile(basename + ".asm", asm.join("\n"));
+//dumpAst(ast);
+//Deno.exit(1);
+
 const dasm = Deno.run({ cmd: ["dasm", basename + ".asm", "-o" + basename + ".prg"] });
 const dasmStatus = await dasm.status();
 if (dasmStatus.success === false) {
