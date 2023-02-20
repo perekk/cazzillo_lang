@@ -1,1 +1,1 @@
-if 1 < 2 [print 69]
+print either 1 < 2 [ 69] [420]
