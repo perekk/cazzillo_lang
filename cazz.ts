@@ -13,11 +13,28 @@ enum TokenType {
     IF,
     EITHER,
     BLOCK,
+    SET_WORD,
+    WORD,
 }
 
 enum ValueType {
     NUMBER,
-    STRING
+    STRING,
+    BOOL,
+    VOID,
+    VALUETYPESCOUNT
+}
+
+function humanReadableType(t: ValueType | undefined): string {
+    if (t === undefined) return "undefined";
+    console.assert(ValueType.VALUETYPESCOUNT === 4);
+    switch (t) {
+        case ValueType.NUMBER: return "number";
+        case ValueType.STRING: return "string";
+        case ValueType.BOOL: return "boolean";
+        case ValueType.VOID: return "void";
+    }
+    throw new Error("Value Type not defined");
 }
 
 type Location = { row: number, col: number, filename: string }
@@ -40,6 +57,8 @@ type Instruction = {
     arity: number;
     position: InstructionPosition;
     priority: number | undefined;
+    ins: (ast: ASTElement) => Array<ValueType>;
+    out: (ast: ASTElement) => ValueType;
     generateAsm: (ast: ASTElement) => Assembly
     generateChildPreludeAsm?: (childIndex: number) => Assembly
 };
@@ -65,6 +84,14 @@ function createVocabulary(): Vocabulary {
         txt: "print",
         arity: 1,
         position: InstructionPosition.PREFIX,
+        ins: (ast) => {
+            if (ast.childs[0].token.valueType === undefined) {
+                logError(ast.token.loc, `cannot determine the type of '${ast.token.txt}'`);
+                Deno.exit(1);
+            }
+            return [ast.childs[0].token.valueType]
+        },
+        out: () => ValueType.VOID,
         priority: 10,
         generateAsm: (ast) => {
             if (ast.childs[0].token.valueType === ValueType.NUMBER) {
@@ -88,6 +115,8 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 80,
+        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        out: () => ValueType.NUMBER,
         generateAsm: (ast) => [
             "JSR ADD16"
         ]
@@ -97,6 +126,8 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 80,
+        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        out: () => ValueType.NUMBER,
         generateAsm: (ast) => [
             "JSR SUB16"
         ]
@@ -106,6 +137,8 @@ function createVocabulary(): Vocabulary {
         arity: 1,
         position: InstructionPosition.POSTFIX,
         priority: 100,
+        ins: () => [ValueType.NUMBER],
+        out: () => ValueType.NUMBER,
         generateAsm: (ast) => [
             "LDX SP16",
             "LDA STACKBASE + 1,X",
@@ -121,6 +154,8 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 70,
+        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        out: () => ValueType.BOOL,
         generateAsm: (ast) => [
             "LDX SP16",
             "LDA STACKBASE + 4,X",
@@ -152,6 +187,8 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 70,
+        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        out: () => ValueType.BOOL,
         generateAsm: (ast) => [
             "LDX SP16",
             "LDA STACKBASE + 4,X",
@@ -180,6 +217,8 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 70,
+        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        out: () => ValueType.BOOL,
         generateAsm: (ast) => [
             "LDX SP16",
             "LDA STACKBASE + 2,X",
@@ -211,6 +250,8 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.PREFIX,
         priority: 10,
+        ins: () => [ValueType.BOOL, ValueType.VOID],
+        out: () => ValueType.VOID,
         generateChildPreludeAsm: (n) => {
             // prelude for the true branch
             if (n === 1) return [
@@ -237,6 +278,26 @@ function createVocabulary(): Vocabulary {
         arity: 3,
         position: InstructionPosition.PREFIX,
         priority: 10,
+        ins: ast => {
+            console.assert(ast.childs.length === 3);
+            const typeThen = ast.childs[1].token.valueType;
+            const typeElse = ast.childs[2].token.valueType;
+            if (typeThen === undefined) {
+                logError(ast.childs[1].token.loc, `cannot determine the type of '${ast.childs[1].token.txt}'`);
+                Deno.exit(1);
+            }
+            if (typeElse === undefined) {
+                logError(ast.childs[2].token.loc, `cannot determine the type of '${ast.childs[2].token.txt}'`);
+                Deno.exit(1);
+            }
+            if (typeThen !== typeElse) {
+                logError(ast.childs[1].token.loc, `the then branch returns '${humanReadableType(typeThen)}'`);
+                logError(ast.childs[2].token.loc, `while the 'else' branch returns '${humanReadableType(typeElse)}'`);
+                Deno.exit(1);
+            }
+            return [ValueType.BOOL, typeThen, typeElse];
+        },
+        out: (ast) => ast.childs[1].token.valueType!,
         generateChildPreludeAsm: (n) => {
             // no prelude for condition
             if (n === 0) return [];
@@ -271,6 +332,8 @@ function createVocabulary(): Vocabulary {
         arity: 0,
         position: InstructionPosition.PREFIX,
         priority: 150,
+        ins: () => [],
+        out: () => ValueType.VOID,
         generateAsm: (ast) => []
     });
     voc.set(TokenType.CLOSE_BRACKETS, {
@@ -278,6 +341,8 @@ function createVocabulary(): Vocabulary {
         arity: 0,
         position: InstructionPosition.POSTFIX,
         priority: 150,
+        ins: () => [],
+        out: () => ValueType.VOID,
         generateAsm: (ast) => []
     });
     voc.set(TokenType.BLOCK, {
@@ -285,6 +350,45 @@ function createVocabulary(): Vocabulary {
         arity: 0,
         position: InstructionPosition.PREFIX,
         priority: 150,
+        ins: (ast) => {
+            if (ast.childs.length === 0) return [];
+            return ast.childs.map(child => child.token.valueType!);
+        },
+        out: (ast) => {
+            if (ast.childs.length === 0) return ValueType.VOID;
+            const lastChild = ast.childs[ast.childs.length - 1];
+            if (lastChild.token.valueType === undefined) {
+                logError(lastChild.token.loc, `cannot determine the type of '${lastChild.token.txt}'`);
+                Deno.exit(1);
+            }
+            return lastChild.token.valueType;
+        },
+        generateAsm: (ast) => []
+    });
+    voc.set(TokenType.SET_WORD, {
+        txt: "",
+        arity: 1,
+        position: InstructionPosition.PREFIX,
+        priority: 10,
+        ins: (ast) => {
+            console.assert(ast.childs.length === 1);
+            const child = ast.childs[0];
+            if (child.token.valueType === undefined) {
+                logError(child.token.loc, `cannot determine the type of '${child.token.txt}'`);
+                Deno.exit(1);
+            }
+            return [child.token.valueType];
+        },
+        out: () => ValueType.VOID,
+        generateAsm: (ast) => []
+    });
+    voc.set(TokenType.WORD, {
+        txt: "",
+        arity: 0,
+        position: InstructionPosition.PREFIX,
+        priority: 10,
+        ins: () => [],
+        out: () => ValueType.NUMBER, // todo: implements a table with variables types.
         generateAsm: (ast) => []
     });
 
@@ -292,6 +396,9 @@ function createVocabulary(): Vocabulary {
 }
 
 function logError(loc: Location, msg: string) {
+    const line = sourceCode.split("\n")[loc.row - 1];
+    console.log(line);
+    console.log(" ".repeat(loc.col - 1) + "^");
     console.error(loc.filename + ":" + loc.row + ":" + loc.col + " ERROR: " + msg);
 }
 
@@ -301,13 +408,15 @@ function identifyToken(vocabulary: Vocabulary, txt: string): { type: TokenType, 
     }
     if (txt.match(/^-?\d+$/)) return { type: TokenType.LITERAL, literalType: ValueType.NUMBER };
     if (txt[0] === '"' && txt[txt.length - 1] === '"') return { type: TokenType.LITERAL, literalType: ValueType.STRING };
+    if (txt[txt.length - 1] === ':') return { type: TokenType.SET_WORD, literalType: undefined };
 
-    return undefined;
+    return { type: TokenType.WORD, literalType: undefined };
 }
 
+let sourceCode: string;
 async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<Listing> {
 
-    const text = await Deno.readTextFile(filename);
+    sourceCode = await Deno.readTextFile(filename);
     let index = 0;
     let tokenStart = -1;
     let colStart = -1;
@@ -326,31 +435,33 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<List
         }
         if (tokenType.type === TokenType.LITERAL && tokenType.literalType === ValueType.STRING) {
             tokenText = tokenText.substring(1, tokenText.length - 1);
+        } else if (tokenType.type === TokenType.SET_WORD) {
+            tokenText = tokenText.substring(0, tokenText.length - 1);
         }
         ret.push({ type: tokenType.type, txt: tokenText, loc, valueType: tokenType.literalType });
     };
 
-    while (index < text.length) {
-        const char = text[index];
+    while (index < sourceCode.length) {
+        const char = sourceCode[index];
 
         if (isSpace(char)) {
             if (tokenStart > -1) {
                 // space but was parsing a word
-                pushToken(text.substring(tokenStart, index));
+                pushToken(sourceCode.substring(tokenStart, index));
                 tokenStart = -1;
                 colStart = -1;
             }
         } else {
             // not space, start parsing a word
-            if (char === "/" && index + 1 < text.length && text[index + 1] === "/") {
-                while (index < text.length && text[index] !== "\n") index++;
+            if (char === "/" && index + 1 < sourceCode.length && sourceCode[index + 1] === "/") {
+                while (index < sourceCode.length && sourceCode[index] !== "\n") index++;
             } else if (char === "[") {
                 const loc = { row, col, filename };
                 ret.push({ type: TokenType.OPEN_BRACKETS, txt: "[", loc, });
             } else if (char === "]") {
                 if (tokenStart > -1) {
                     // space but was parsing a word
-                    pushToken(text.substring(tokenStart, index));
+                    pushToken(sourceCode.substring(tokenStart, index));
                     tokenStart = -1;
                     colStart = -1;
                 }
@@ -361,9 +472,9 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<List
                 colStart = col;
                 stringStart = index;
                 index++;
-                while (index < text.length && text[index] !== '"') index++;
-                index++;
-                pushToken(text.substring(stringStart, index));
+                while (index < sourceCode.length && sourceCode[index] !== '"') index++;
+
+                pushToken(sourceCode.substring(stringStart, index + 1));
 
             } else {
                 if (tokenStart === -1) {
@@ -373,7 +484,6 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<List
             }
         }
 
-
         index++;
         col++;
         if (char === "\n") {
@@ -381,7 +491,7 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<List
             row++;
         }
     }
-    if (tokenStart > -1) pushToken(text.substring(tokenStart));
+    if (tokenStart > -1) pushToken(sourceCode.substring(tokenStart));
 
     return ret;
 }
@@ -470,6 +580,39 @@ function parse(ast: AST): AST {
     }
 
     return ast;
+}
+
+function calculateTypes(ast: AST | ASTElement) {
+
+    traverseAST(ast, element => {
+        if (element.token.valueType !== undefined) return;
+        const typesExpected = element.instruction.ins(element);
+        if (typesExpected.length !== element.childs.length) {
+            logError(element.token.loc, `the number of parameters expected for '${element.token.txt}' is ${typesExpected.length} but got ${element.childs.length}`);
+            Deno.exit(1);
+        }
+        for (let i = 0; i < typesExpected.length; i++) {
+            if (typesExpected[i] !== element.childs[i].token.valueType) {
+                logError(element.childs[i].token.loc, `The parameter in position ${i + 1} is expected to be ${humanReadableType(typesExpected[i])} but got ${humanReadableType(element.childs[i].token.valueType!)}`);
+                Deno.exit(1);
+            }
+        }
+        element.token.valueType = element.instruction.out(element);
+    });
+
+}
+
+function traverseAST(ast: AST | ASTElement, f: (ast: ASTElement) => void) {
+    if (ast instanceof Array) {
+        for (let i = 0; i < ast.length; i++) {
+            traverseAST(ast[i], f);
+        }
+    } else {
+        for (let i = 0; i < ast.childs.length; i++) {
+            traverseAST(ast.childs[i], f);
+        }
+        f.call({}, ast);
+    }
 }
 
 let labelIndex = 0;
@@ -789,27 +932,30 @@ function dumpProgram(program: Listing) {
 function dumpAst(ast: AST, prefix = "") {
     ast.forEach(element => {
         //console.log(prefix, element.token, );
-        console.log(prefix, element.token.txt + "(" + element.childs.length + ") parent: " + element.parent?.token.txt);
-        dumpAst(element.childs, prefix + "  ");
+        const ins = element.childs.map(child => humanReadableType(child.token.valueType!)).join(", ");
+        const out = humanReadableType(element.token.valueType!);
+        console.log(prefix, element.token.txt + " ins: (" + ins + ") out: " + out);
+        dumpAst(element.childs, prefix + "    ");
     });
 }
 
-const filename = "string.cazz";
+const filename = "vars.cazz";
 const basename = filename.substring(0, filename.lastIndexOf('.')) || filename;
 
 console.log("start");
 const vocabulary = createVocabulary();
 const program = await tokenizer(filename, vocabulary);
-dumpProgram(program);
 
 const ast = parseWithBrackets(vocabulary, program);
+calculateTypes(ast);
+
+dumpAst(ast);
+Deno.exit(1);
 
 const asm = asmHeader().concat(compile(ast)).concat(asmFooter());
 addIndent(asm);
 await Deno.writeTextFile(basename + ".asm", asm.join("\n"));
 
-// dumpAst(ast);
-// Deno.exit(1);
 
 const dasm = Deno.run({ cmd: ["dasm", basename + ".asm", "-o" + basename + ".prg"] });
 const dasmStatus = await dasm.status();
