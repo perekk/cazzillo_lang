@@ -1,0 +1,32 @@
+{
+    "compilerOptions": {
+        "allowJs": false,
+        "outDir": "",
+        "sourceMap": true,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "alwaysStrict": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "allowUnusedLabels": false,
+        "pretty": true,
+        "removeComments": true,
+        "module": "es6",
+        "target": "es2019",
+        "lib": [
+            "es7",
+            "dom",
+            "es2017.Object",
+            "es2017",
+            "ES2019.Object"
+        ],
+        "jsx": "preserve",
+        "allowUnreachableCode": false,
+        "strict": true,
+        "strictPropertyInitialization": false
+    },
+
+}
