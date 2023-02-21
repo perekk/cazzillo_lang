@@ -3,7 +3,7 @@ enum TokenType {
     PLUS,
     MINUS,
     PRINT,
-    FACT,
+    NOT,
     LT,
     EQ,
     GT,    
@@ -39,7 +39,7 @@ type Instruction = {
     position: InstructionPosition;
     priority: number | undefined;
     generateAsm: () => Assembly
-    generateBlockPreludeAsm?: (childIndex: number) => Assembly
+    generateChildPreludeAsm?: (childIndex: number) => Assembly
 };
 
 type Vocabulary = Map<TokenType, Instruction>;
@@ -87,18 +87,17 @@ function createVocabulary(): Vocabulary {
             "JSR SUB16"
         ]
     });
-
-    voc.set(TokenType.FACT, {
+    voc.set(TokenType.NOT, {
         txt: "!",
         arity: 1,
         position: InstructionPosition.POSTFIX,
         priority: 100,
         generateAsm: () => [
             "LDA STACKBASE + 1,X",
-            "EOR $FF",
+            "EOR #$FF",
             "STA STACKBASE + 1,X",
             "LDA STACKBASE + 2,X",
-            "EOR $FF",
+            "EOR #$FF",
             "STA STACKBASE + 2,X"
         ]
     });
@@ -107,23 +106,24 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 70,
-        // + 4 HI first
-        // + 3 LO
-        // + 2 HI second
-        // + 1 LO
-        // first < second
         generateAsm: () => [
             "LDA STACKBASE + 4,X",
             "CMP STACKBASE + 2,X",
-            "BCC @1",
-            "BNE @2",
+            "BCC less@",
+            "BNE greaterorequal@",
             "LDA STACKBASE + 3,X",
             "CMP STACKBASE + 1,X",
-            "BCC @1",
-            "@2: LDA #00",
-            "JMP @3",
-            "@1: LDA #01",
-            "@3: INX",
+            "BCC less@",
+
+            "greaterorequal@:",
+            "LDA #00",
+            "JMP store@",
+
+            "less@:",
+            "LDA #01",
+
+            "store@:",
+            "INX",
             "INX",
             "STA STACKBASE + 1,X",
             "LDA #00",
@@ -138,14 +138,18 @@ function createVocabulary(): Vocabulary {
         generateAsm: () => [
             "LDA STACKBASE + 4,X",
             "CMP STACKBASE + 2,X",
-            "BNE @1",
+            "BNE notequal@",
             "LDA STACKBASE + 3,X",
             "CMP STACKBASE + 1,X",
-            "BNE @1",
+            "BNE notequal@",
             "LDA #01",
-            "JMP @2",
-            "@1: LDA #00",
-            "@2: INX",
+            "JMP store@",
+
+            "notequal@:",
+            "LDA #00",
+
+            "store@:",
+            "INX",
             "INX",
             "STA STACKBASE + 1,X",
             "LDA #00",
@@ -160,15 +164,21 @@ function createVocabulary(): Vocabulary {
         generateAsm: () => [
             "LDA STACKBASE + 2,X",
             "CMP STACKBASE + 4,X",
-            "BCC @1",
-            "BNE @2",
+            "BCC greater@",
+            "BNE lessorequal@",
             "LDA STACKBASE + 1,X",
             "CMP STACKBASE + 3,X",
-            "BCC @1",
-            "@2: LDA #00",
-            "JMP @3",
-            "@1: LDA #01",
-            "@3: INX",
+            "BCC greater@:",
+
+            "lessorequal@:",
+            "LDA #00",
+            "JMP result@",
+
+            "greater@:",
+            "LDA #01",
+
+            "result@:",
+            "INX",
             "INX",
             "STA STACKBASE + 1,X",
             "LDA #00",
@@ -181,36 +191,48 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.PREFIX,
         priority: 10,
-        generateBlockPreludeAsm: () => [
-            "LDA STACKBASE + 1,X",
-            "BNE NONZERO",
-            "LDA STACKBASE + 2,X",
-            "BNE NONZERO",
-            "JMP endblock ; if all zero",
-            "NONZERO:"
-        ],
+        generateChildPreludeAsm: (n) => {
+            // prelude for the true branch
+            if (n === 1) return [
+                "LDA STACKBASE + 1,X",
+                "BNE trueblock@",
+                "LDA STACKBASE + 2,X",
+                "BNE trueblock@",
+                "JMP endblock@ ; if all zero",
+                "trueblock@:"
+            ];
+            return [];
+        },
         generateAsm: () => [
-            "endblock:"
+            "endblock@:"
         ],
     });
     voc.set(TokenType.EITHER, {
         txt: "either",
         arity: 3,
         position: InstructionPosition.PREFIX,
-        priority: 15,
-        generateBlockPreludeAsm: (n) => n === 1 ? [
-            "LDA STACKBASE + 1,X",
-            "BNE trueblock",
-            "LDA STACKBASE + 2,X",
-            "BNE trueblock",
-            "JMP elseblock ; if all zero",
-            "trueblock:"
-        ] : n === 2 ? [
-            "JMP endblock",
-            "elseblock:"
-        ] : [],
+        priority: 10,
+        generateChildPreludeAsm: (n) => {
+            // no prelude for condition
+            if (n === 0) return [];
+
+            // prelude for true branch
+            if (n === 1) return [
+                "LDA STACKBASE + 1,X",
+                "BNE trueblock@",
+                "LDA STACKBASE + 2,X",
+                "BNE trueblock@",
+                "JMP elseblock@ ; if all zero",
+                "trueblock@:"
+            ]
+            // prelude for else branch
+            return [
+                "JMP endblock@",
+                "elseblock@:"
+            ];
+        },
         generateAsm: () => [
-            "endblock:"
+            "endblock@:"
         ],
     });
     voc.set(TokenType.OPEN_BRACKETS, {
@@ -218,29 +240,21 @@ function createVocabulary(): Vocabulary {
         arity: 0,
         position: InstructionPosition.PREFIX,
         priority: 150,
-        generateAsm: () => [
-            "; TODO: ["
-        ]
+        generateAsm: () => []
     });
-
     voc.set(TokenType.CLOSE_BRACKETS, {
         txt: "]",
         arity: 0,
         position: InstructionPosition.POSTFIX,
         priority: 150,
-        generateAsm: () => [
-            "; TODO: ]"
-        ]
+        generateAsm: () => []
     });
-
     voc.set(TokenType.BLOCK, {
         txt: "",
         arity: 0,
         position: InstructionPosition.PREFIX,
         priority: 150,
-        generateAsm: () => [
-            "; TODO"
-        ]
+        generateAsm: () => []
     });
 
     return voc;
@@ -398,29 +412,31 @@ function parse(ast: AST): AST {
 
     for (let i = 0; i < priorityList.length; i++) {
         const priority = priorityList[i];
-        for (let j = 0; j < ast.length; j++) {
+        for (let j = ast.length - 1; j >= 0; j--) {
             const element = ast[j];
             if (!element.instruction || element.instruction.arity === 0) continue;
-            if (element.token.type === TokenType.VALUE ||
-                element.token.type === TokenType.OPEN_BRACKETS ||
-                element.token.type === TokenType.CLOSE_BRACKETS) continue;
+            if (element.token.type === TokenType.VALUE) continue;
+            if (element.token.type === TokenType.OPEN_BRACKETS || element.token.type === TokenType.CLOSE_BRACKETS) {
+                logError(element.token.loc, `found open or closed brackets in parse, this should not happen`);
+                Deno.exit(1);
+            }
+            if (element.instruction.priority !== priority) continue;
 
-            if (element.instruction.priority === priority) {
-                const instrPos = element.instruction.position;
-                const startPos = instrPos === InstructionPosition.PREFIX ? j : (instrPos === InstructionPosition.INFIX ? j - 1 : j - element.instruction.arity);
-                const childs = ast.splice(startPos, element.instruction.arity + 1);
-                const functionElement = childs[j - startPos];
-                if (childs.length !== element.instruction.arity + 1) {
-                    logError(functionElement.token.loc, `the function ${functionElement.instruction.txt} expexts ${functionElement.instruction.arity} parameters, ${childs.length - 1} got!`);
-                    Deno.exit(1);
-                }
-                const childOfTheFunction = childs
+            const instrPos = element.instruction.position;
+            const startPos = instrPos === InstructionPosition.PREFIX ? j : (instrPos === InstructionPosition.INFIX ? j - 1 : j - element.instruction.arity);
+            const childs = ast.splice(startPos, element.instruction.arity + 1);
+            const functionElement = childs[j - startPos];
+            if (childs.length !== element.instruction.arity + 1) {
+                logError(functionElement.token.loc, `the function ${functionElement.instruction.txt} expexts ${functionElement.instruction.arity} parameters, ${childs.length - 1} got!`);
+                Deno.exit(1);
+            }
+            const childsOfTheFunction = childs
                     .filter((value, index) => index !== j - startPos)
                     .map(element => { return { ...element, parent: functionElement } });
-                const toInsert = { ...functionElement, childs: childOfTheFunction };
-                ast.splice(startPos, 0, toInsert);
-                j = startPos;
-            }
+            const toInsert = { ...functionElement, childs: childsOfTheFunction };
+            ast.splice(startPos, 0, toInsert);
+            j = startPos;
+
         }
     }
 
@@ -441,8 +457,8 @@ function compile(ast: AST | ASTElement): Assembly {
         let ret: Assembly = [];
 
         for (let i = 0; i < ast.childs.length; i++) {            
-            if (ast.instruction.generateBlockPreludeAsm) {
-                ret = ret.concat(ast.instruction.generateBlockPreludeAsm(i));
+            if (ast.instruction.generateChildPreludeAsm) {
+                ret = ret.concat(ast.instruction.generateChildPreludeAsm(i));
             }
             ret = ret.concat(compile(ast.childs[i]))
         }
@@ -462,19 +478,11 @@ function compile(ast: AST | ASTElement): Assembly {
             ret = ret.concat(ast.instruction.generateAsm());
         }
 
-        // LABEL NUMBERING
-        let maxLabel = 0;
+        // LABEL NUMBERING, EACH @ found in instructions is changed to labelIndex        
         for (let i = 0; i < ret.length; i++) {
-            const pos = ret[i].search(/@\d/);
-            if (pos > -1) {
-                const val = parseInt(ret[i][pos + 1], 10);
-                if (val > maxLabel) maxLabel = val;
-                const newLabelIndex = labelIndex + val;
-                ret[i] = ret[i].substr(0, pos) + "L" + newLabelIndex + ret[i].substr(pos + 2);
-            }
+            ret[i] = ret[i].replace("@", String(labelIndex));
         }
-        labelIndex = labelIndex + maxLabel;
-
+        labelIndex++;
         return ret;
     }
 }
@@ -695,12 +703,12 @@ const basename = filename.substring(0, filename.lastIndexOf('.')) || filename;
 const vocabulary = createVocabulary();
 const program = await tokenizer(filename, vocabulary);
 const ast = parseWithBrackets(vocabulary, program);
+// dumpAst(ast);
+// Deno.exit(1);
 
 const asm = asmHeader().concat(compile(ast)).concat(asmFooter());
 addIndent(asm);
 await Deno.writeTextFile(basename + ".asm", asm.join("\n"));
-//dumpAst(ast);
-//Deno.exit(1);
 
 const dasm = Deno.run({ cmd: ["dasm", basename + ".asm", "-o" + basename + ".prg"] });
 const dasmStatus = await dasm.status();

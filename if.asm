@@ -3,10 +3,10 @@
 	HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00
 	ORG $0810 ; MY PROGRAM STARTS HERE
 	JSR INITSTACK
-	; 1:14 VAL 2
+	; 1:14 VAL 3
 	LDA #0
 	STA STACKACCESS+1
-	LDA #2
+	LDA #3
 	STA STACKACCESS
 	JSR PUSH16
 	; 1:18 VAL 2
@@ -18,45 +18,53 @@
 	; 1:16 <
 	LDA STACKBASE + 4,X
 	CMP STACKBASE + 2,X
-	BCC L1
-	BNE L2
+	BCC less2
+	BNE greaterorequal2
 	LDA STACKBASE + 3,X
 	CMP STACKBASE + 1,X
-	BCC L1
-L2: LDA #00
-	JMP L3
-L1: LDA #01
-L3: INX
+	BCC less2
+greaterorequal2:
+	LDA #00
+	JMP store2
+less2:
+	LDA #01
+store2:
+	INX
 	INX
 	STA STACKBASE + 1,X
 	LDA #00
 	STA STACKBASE + 2
 	LDA STACKBASE + 1,X
-	BNE trueblock
+	BNE trueblock8
 	LDA STACKBASE + 2,X
-	BNE trueblock
-	JMP elseblock ; if all zero
-trueblock:
-	; 1:22 VAL 69
+	BNE trueblock8
+	JMP elseblock8 ; if all zero
+trueblock8:
+	; 1:21 VAL 69
 	LDA #0
 	STA STACKACCESS+1
 	LDA #69
 	STA STACKACCESS
 	JSR PUSH16
-	; 1:22 [...]
-	; TODO
-	JMP endblock
-elseblock:
-	; 1:27 VAL 420
+	; 1:21 [...]
+	JMP endblock8
+elseblock8:
+	; 1:25 VAL 420
 	LDA #1
 	STA STACKACCESS+1
 	LDA #164
 	STA STACKACCESS
 	JSR PUSH16
-	; 1:27 [...]
-	; TODO
+	; 1:29 !
+	LDA STACKBASE + 1,X
+	EOR #$FF
+	STA STACKBASE + 1,X
+	LDA STACKBASE + 2,X
+	EOR #$FF
+	STA STACKBASE + 2,X
+	; 1:25 [...]
 	; 1:7 either
-endblock:
+endblock8:
 	; 1:1 print
 	JSR POP16
 	JSR PRINT_INT
