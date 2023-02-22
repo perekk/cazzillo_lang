@@ -52,14 +52,16 @@ enum InstructionPosition {
     POSTFIX,
 }
 
+type VarsDefinition = Map<string, [ASTElement, ValueType]>;
+
 type Instruction = {
     txt: string;
     arity: number;
     position: InstructionPosition;
     priority: number | undefined;
     ins: (ast: ASTElement) => Array<ValueType>;
-    out: (ast: ASTElement) => ValueType;
-    generateAsm: (ast: ASTElement) => Assembly
+    out: (ast: ASTElement, vars: VarsDefinition) => ValueType;
+    generateAsm: (ast: ASTElement, vars: VarsDefinition) => Assembly
     generateChildPreludeAsm?: (childIndex: number) => Assembly
 };
 
@@ -88,12 +90,13 @@ function createVocabulary(): Vocabulary {
             if (ast.childs[0].token.valueType === undefined) {
                 logError(ast.token.loc, `cannot determine the type of '${ast.token.txt}'`);
                 Deno.exit(1);
-            }
+            }            
             return [ast.childs[0].token.valueType]
         },
         out: () => ValueType.VOID,
         priority: 10,
         generateAsm: (ast) => {
+            console.assert(ValueType.VALUETYPESCOUNT === 4);
             if (ast.childs[0].token.valueType === ValueType.NUMBER) {
                 return [
                     "JSR POP16",
@@ -105,7 +108,24 @@ function createVocabulary(): Vocabulary {
                     "LDA #13",
                     "JSR $FFD2",
                 ];
+            } else if (ast.childs[0].token.valueType === ValueType.BOOL) {
+                return [
+                    "JSR POP16",
+                    "LDA STACKACCESS",
+                    "BNE print_true@",
+                    "LDA STACKACCESS + 1",
+                    "BNE print_true@",
+                    "LDA #78 ; 'N'",
+                    "JMP print_bool@",
+                    "print_true@:",
+                    "LDA #89 ; 'Y'",
+                    "print_bool@:",
+                    "JSR $FFD2",
+                    "LDA #13",
+                    "JSR $FFD2",
+                ];
             } else {
+                logError(ast.token.loc, `print of ${humanReadableType(ast.childs[0].token.valueType)} is not supported`)
                 Deno.exit(1);
             }
         }
@@ -146,7 +166,13 @@ function createVocabulary(): Vocabulary {
             "STA STACKBASE + 1,X",
             "LDA STACKBASE + 2,X",
             "EOR #$FF",
-            "STA STACKBASE + 2,X"
+            "STA STACKBASE + 2,X",
+            "LDA #2",
+            "STA STACKACCESS",
+            "LDA #0",
+            "STA STACKACCESS + 1",
+            "JSR PUSH16",
+            "JSR ADD16",
         ]
     });
     voc.set(TokenType.LT, {
@@ -323,8 +349,7 @@ function createVocabulary(): Vocabulary {
             "LDX SP16",
             "INX",
             "INX",
-            "STX SP16",
-            "endblock@:"
+            "STX SP16",            
         ],
     });
     voc.set(TokenType.OPEN_BRACKETS, {
@@ -380,7 +405,51 @@ function createVocabulary(): Vocabulary {
             return [child.token.valueType];
         },
         out: () => ValueType.VOID,
-        generateAsm: (ast) => []
+        generateAsm: (ast, vars) => {
+            const varName = ast.token.txt;
+            const variable = vars.get(varName);
+            if (variable === undefined) {
+                logError(ast.token.loc, `cannot find declaration for '${varName}', typechecker error`);
+                Deno.exit(1);
+            }
+            const varType = variable[1];
+            const asmVarName = "V_" + varName;
+            console.assert(ValueType.VALUETYPESCOUNT === 4);
+            switch (varType) {
+                case ValueType.BOOL:
+                    return [
+                        `JSR POP16`,
+                        `LDA STACKACCESS`,
+                        `STA ${asmVarName}`,
+                    ];
+                case ValueType.NUMBER:
+                    return [
+                        `JSR POP16`,
+                        `LDA STACKACCESS`,
+                        `STA ${asmVarName}`,
+                        `LDA STACKACCESS + 1`,
+                        `STA ${asmVarName} + 1`,
+                    ];
+                case ValueType.STRING:
+                    return [
+                        `JSR POP16`,
+                        `LDA STACKACCESS`,
+                        `STA ${asmVarName} + 2`,
+                        `LDA STACKACCESS + 1`,
+                        `STA ${asmVarName} + 3`,
+
+                        `JSR POP16`,
+                        `LDA STACKACCESS`,
+                        `STA ${asmVarName}`,
+                        `LDA STACKACCESS + 1`,
+                        `STA ${asmVarName} + 1`,
+                    ];
+
+                default:
+                    logError(ast.token.loc, `cannot compile asm to retrieve value for '${varName}' of '${humanReadableType(varType)}' type`);
+                    Deno.exit(1);
+            }
+        },
     });
     voc.set(TokenType.WORD, {
         txt: "",
@@ -388,8 +457,60 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.PREFIX,
         priority: 10,
         ins: () => [],
-        out: () => ValueType.NUMBER, // todo: implements a table with variables types.
-        generateAsm: (ast) => []
+        out: (ast, vars) => {
+            if (vars.has(ast.token.txt)) {
+                const declaration = vars.get(ast.token.txt)!;
+                return declaration[1];
+            }
+            logError(ast.token.loc, `variable '${ast.token.txt}' not declared`);
+            Deno.exit(1);
+        },
+        generateAsm: (ast, vars) => {
+            const varName = ast.token.txt;
+            const variable = vars.get(varName);
+            if (variable === undefined) {
+                logError(ast.token.loc, `cannot find declaration for '${varName}', typechecker error`);
+                Deno.exit(1);
+            }
+            const varType = variable[1];
+            const asmVarName = "V_" + varName;
+            console.assert(ValueType.VALUETYPESCOUNT === 4);
+            switch (varType) {
+                case ValueType.BOOL:
+                    return [
+                        `LDA ${asmVarName}`,
+                        `STA STACKACCESS`,
+                        `LDA #0`,
+                        `STA STACKACCESS + 1`,
+                        `JSR PUSH16`
+                    ];
+                case ValueType.NUMBER:
+                    return [
+                        `LDA ${asmVarName}`,
+                        `STA STACKACCESS`,
+                        `LDA ${asmVarName} + 1`,
+                        `STA STACKACCESS + 1`,
+                        `JSR PUSH16`
+                    ];
+                case ValueType.STRING:
+                    return [
+                        `LDA ${asmVarName}`,
+                        `STA STACKACCESS`,
+                        `LDA ${asmVarName} + 1`,
+                        `STA STACKACCESS + 1`,
+                        `JSR PUSH16`,
+                        `LDA ${asmVarName} + 2`,
+                        `STA STACKACCESS`,
+                        `LDA ${asmVarName} + 3`,
+                        `STA STACKACCESS + 1`,
+                        `JSR PUSH16`
+                    ];
+
+                default:
+                    logError(ast.token.loc, `cannot compile asm to retrieve value for '${varName}' of '${humanReadableType(varType)}' type`);
+                    Deno.exit(1);
+            }
+        }
     });
 
     return voc;
@@ -582,26 +703,6 @@ function parse(ast: AST): AST {
     return ast;
 }
 
-function calculateTypes(ast: AST | ASTElement) {
-
-    traverseAST(ast, element => {
-        if (element.token.valueType !== undefined) return;
-        const typesExpected = element.instruction.ins(element);
-        if (typesExpected.length !== element.childs.length) {
-            logError(element.token.loc, `the number of parameters expected for '${element.token.txt}' is ${typesExpected.length} but got ${element.childs.length}`);
-            Deno.exit(1);
-        }
-        for (let i = 0; i < typesExpected.length; i++) {
-            if (typesExpected[i] !== element.childs[i].token.valueType) {
-                logError(element.childs[i].token.loc, `The parameter in position ${i + 1} is expected to be ${humanReadableType(typesExpected[i])} but got ${humanReadableType(element.childs[i].token.valueType!)}`);
-                Deno.exit(1);
-            }
-        }
-        element.token.valueType = element.instruction.out(element);
-    });
-
-}
-
 function traverseAST(ast: AST | ASTElement, f: (ast: ASTElement) => void) {
     if (ast instanceof Array) {
         for (let i = 0; i < ast.length; i++) {
@@ -615,14 +716,36 @@ function traverseAST(ast: AST | ASTElement, f: (ast: ASTElement) => void) {
     }
 }
 
+function calculateTypes(ast: AST | ASTElement): VarsDefinition {
+
+    const ret: VarsDefinition = new Map();
+    traverseAST(ast, element => {
+        if (element.token.valueType !== undefined) return;
+        const typesExpected = element.instruction.ins(element);
+        if (typesExpected.length !== element.childs.length) {
+            logError(element.token.loc, `the number of parameters expected for '${element.token.txt}' is ${typesExpected.length} but got ${element.childs.length}`);
+            Deno.exit(1);
+        }
+        for (let i = 0; i < typesExpected.length; i++) {
+            if (typesExpected[i] !== element.childs[i].token.valueType) {
+                logError(element.childs[i].token.loc, `The parameter in position ${i + 1} is expected to be ${humanReadableType(typesExpected[i])} but got ${humanReadableType(element.childs[i].token.valueType!)}`);
+                Deno.exit(1);
+            }
+        }
+        element.token.valueType = element.instruction.out(element, ret);
+        if (element.token.type === TokenType.SET_WORD) ret.set(element.token.txt, [element, element.instruction.ins(element)[0]]);
+    });
+    return ret;
+}
+
 let labelIndex = 0;
 let stringTable: string[] = [];
 
-function compile(ast: AST | ASTElement): Assembly {
+function compile(ast: AST | ASTElement, setWords: VarsDefinition): Assembly {
     if (ast instanceof Array) {
         let ret: Assembly = [];
         for (let i = 0; i < ast.length; i++) {
-            const asm = compile(ast[i]);
+            const asm = compile(ast[i], setWords);
             ret = ret.concat(asm)
         }
         return ret;
@@ -633,7 +756,7 @@ function compile(ast: AST | ASTElement): Assembly {
             if (ast.instruction.generateChildPreludeAsm) {
                 ret = ret.concat(ast.instruction.generateChildPreludeAsm(i));
             }
-            ret = ret.concat(compile(ast.childs[i]))
+            ret = ret.concat(compile(ast.childs[i], setWords))
         }
 
         // lets' compile for real
@@ -674,7 +797,7 @@ function compile(ast: AST | ASTElement): Assembly {
             }
         } else {
             ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} ${ast.token.txt}`);
-            ret = ret.concat(ast.instruction.generateAsm(ast));
+            ret = ret.concat(ast.instruction.generateAsm(ast, setWords));
         }
 
         // LABEL NUMBERING, EACH @ found in instructions is changed to labelIndex        
@@ -709,7 +832,7 @@ function asmHeader(): Assembly {
     ]
 }
 
-function asmFooter(): Assembly {
+function asmFooter(setwords: VarsDefinition): Assembly {
     const lib = [
         "RTS",
         "BCD DS 3 ; USED IN BIN TO BCD",
@@ -908,7 +1031,7 @@ function asmFooter(): Assembly {
         "JSR $FFD2",
         "RTS",
     ]
-    const strings = stringTable.map((str, index) => {
+    const literalStrings = stringTable.map((str, index) => {
         const bytes: string[] = [];
         for (let i = 0; i < str.length; i++) {
             bytes.push(String(str[i].charCodeAt(0) & 255));
@@ -917,7 +1040,32 @@ function asmFooter(): Assembly {
         return `str${index}: BYTE ${strBytes}`;
     });
 
-    return lib.concat(strings);
+    const vars: string[] = [];
+    setwords.forEach((value, key) => {
+        const variableName = "V_" + key;
+        if (value[0].instruction.ins.length === 0) {
+            logError(value[0].token.loc, `cannot determine the value type stored in word '${value[0].token.txt}', it does not have inputs value types`);
+            Deno.exit(1);
+        }
+        const valueType = value[1];
+        if (valueType === ValueType.VOID) {
+            logError(value[0].token.loc, "cannot reserve memory for VOID value type");
+            Deno.exit(1);
+        }
+
+        if (valueType === ValueType.NUMBER) {
+            vars.push(`${variableName} DS 2`);
+        }
+        if (valueType === ValueType.STRING) {
+            vars.push(`${variableName} DS 4`);
+        }
+        if (valueType === ValueType.BOOL) {
+            vars.push(`${variableName} DS 1`);
+        }
+
+    });
+
+    return lib.concat(literalStrings).concat(vars);
 }
 
 function dumpProgram(program: Listing) {
@@ -947,15 +1095,12 @@ const vocabulary = createVocabulary();
 const program = await tokenizer(filename, vocabulary);
 
 const ast = parseWithBrackets(vocabulary, program);
-calculateTypes(ast);
-
+const setWords = calculateTypes(ast);
 dumpAst(ast);
-Deno.exit(1);
 
-const asm = asmHeader().concat(compile(ast)).concat(asmFooter());
+const asm = asmHeader().concat(compile(ast, setWords)).concat(asmFooter(setWords));
 addIndent(asm);
 await Deno.writeTextFile(basename + ".asm", asm.join("\n"));
-
 
 const dasm = Deno.run({ cmd: ["dasm", basename + ".asm", "-o" + basename + ".prg"] });
 const dasmStatus = await dasm.status();
