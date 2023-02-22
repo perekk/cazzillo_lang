@@ -1,7 +1,10 @@
-a: "PIPPO"
+a: "CAZZ"
 b: 4234
 c: 123 + b
 d: 1 = 2
 e: 1 !
 
-print a print b print c print d print e
+[print a print b print c print d print e]
+
+f: [print 4 + 1 = 1 "ILLO"]
+print f

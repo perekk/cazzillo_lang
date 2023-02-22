@@ -6,8 +6,7 @@ enum TokenType {
     NOT,
     LT,
     EQ,
-    GT,
-    TOKEN_COUNT,
+    GT,    
     OPEN_BRACKETS,
     CLOSE_BRACKETS,
     IF,
@@ -15,6 +14,8 @@ enum TokenType {
     BLOCK,
     SET_WORD,
     WORD,
+    WHILE,
+    TOKEN_COUNT
 }
 
 enum ValueType {
@@ -281,10 +282,10 @@ function createVocabulary(): Vocabulary {
         generateChildPreludeAsm: (n) => {
             // prelude for the true branch
             if (n === 1) return [
-                "LDX SP16",
-                "LDA STACKBASE + 1,X",
+                "JSR POP16",
+                "LDA STACKACCESS",
                 "BNE trueblock@",
-                "LDA STACKBASE + 2,X",
+                "LDA STACKACCESS + 1",
                 "BNE trueblock@",
                 "JMP endblock@ ; if all zero",
                 "trueblock@:",
@@ -292,10 +293,6 @@ function createVocabulary(): Vocabulary {
             return [];
         },
         generateAsm: (ast) => [
-            "LDX SP16",
-            "INX",
-            "INX",
-            "STX SP16",
             "endblock@:"
         ],
     });
@@ -330,10 +327,10 @@ function createVocabulary(): Vocabulary {
 
             // prelude for true branch
             if (n === 1) return [
-                "LDX SP16",
-                "LDA STACKBASE + 1,X",
+                "JSR POP16",
+                "LDA STACKACCESS",
                 "BNE trueblock@",
-                "LDA STACKBASE + 2,X",
+                "LDA STACKACCESS + 1",
                 "BNE trueblock@",
                 "JMP elseblock@ ; if all zero",
                 "trueblock@:"
@@ -346,10 +343,6 @@ function createVocabulary(): Vocabulary {
         },
         generateAsm: (ast) => [
             "endblock@:",
-            "LDX SP16",
-            "INX",
-            "INX",
-            "STX SP16",            
         ],
     });
     voc.set(TokenType.OPEN_BRACKETS, {
@@ -376,8 +369,9 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.PREFIX,
         priority: 150,
         ins: (ast) => {
-            if (ast.childs.length === 0) return [];
-            return ast.childs.map(child => child.token.valueType!);
+            const childNumber = ast.childs.length;
+            if (childNumber === 0) return [];
+            return ast.childs.map((child, index) => index === childNumber - 1 ? child.token.valueType! : ValueType.VOID);
         },
         out: (ast) => {
             if (ast.childs.length === 0) return ValueType.VOID;
@@ -400,6 +394,10 @@ function createVocabulary(): Vocabulary {
             const child = ast.childs[0];
             if (child.token.valueType === undefined) {
                 logError(child.token.loc, `cannot determine the type of '${child.token.txt}'`);
+                Deno.exit(1);
+            }
+            if (child.token.valueType === ValueType.VOID) {
+                logError(ast.token.loc, `can't store 'void' values in variables`);
                 Deno.exit(1);
             }
             return [child.token.valueType];
@@ -462,7 +460,7 @@ function createVocabulary(): Vocabulary {
                 const declaration = vars.get(ast.token.txt)!;
                 return declaration[1];
             }
-            logError(ast.token.loc, `variable '${ast.token.txt}' not declared`);
+            logError(ast.token.loc, `unknown token '${ast.token.txt}'`);
             Deno.exit(1);
         },
         generateAsm: (ast, vars) => {
@@ -512,7 +510,36 @@ function createVocabulary(): Vocabulary {
             }
         }
     });
-
+    voc.set(TokenType.WHILE, {
+        txt: "while",
+        arity: 2,
+        position: InstructionPosition.PREFIX,
+        priority: 10,
+        ins: () => [ValueType.BOOL, ValueType.VOID],
+        out: () => ValueType.VOID,
+        generateChildPreludeAsm: (n) => {
+            // prelude for the true branch
+            if (n === 0) {
+                return [
+                    "startloop@:"
+                ];
+            } else {
+                return [
+                    "JSR POP16",
+                    "LDA STACKACCESS",
+                    "BNE trueblock@",
+                    "LDA STACKACCESS + 1",
+                    "BNE trueblock@",
+                    "JMP endblock@ ; if all zero",
+                    "trueblock@:",
+                ];
+            }
+        },
+        generateAsm: (ast) => [
+            "JMP startloop@",
+            "endblock@:",
+        ],
+    });
     return voc;
 }
 
@@ -1082,13 +1109,24 @@ function dumpAst(ast: AST, prefix = "") {
         //console.log(prefix, element.token, );
         const ins = element.childs.map(child => humanReadableType(child.token.valueType!)).join(", ");
         const out = humanReadableType(element.token.valueType!);
-        console.log(prefix, element.token.txt + " ins: (" + ins + ") out: " + out);
+        console.log(prefix, element.token.txt + " (" + ins + ")=>" + out + " parent:" + element.parent?.token.txt);
         dumpAst(element.childs, prefix + "    ");
     });
 }
+function usage() {
 
-const filename = "vars.cazz";
-const basename = filename.substring(0, filename.lastIndexOf('.')) || filename;
+}
+
+if (Deno.args.length !== 1) {
+    usage();
+    Deno.exit(1);
+}
+
+console.log(Deno.args)
+
+const argFilename = Deno.args[0];
+const basename = argFilename.substring(0, argFilename.lastIndexOf('.')) || argFilename;
+const filename = basename + ".cazz";
 
 console.log("start");
 const vocabulary = createVocabulary();
