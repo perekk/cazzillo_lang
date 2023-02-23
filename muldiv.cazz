@@ -1,0 +1,30 @@
+a: 1
+while a < 11 [
+    b: 1
+    while b < 11 [
+        c: a * b
+        if c < 10 prin " "        
+        prin a * b
+        prin " "
+        b: b + 1
+    ]
+    a: a + 1
+    nl
+]
+
+print "------------------------------"
+
+a: 7 * 8
+print a
+
+a: 100 * 111
+print a
+
+a: 16 / 2
+print a
+
+a: 256 % 50
+print a
+
+//b: 256 / 4
+//print b

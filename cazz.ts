@@ -2,7 +2,12 @@ enum TokenType {
     LITERAL,
     PLUS,
     MINUS,
+    MULT,
+    DIV,
+    MOD,
     PRINT,
+    PRIN,
+    NL,
     NOT,
     LT,
     EQ,
@@ -15,7 +20,10 @@ enum TokenType {
     SET_WORD,
     WORD,
     WHILE,
+    POKE,
+    PEEK,
     TOKEN_COUNT
+
 }
 
 enum ValueType {
@@ -55,9 +63,16 @@ enum InstructionPosition {
 
 type VarsDefinition = Map<string, [ASTElement, ValueType]>;
 
+function getArity(instr: Instruction): number {
+    if (instr === undefined) return 0;
+    if (instr.position === InstructionPosition.INFIX) return 2;
+    if (instr.position === InstructionPosition.POSTFIX) return 1;
+    return instr.arity;
+}
+
 type Instruction = {
     txt: string;
-    arity: number;
+    arity: number;    
     position: InstructionPosition;
     priority: number | undefined;
     ins: (ast: ASTElement) => Array<ValueType>;
@@ -101,7 +116,9 @@ function createVocabulary(): Vocabulary {
             if (ast.childs[0].token.valueType === ValueType.NUMBER) {
                 return [
                     "JSR POP16",
-                    "JSR PRINT_INT"
+                    "JSR PRINT_INT",
+                    "LDA #13",
+                    "JSR $FFD2",
                 ];
             } else if (ast.childs[0].token.valueType === ValueType.STRING) {
                 return [
@@ -131,6 +148,62 @@ function createVocabulary(): Vocabulary {
             }
         }
     });
+    voc.set(TokenType.PRIN, {
+        txt: "prin",
+        arity: 1,
+        position: InstructionPosition.PREFIX,
+        ins: (ast) => {
+            if (ast.childs[0].token.valueType === undefined) {
+                logError(ast.token.loc, `cannot determine the type of '${ast.token.txt}'`);
+                Deno.exit(1);
+            }
+            return [ast.childs[0].token.valueType]
+        },
+        out: () => ValueType.VOID,
+        priority: 10,
+        generateAsm: (ast) => {
+            console.assert(ValueType.VALUETYPESCOUNT === 4);
+            if (ast.childs[0].token.valueType === ValueType.NUMBER) {
+                return [
+                    "JSR POP16",
+                    "JSR PRINT_INT",
+                ];
+            } else if (ast.childs[0].token.valueType === ValueType.STRING) {
+                return [
+                    "JSR PRINT_STRING",
+                ];
+            } else if (ast.childs[0].token.valueType === ValueType.BOOL) {
+                return [
+                    "JSR POP16",
+                    "LDA STACKACCESS",
+                    "BNE print_true@",
+                    "LDA STACKACCESS + 1",
+                    "BNE print_true@",
+                    "LDA #78 ; 'N'",
+                    "JMP print_bool@",
+                    "print_true@:",
+                    "LDA #89 ; 'Y'",
+                    "print_bool@:",
+                    "JSR $FFD2",
+                ];
+            } else {
+                logError(ast.token.loc, `print of ${humanReadableType(ast.childs[0].token.valueType)} is not supported`)
+                Deno.exit(1);
+            }
+        }
+    });
+    voc.set(TokenType.NL, {
+        txt: "nl",
+        arity: 0,
+        position: InstructionPosition.PREFIX,
+        ins: (ast) => [],
+        out: () => ValueType.VOID,
+        priority: 10,
+        generateAsm: () => [
+            "LDA #13",
+            "JSR $FFD2",
+        ],
+    });
     voc.set(TokenType.PLUS, {
         txt: "+",
         arity: 2,
@@ -151,6 +224,39 @@ function createVocabulary(): Vocabulary {
         out: () => ValueType.NUMBER,
         generateAsm: (ast) => [
             "JSR SUB16"
+        ]
+    });
+    voc.set(TokenType.MULT, {
+        txt: "*",
+        arity: 2,
+        position: InstructionPosition.INFIX,
+        priority: 90,
+        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        out: () => ValueType.NUMBER,
+        generateAsm: (ast) => [
+            "JSR MUL16"
+        ]
+    });
+    voc.set(TokenType.DIV, {
+        txt: "/",
+        arity: 2,
+        position: InstructionPosition.INFIX,
+        priority: 90,
+        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        out: () => ValueType.NUMBER,
+        generateAsm: (ast) => [
+            "JSR DIV16"
+        ]
+    });
+    voc.set(TokenType.MOD, {
+        txt: "%",
+        arity: 2,
+        position: InstructionPosition.INFIX,
+        priority: 90,
+        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        out: () => ValueType.NUMBER,
+        generateAsm: (ast) => [
+            "JSR MOD16"
         ]
     });
     voc.set(TokenType.NOT, {
@@ -188,7 +294,7 @@ function createVocabulary(): Vocabulary {
             "LDA STACKBASE + 4,X",
             "CMP STACKBASE + 2,X",
             "BCC less@",
-            "BNE greaterorequal@",
+            "BNE greaterorequal@",            
             "LDA STACKBASE + 3,X",
             "CMP STACKBASE + 1,X",
             "BCC less@",
@@ -205,7 +311,7 @@ function createVocabulary(): Vocabulary {
             "INX",
             "STA STACKBASE + 1,X",
             "LDA #00",
-            "STA STACKBASE + 2",
+            "STA STACKBASE + 2,X",
             "STX SP16",
         ]
     });
@@ -254,7 +360,7 @@ function createVocabulary(): Vocabulary {
             "BNE lessorequal@",
             "LDA STACKBASE + 1,X",
             "CMP STACKBASE + 3,X",
-            "BCC greater@:",
+            "BCC greater@",
 
             "lessorequal@:",
             "LDA #00",
@@ -268,7 +374,7 @@ function createVocabulary(): Vocabulary {
             "INX",
             "STA STACKBASE + 1,X",
             "LDA #00",
-            "STA STACKBASE + 2",
+            "STA STACKBASE + 2,X",
             "STX SP16",
         ]
     });
@@ -540,6 +646,38 @@ function createVocabulary(): Vocabulary {
             "endblock@:",
         ],
     });
+    voc.set(TokenType.POKE, {
+        txt: "poke",
+        arity: 2,
+        position: InstructionPosition.PREFIX,
+        priority: 10,
+        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        out: () => ValueType.VOID,
+        generateAsm: (ast) => [
+            "JSR POP16",
+            "LDY STACKACCESS",
+            "JSR POP16",
+            "TYA",
+            "LDY #0",
+            "STA (STACKACCESS),Y"
+        ]
+    });    
+    voc.set(TokenType.PEEK, {
+        txt: "peek",
+        arity: 1,
+        position: InstructionPosition.PREFIX,
+        priority: 10,
+        ins: () => [ValueType.NUMBER],
+        out: () => ValueType.NUMBER,
+        generateAsm: (ast) => [
+            "JSR POP16",
+            "LDY #0",
+            "LDA (STACKACCESS),Y",
+            "STA STACKACCESS",
+            "STY STACKACCESS+1",
+            "JSR PUSH16"
+        ]
+    });    
     return voc;
 }
 
@@ -689,6 +827,41 @@ function parseWithBrackets(vocabulary: Vocabulary, program: Listing): AST {
     return parse(ast);
 }
 
+function groupFunctionToken(ast: AST, index: number) {
+    const functionElement = ast[index];
+    const functionPosition = functionElement.instruction.position;
+    let childs: AST;
+    let startPos: number;
+    if (functionPosition === InstructionPosition.INFIX) {
+        if (index + 1 > ast.length - 1) {
+            logError(functionElement.token.loc, `the operator ${functionElement.instruction.txt} expexts 2 parameters, but one got!`);
+            Deno.exit(1);
+        }
+        // check the second parameter 
+        const secondParameterArity = getArity(ast[index + 1].instruction);
+        if (secondParameterArity > 0 && ast[index + 1].childs.length !== secondParameterArity) {
+            groupFunctionToken(ast, index + 1);
+        }
+        childs = [ast[index - 1], ast[index + 1]];
+        startPos = index - 1;
+    } else if (functionPosition === InstructionPosition.POSTFIX) {
+        childs = [ast[index - 1]];
+        startPos = index - 1;
+    } else {
+        const arity = getArity(functionElement.instruction);
+        childs = ast.slice(index + 1, index + 1 + arity);
+        if (childs.length !== arity) {
+            logError(functionElement.token.loc, `the function ${functionElement.instruction.txt} expexts ${arity} parameters, but only ${childs.length - 1} got!`);
+            Deno.exit(1);
+        }
+        startPos = index;
+    }
+    childs.forEach(child => child.parent = functionElement);
+    const toInsert = { ...functionElement, childs };
+    ast.splice(startPos, childs.length + 1, toInsert);
+}
+
+
 function parse(ast: AST): AST {
 
     const priorityList = [...new Set(ast
@@ -701,7 +874,8 @@ function parse(ast: AST): AST {
         const priority = priorityList[i];
         for (let j = ast.length - 1; j >= 0; j--) {
             const element = ast[j];
-            if (!element.instruction || element.instruction.arity === 0) continue;
+            const arity = getArity(element.instruction);
+            if (!element.instruction || arity === 0) continue;
             if (element.token.type === TokenType.LITERAL) continue;
             if (element.token.type === TokenType.OPEN_BRACKETS || element.token.type === TokenType.CLOSE_BRACKETS) {
                 logError(element.token.loc, `found open or closed brackets in parse, this should not happen`);
@@ -709,21 +883,9 @@ function parse(ast: AST): AST {
             }
             if (element.instruction.priority !== priority) continue;
 
-            const instrPos = element.instruction.position;
-            const startPos = instrPos === InstructionPosition.PREFIX ? j : (instrPos === InstructionPosition.INFIX ? j - 1 : j - element.instruction.arity);
-            const childs = ast.splice(startPos, element.instruction.arity + 1);
-            const functionElement = childs[j - startPos];
-            if (childs.length !== element.instruction.arity + 1) {
-                logError(functionElement.token.loc, `the function ${functionElement.instruction.txt} expexts ${functionElement.instruction.arity} parameters, ${childs.length - 1} got!`);
-                Deno.exit(1);
-            }
-            const childsOfTheFunction = childs
-                .filter((value, index) => index !== j - startPos)
-                .map(element => { return { ...element, parent: functionElement } });
-            const toInsert = { ...functionElement, childs: childsOfTheFunction };
-            ast.splice(startPos, 0, toInsert);
-            j = startPos;
-
+            // fixme: expression 1 + peek a does not get parsed correctly
+            groupFunctionToken(ast, j);
+            if (element.instruction.position !== InstructionPosition.PREFIX) j = j - 1; // we already taken as child the token before this
         }
     }
 
@@ -750,6 +912,7 @@ function calculateTypes(ast: AST | ASTElement): VarsDefinition {
         if (element.token.valueType !== undefined) return;
         const typesExpected = element.instruction.ins(element);
         if (typesExpected.length !== element.childs.length) {
+            dumpAst(ast);
             logError(element.token.loc, `the number of parameters expected for '${element.token.txt}' is ${typesExpected.length} but got ${element.childs.length}`);
             Deno.exit(1);
         }
@@ -863,6 +1026,8 @@ function asmFooter(setwords: VarsDefinition): Assembly {
     const lib = [
         "RTS",
         "BCD DS 3 ; USED IN BIN TO BCD",
+        "AUXMUL DS 2",
+        "TEST_UPPER_BIT: BYTE $80",
         "SP16 = $7D",
         "STACKACCESS = $0080",
         "STACKBASE = $0000",
@@ -1054,10 +1219,191 @@ function asmFooter(setwords: VarsDefinition): Assembly {
         "CLC",
         "ADC #$30",
         "JSR $FFD2",
-        "LDA #13",
-        "JSR $FFD2",
         "RTS",
-    ]
+
+        "MUL16:",
+        "LDX SP16",
+        "LDA STACKBASE + 3,X    ; Get the multiplicand and",
+        "STA AUXMUL             ; put it in the scratchpad.",
+        "LDA STACKBASE + 4,X",
+        "STA AUXMUL + 1",
+        "PHA",
+        "LDA #0",
+        "STA STACKBASE + 3       ; Zero - out the original multiplicand area",
+        "STA STACKBASE + 4",
+        "PLA",
+        "LDY #$10                ; We'll loop 16 times.",
+        "shift_loop:",
+        "ASL STACKBASE + 3,X     ; Shift the entire 32 bits over one bit position.",
+        "ROL STACKBASE + 4,X",
+        "ROL STACKBASE + 1,X",
+        "ROL STACKBASE + 2,X",
+        "BCC skip_add            ; Skip the adding -in to the result if the high bit shifted out was 0",
+        "CLC                     ; Else, add multiplier to intermediate result.",
+        "LDA AUXMUL",
+        "ADC STACKBASE + 3,X",
+        "STA STACKBASE + 3,X",
+        "LDA AUXMUL + 1",
+        "ADC STACKBASE + 4,X",
+        "STA STACKBASE + 4,X",
+        "LDA #0",
+        "ADC STACKBASE + 1,X",
+        "STA STACKBASE + 1,X",
+        "skip_add:",
+        "DEY                      ; If we haven't done 16 iterations yet,",
+        "BNE  shift_loop          ; then go around again.",
+        "INX",
+        "INX",
+        "STX SP16",
+        "RTS",
+
+        "; https://www.ahl27.com/posts/2022/12/SIXTH-div/",
+        "DIV16WITHMOD:",
+        ";; MAX ITERATIONS IS 16 = 0X10, SINCE WE HAVE 16 BIT NUMBERS",
+        "LDX SP16",
+        "LDY #$10",
+
+        ";; ADD TWO SPACES ON STACK",
+        "DEX",
+        "DEX",
+        "DEX",
+        "DEX",
+
+        "LDA #0",
+        "STA STACKBASE + 1,X; REMAINDER",
+        "STA STACKBASE + 2,X",
+        "STA STACKBASE + 3,X; QUOTIENT",
+        "STA STACKBASE + 4,X",
+        "; +5 - 6 IS DENOMINATOR",
+        "; +7 - 8 IS NUMERATOR",
+
+        ";; SET UP THE NUMERATOR",
+        "LDA #0",
+        "ORA STACKBASE + 8,X",
+        "ORA STACKBASE + 7,X",
+        "BEQ EARLYEXIT",
+
+        ";; CHECKING IS DENOMINATOR IS ZERO(IF SO WE'LL JUST STORE ZEROS)",
+        "LDA #0",
+        "ORA STACKBASE + 6,X",
+        "ORA STACKBASE + 5,X",
+        "BNE DIVMODLOOP1",
+
+        "EARLYEXIT:",
+        ";; NUMERATOR OR DENOMINATOR ARE ZERO, JUST RETURN",
+        "LDA #0",
+        "STA STACKBASE + 6,X",
+        "STA STACKBASE + 5,X",
+        "INX",
+        "INX",
+        "INX",
+        "INX",
+        "RTS",
+
+        ";; TRIM DOWN TO LEADING BIT",
+        "DIVMODLOOP1:",
+        "LDA STACKBASE + 8,X",
+        "BIT TEST_UPPER_BIT",
+        "BNE END",
+        "CLC",
+        "ASL STACKBASE + 7,X",
+        "ROL STACKBASE + 8,X",
+        "DEY",
+        "JMP DIVMODLOOP1",
+        "END:",
+
+        ";; MAIN DIVISION LOOP",
+        "DIVMODLOOP2:",
+        ";; LEFT - SHIFT THE REMAINDER",
+        "CLC",
+        "ASL STACKBASE + 1,X         ",
+        "ROL STACKBASE + 2,X",
+
+        ";; LEFT - SHIFT THE QUOTIENT",
+        "CLC",
+        "ASL STACKBASE + 3,X",
+        "ROL STACKBASE + 4,X",
+
+        ";; SET LEAST SIGNIFICANT BIT TO BIT I OF NUMERATOR",
+        "CLC",
+        "ASL STACKBASE + 7,X",
+        "ROL STACKBASE + 8,X",
+
+        "LDA STACKBASE + 1,X",
+        "ADC #0",
+        "STA STACKBASE + 1,X",
+        "LDA STACKBASE + 2,X",
+        "ADC #0",
+        "STA STACKBASE + 2,X",
+
+        ";; COMPARE REMAINDER TO DENOMINATOR",
+        "; UPPER BYTE(STACKBASE + 2 IS ALREADY IN A)",
+        "CMP STACKBASE + 6,X",
+        "BMI SKIP; IF R < D, SKIP TO NEXT ITERATION ",
+        "BNE SUBTRACT; IF R > D, WE CAN SKIP COMPARING LOWER BYTE",
+        "; IF R = D, WE HAVE TO CHECK THE LOWER BYTE",
+
+        "; LOWER BYTE",
+        "LDA STACKBASE + 1,X",
+        "CMP STACKBASE + 5,X",
+        "BMI SKIP",
+
+        "SUBTRACT:",
+        ";; SUBTRACT DENOMINATOR FROM REMAINDER",
+        "SEC",
+        "; SUBTRACT LOWER BYTE",
+        "LDA STACKBASE + 1,X",
+        "SBC STACKBASE + 5,X",
+        "STA STACKBASE + 1,X",
+
+        "; SUBTRACT UPPER BYTE",
+        "LDA STACKBASE + 2,X",
+        "SBC STACKBASE + 6,X",
+        "STA STACKBASE + 2,X",
+
+        ";; ADD ONE TO QUOTIENT",
+        "INC STACKBASE + 3,X",
+
+        "SKIP:",
+        "DEY",
+        "BEQ EXIT",
+        "JMP DIVMODLOOP2",
+
+        "EXIT:  ",
+        ";; CLEANUP",
+        "LDA STACKBASE + 1,X",
+        "STA STACKBASE + 5,X",
+        "LDA STACKBASE + 2,X",
+        "STA STACKBASE + 6,X",
+        "LDA STACKBASE + 3,X",
+        "STA STACKBASE + 7,X",
+        "LDA STACKBASE + 4,X",
+        "STA STACKBASE + 8,X",
+
+        "INX",
+        "INX",
+        "INX",
+        "INX",
+        "RTS",
+
+        "DIV16:",
+        "JSR DIV16WITHMOD",
+        "INX",
+        "INX",
+        "RTS",
+
+        "MOD16:",
+        "JSR DIV16WITHMOD",
+        "LDA STACKBASE + 1,X",
+        "STA STACKBASE + 3,X",
+        "LDA STACKBASE + 2,X",
+        "STA STACKBASE + 4,X",
+        "INX",
+        "INX",
+        "RTS",
+
+    ];
+
     const literalStrings = stringTable.map((str, index) => {
         const bytes: string[] = [];
         for (let i = 0; i < str.length; i++) {
@@ -1104,8 +1450,9 @@ function dumpProgram(program: Listing) {
     }
 }
 
-function dumpAst(ast: AST, prefix = "") {
-    ast.forEach(element => {
+function dumpAst(ast: AST | ASTElement, prefix = "") {
+    const astToDump = ast instanceof Array ? ast : [ast];
+    astToDump.forEach(element => {
         //console.log(prefix, element.token, );
         const ins = element.childs.map(child => humanReadableType(child.token.valueType!)).join(", ");
         const out = humanReadableType(element.token.valueType!);
@@ -1113,8 +1460,11 @@ function dumpAst(ast: AST, prefix = "") {
         dumpAst(element.childs, prefix + "    ");
     });
 }
-function usage() {
 
+function usage() {
+    console.log("USAGE:");
+    console.log("    deno run --allow-all cazz.ts <filename>");
+    console.log("    NOTE: filename must have .cazz extension");
 }
 
 if (Deno.args.length !== 1) {
@@ -1131,10 +1481,10 @@ const filename = basename + ".cazz";
 console.log("start");
 const vocabulary = createVocabulary();
 const program = await tokenizer(filename, vocabulary);
-
 const ast = parseWithBrackets(vocabulary, program);
-const setWords = calculateTypes(ast);
 dumpAst(ast);
+const setWords = calculateTypes(ast);
+
 
 const asm = asmHeader().concat(compile(ast, setWords)).concat(asmFooter(setWords));
 addIndent(asm);
@@ -1147,9 +1497,8 @@ if (dasmStatus.success === false) {
     Deno.exit(1);
 }
 
-const emu = Deno.run({ cmd: ["x64sc", "-silent", basename + ".prg"] });
+const emu = Deno.run({ opt: { stdout: "null" }, cmd: ["x64", "-silent", basename + ".prg"] });
 const emuStatus = await emu.status();
-
 
 console.log("Done");
 

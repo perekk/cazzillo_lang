@@ -1,0 +1,2 @@
+poke 1024 34 poke 1025 35
+print 1 + peek 1024
