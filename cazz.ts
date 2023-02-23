@@ -22,12 +22,13 @@ enum TokenType {
     WHILE,
     POKE,
     PEEK,
+    CAST_BYTE,
     TOKEN_COUNT
-
 }
 
 enum ValueType {
     NUMBER,
+    BYTE,
     STRING,
     BOOL,
     VOID,
@@ -36,9 +37,10 @@ enum ValueType {
 
 function humanReadableType(t: ValueType | undefined): string {
     if (t === undefined) return "undefined";
-    console.assert(ValueType.VALUETYPESCOUNT === 4);
+    console.assert(ValueType.VALUETYPESCOUNT === 5);
     switch (t) {
         case ValueType.NUMBER: return "number";
+        case ValueType.BYTE: return "byte";
         case ValueType.STRING: return "string";
         case ValueType.BOOL: return "boolean";
         case ValueType.VOID: return "void";
@@ -97,6 +99,7 @@ type Listing = Array<Token>;
 type Assembly = Array<string>;
 
 function createVocabulary(): Vocabulary {
+    console.assert(TokenType.TOKEN_COUNT === 24);
     const voc: Vocabulary = new Map<TokenType, Instruction>();
     voc.set(TokenType.PRINT, {
         txt: "print",
@@ -112,7 +115,7 @@ function createVocabulary(): Vocabulary {
         out: () => ValueType.VOID,
         priority: 10,
         generateAsm: (ast) => {
-            console.assert(ValueType.VALUETYPESCOUNT === 4);
+            console.assert(ValueType.VALUETYPESCOUNT === 5);
             if (ast.childs[0].token.valueType === ValueType.NUMBER) {
                 return [
                     "JSR POP16",
@@ -120,6 +123,15 @@ function createVocabulary(): Vocabulary {
                     "LDA #13",
                     "JSR $FFD2",
                 ];
+            } else if (ast.childs[0].token.valueType === ValueType.BYTE) {
+                return [
+                    "JSR POP16",
+                    "LDA #0",
+                    "STA STACKACCESS + 1",
+                    "JSR PRINT_INT",
+                    "LDA #13",
+                    "JSR $FFD2",
+                ];                
             } else if (ast.childs[0].token.valueType === ValueType.STRING) {
                 return [
                     "JSR PRINT_STRING",
@@ -162,12 +174,21 @@ function createVocabulary(): Vocabulary {
         out: () => ValueType.VOID,
         priority: 10,
         generateAsm: (ast) => {
-            console.assert(ValueType.VALUETYPESCOUNT === 4);
+            console.assert(ValueType.VALUETYPESCOUNT === 5);
             if (ast.childs[0].token.valueType === ValueType.NUMBER) {
                 return [
                     "JSR POP16",
                     "JSR PRINT_INT",
                 ];
+            } else if (ast.childs[0].token.valueType === ValueType.BYTE) {
+                return [
+                    "JSR POP16",
+                    "LDA #0",
+                    "STA STACKACCESS + 1",
+                    "JSR PRINT_INT",
+                ];
+
+
             } else if (ast.childs[0].token.valueType === ValueType.STRING) {
                 return [
                     "JSR PRINT_STRING",
@@ -209,7 +230,15 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 80,
-        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        ins: (ast) => {
+            console.assert(ast.childs.length === 2, "The childs of a plus operand should be 2, compiler error");
+            const type1 = ast.childs[0].token.valueType;
+            const type2 = ast.childs[1].token.valueType;
+            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+                return [type1, type2]
+            }
+            return [ValueType.NUMBER, ValueType.NUMBER];
+        },
         out: () => ValueType.NUMBER,
         generateAsm: (ast) => [
             "JSR ADD16"
@@ -220,7 +249,15 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 80,
-        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        ins: (ast) => {
+            console.assert(ast.childs.length === 2, "The childs of a minus operand should be 2, compiler error");
+            const type1 = ast.childs[0].token.valueType;
+            const type2 = ast.childs[1].token.valueType;
+            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+                return [type1, type2]
+            }
+            return [ValueType.NUMBER, ValueType.NUMBER];
+        },
         out: () => ValueType.NUMBER,
         generateAsm: (ast) => [
             "JSR SUB16"
@@ -231,7 +268,15 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 90,
-        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        ins: (ast) => {
+            console.assert(ast.childs.length === 2, "The childs of a multiply operand should be 2, compiler error");
+            const type1 = ast.childs[0].token.valueType;
+            const type2 = ast.childs[1].token.valueType;
+            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+                return [type1, type2]
+            }
+            return [ValueType.NUMBER, ValueType.NUMBER];
+        },
         out: () => ValueType.NUMBER,
         generateAsm: (ast) => [
             "JSR MUL16"
@@ -242,7 +287,15 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 90,
-        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        ins: (ast) => {
+            console.assert(ast.childs.length === 2, "The childs of a division operand should be 2, compiler error");
+            const type1 = ast.childs[0].token.valueType;
+            const type2 = ast.childs[1].token.valueType;
+            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+                return [type1, type2]
+            }
+            return [ValueType.NUMBER, ValueType.NUMBER];
+        },
         out: () => ValueType.NUMBER,
         generateAsm: (ast) => [
             "JSR DIV16"
@@ -253,7 +306,15 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 90,
-        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        ins: (ast) => {
+            console.assert(ast.childs.length === 2, "The childs of a plus operand should be 2, compiler error");
+            const type1 = ast.childs[0].token.valueType;
+            const type2 = ast.childs[1].token.valueType;
+            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+                return [type1, type2]
+            }
+            return [ValueType.NUMBER, ValueType.NUMBER];
+        },
         out: () => ValueType.NUMBER,
         generateAsm: (ast) => [
             "JSR MOD16"
@@ -287,7 +348,15 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 70,
-        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        ins: (ast) => {
+            console.assert(ast.childs.length === 2, "The childs of a less-than operand should be 2, compiler error");
+            const type1 = ast.childs[0].token.valueType;
+            const type2 = ast.childs[1].token.valueType;
+            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+                return [type1, type2]
+            }
+            return [ValueType.NUMBER, ValueType.NUMBER];
+        },
         out: () => ValueType.BOOL,
         generateAsm: (ast) => [
             "LDX SP16",
@@ -320,7 +389,16 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 70,
-        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        ins: (ast) => {
+            console.assert(ast.childs.length === 2, "The childs of a equal operand should be 2, compiler error");
+            const type1 = ast.childs[0].token.valueType;
+            const type2 = ast.childs[1].token.valueType;
+            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+                return [type1, type2]
+            }
+            return [ValueType.NUMBER, ValueType.NUMBER];
+        },
+
         out: () => ValueType.BOOL,
         generateAsm: (ast) => [
             "LDX SP16",
@@ -350,7 +428,15 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.INFIX,
         priority: 70,
-        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        ins: (ast) => {
+            console.assert(ast.childs.length === 2, "The childs of a greater-than operand should be 2, compiler error");
+            const type1 = ast.childs[0].token.valueType;
+            const type2 = ast.childs[1].token.valueType;
+            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+                return [type1, type2]
+            }
+            return [ValueType.NUMBER, ValueType.NUMBER];
+        },
         out: () => ValueType.BOOL,
         generateAsm: (ast) => [
             "LDX SP16",
@@ -518,7 +604,7 @@ function createVocabulary(): Vocabulary {
             }
             const varType = variable[1];
             const asmVarName = "V_" + varName;
-            console.assert(ValueType.VALUETYPESCOUNT === 4);
+            console.assert(ValueType.VALUETYPESCOUNT === 5);
             switch (varType) {
                 case ValueType.BOOL:
                     return [
@@ -532,6 +618,14 @@ function createVocabulary(): Vocabulary {
                         `LDA STACKACCESS`,
                         `STA ${asmVarName}`,
                         `LDA STACKACCESS + 1`,
+                        `STA ${asmVarName} + 1`,
+                    ];
+                case ValueType.BYTE:
+                    return [
+                        `JSR POP16`,
+                        `LDA STACKACCESS`,
+                        `STA ${asmVarName}`,
+                        `LDA #0`,
                         `STA ${asmVarName} + 1`,
                     ];
                 case ValueType.STRING:
@@ -578,7 +672,7 @@ function createVocabulary(): Vocabulary {
             }
             const varType = variable[1];
             const asmVarName = "V_" + varName;
-            console.assert(ValueType.VALUETYPESCOUNT === 4);
+            console.assert(ValueType.VALUETYPESCOUNT === 5);
             switch (varType) {
                 case ValueType.BOOL:
                     return [
@@ -593,6 +687,14 @@ function createVocabulary(): Vocabulary {
                         `LDA ${asmVarName}`,
                         `STA STACKACCESS`,
                         `LDA ${asmVarName} + 1`,
+                        `STA STACKACCESS + 1`,
+                        `JSR PUSH16`
+                    ];
+                case ValueType.BYTE:
+                    return [
+                        `LDA ${asmVarName}`,
+                        `STA STACKACCESS`,
+                        `LDA #0`,
                         `STA STACKACCESS + 1`,
                         `JSR PUSH16`
                     ];
@@ -651,7 +753,7 @@ function createVocabulary(): Vocabulary {
         arity: 2,
         position: InstructionPosition.PREFIX,
         priority: 10,
-        ins: () => [ValueType.NUMBER, ValueType.NUMBER],
+        ins: () => [ValueType.NUMBER, ValueType.BYTE],
         out: () => ValueType.VOID,
         generateAsm: (ast) => [
             "JSR POP16",
@@ -668,7 +770,7 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.PREFIX,
         priority: 10,
         ins: () => [ValueType.NUMBER],
-        out: () => ValueType.NUMBER,
+        out: () => ValueType.BYTE,
         generateAsm: (ast) => [
             "JSR POP16",
             "LDY #0",
@@ -678,6 +780,20 @@ function createVocabulary(): Vocabulary {
             "JSR PUSH16"
         ]
     });    
+    voc.set(TokenType.CAST_BYTE, {
+        txt: "!>",
+        arity: 1,
+        position: InstructionPosition.POSTFIX,
+        priority: 100,
+        ins: () => [ValueType.NUMBER],
+        out: () => ValueType.BYTE,
+        generateAsm: (ast) => [
+            "LDX SP16",
+            "LDA #0",
+            "STA STACKBASE + 2,X"
+        ]
+    });    
+
     return voc;
 }
 
@@ -692,9 +808,16 @@ function identifyToken(vocabulary: Vocabulary, txt: string): { type: TokenType, 
     for (const [tokenType, instr] of vocabulary) {
         if (txt === instr.txt) return { type: tokenType, literalType: undefined };
     }
-    if (txt.match(/^-?\d+$/)) return { type: TokenType.LITERAL, literalType: ValueType.NUMBER };
+    if (txt.match(/^-?\d+$/)) {
+        if (parseInt(txt) < 256) {
+            return { type: TokenType.LITERAL, literalType: ValueType.BYTE };
+        } else {
+            return { type: TokenType.LITERAL, literalType: ValueType.NUMBER };
+        }
+    }
     if (txt[0] === '"' && txt[txt.length - 1] === '"') return { type: TokenType.LITERAL, literalType: ValueType.STRING };
     if (txt[txt.length - 1] === ':') return { type: TokenType.SET_WORD, literalType: undefined };
+    if (txt === "true" || txt === "false") return { type: TokenType.LITERAL, literalType: ValueType.BOOL };
 
     return { type: TokenType.WORD, literalType: undefined };
 }
@@ -861,7 +984,6 @@ function groupFunctionToken(ast: AST, index: number) {
     ast.splice(startPos, childs.length + 1, toInsert);
 }
 
-
 function parse(ast: AST): AST {
 
     const priorityList = [...new Set(ast
@@ -906,7 +1028,6 @@ function traverseAST(ast: AST | ASTElement, f: (ast: ASTElement) => void) {
 }
 
 function calculateTypes(ast: AST | ASTElement): VarsDefinition {
-
     const ret: VarsDefinition = new Map();
     traverseAST(ast, element => {
         if (element.token.valueType !== undefined) return;
@@ -918,7 +1039,7 @@ function calculateTypes(ast: AST | ASTElement): VarsDefinition {
         }
         for (let i = 0; i < typesExpected.length; i++) {
             if (typesExpected[i] !== element.childs[i].token.valueType) {
-                logError(element.childs[i].token.loc, `The parameter in position ${i + 1} is expected to be ${humanReadableType(typesExpected[i])} but got ${humanReadableType(element.childs[i].token.valueType!)}`);
+                logError(element.childs[i].token.loc, `The parameter of ${element.token.txt} in position ${i + 1} is expected to be ${humanReadableType(typesExpected[i])} but got ${humanReadableType(element.childs[i].token.valueType!)}`);
                 Deno.exit(1);
             }
         }
@@ -949,19 +1070,31 @@ function compile(ast: AST | ASTElement, setWords: VarsDefinition): Assembly {
             ret = ret.concat(compile(ast.childs[i], setWords))
         }
 
-        // lets' compile for real
+        // lets' compile for real        
         if (ast.token.type === TokenType.LITERAL) {
+            console.assert(ValueType.VALUETYPESCOUNT === 5);
             if (ast.token.valueType === ValueType.NUMBER) {
-                ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} VAL ${ast.token.txt}`);
-                const MSB = (parseInt(ast.token.txt) >> 8) & 255;
+                ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} NUMBER VAL ${ast.token.txt}`);
+                const MSB = (parseInt(ast.token.txt, 10) >> 8) & 255;
                 ret.push(`LDA #${MSB}`);
                 ret.push(`STA STACKACCESS+1`);
-                const LSB = parseInt(ast.token.txt) & 255;
+                const LSB = parseInt(ast.token.txt, 10) & 255;
                 ret.push(`LDA #${LSB}`);
                 ret.push(`STA STACKACCESS`);
                 ret.push(`JSR PUSH16`);
-            } else {
-                ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} VAL ${ast.token.txt}`);
+
+            } else if (ast.token.valueType === ValueType.BYTE) {
+                ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} BYTE VAL ${ast.token.txt}`);
+                const LSB = parseInt(ast.token.txt, 10) & 255;
+                ret.push(`LDA #${LSB}`);
+                ret.push(`STA STACKACCESS`);
+                ret.push(`LDA #0`);
+                ret.push(`STA STACKACCESS+1`);
+                ret.push(`JSR PUSH16`);
+
+
+            } else if (ast.token.valueType === ValueType.STRING) {
+                ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} STRING VAL ${ast.token.txt}`);
                 // push lenght 
                 // todo: ora la lunghezza massima della stringa è 255 caratteri, aumentarla ?
                 const stringToPush = ast.token.txt;
@@ -984,6 +1117,15 @@ function compile(ast: AST | ASTElement, setWords: VarsDefinition): Assembly {
                 ret.push(`LDA #<str${labelIndex}`);
                 ret.push(`STA STACKACCESS`);
                 ret.push(`JSR PUSH16`);
+
+            } else if (ast.token.valueType === ValueType.BOOL) {
+                ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} BOOL VAL ${ast.token.txt}`);
+                ret.push(`LDA #${ast.token.txt === "true" ? "1" : "0"}`);
+                ret.push(`STA STACKACCESS`);
+                ret.push(`LDA #0`);
+                ret.push(`STA STACKACCESS+1`);
+                ret.push(`JSR PUSH16`);
+
             }
         } else {
             ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} ${ast.token.txt}`);
@@ -1420,14 +1562,17 @@ function asmFooter(setwords: VarsDefinition): Assembly {
             logError(value[0].token.loc, `cannot determine the value type stored in word '${value[0].token.txt}', it does not have inputs value types`);
             Deno.exit(1);
         }
+        console.assert(ValueType.VALUETYPESCOUNT === 5);
         const valueType = value[1];
         if (valueType === ValueType.VOID) {
             logError(value[0].token.loc, "cannot reserve memory for VOID value type");
             Deno.exit(1);
         }
-
         if (valueType === ValueType.NUMBER) {
             vars.push(`${variableName} DS 2`);
+        }
+        if (valueType === ValueType.BYTE) {
+            vars.push(`${variableName} DS 1`);
         }
         if (valueType === ValueType.STRING) {
             vars.push(`${variableName} DS 4`);
@@ -1482,9 +1627,9 @@ console.log("start");
 const vocabulary = createVocabulary();
 const program = await tokenizer(filename, vocabulary);
 const ast = parseWithBrackets(vocabulary, program);
-dumpAst(ast);
-const setWords = calculateTypes(ast);
 
+const setWords = calculateTypes(ast);
+dumpAst(ast);
 
 const asm = asmHeader().concat(compile(ast, setWords)).concat(asmFooter(setWords));
 addIndent(asm);
