@@ -1,0 +1,9 @@
+i: 0 !n
+while i < 1000 [
+    poke 53281 i !>
+    poke 53280 i !>  
+    poke 1024 + i [1 + peek i] !>
+    // fixme: can't set a variable in the stack, var definition for 'i' not found, compiler error
+    // how can I modify global var inside a block ?
+    i: i + 1
+]
