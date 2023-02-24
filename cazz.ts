@@ -201,14 +201,39 @@ function getAsmForSetWordLocal(ast: ASTElement, varType: ValueType, varName: str
     }
     if (varType === ValueType.NUMBER) {
         return [
+            `JSR POP16`,
             "TSX",
             "TXA",
             "SEC",
             `SBC ${varDef.offset}`,
             "TAX",
+            "LDA STACKACCESS",
             "STA $0100,X",
+            "LDA STACKACCESS + 1",
             "STA $0101,X"
         ]
+    } else if (varType === ValueType.STRING) {
+        return [
+            "JSR POP16",
+            "TSX",
+            "TXA",
+            "SEC",
+            `SBC ${varDef.offset}`,
+            "TAX",
+            "LDA STACKACCESS",
+            "STA $0102,X",
+            "LDA STACKACCESS + 1",
+            "STA $0103,X",
+            "TXA",
+            "PHA",
+            "JSR POP16",
+            "PLA",
+            "TAX",
+            "LDA STACKACCESS",
+            "STA $0100,X",
+            "LDA STACKACCESS + 1",
+            "STA $0101,X",
+        ]        
     }
 
     logError(ast.token.loc, `set word local is not implemented yet for ${humanReadableType(varType)}`);
@@ -282,6 +307,29 @@ function getAsmForGetWordLocal(ast: ASTElement, varType: ValueType, varName: str
             "STA STACKACCESS",
             "LDA $0101,X",
             "STA STACKACCESS + 1",
+            "JSR PUSH16"
+        ]
+    } else if (varType === ValueType.STRING) {
+        return [
+            "TSX",
+            "TXA",
+            "SEC",
+            `SBC ${varDef.offset}`,
+            "TAX",
+            "LDA $0100,X",
+            "STA STACKACCESS",
+            "LDA $0101,X",
+            "STA STACKACCESS + 1",
+            "TXA",
+            "PHA",
+            "JSR PUSH16",
+            "PLA",
+            "TAX",
+            "LDA $0102,X",
+            "STA STACKACCESS",
+            "LDA $0103,X",
+            "STA STACKACCESS + 1",
+            "JSR PUSH16"
         ]
     }
 
@@ -788,13 +836,15 @@ function createVocabulary(): Vocabulary {
             }
             if (ast.context.varsDefinition.size === 0) return [];
             let sizeToRelease = 0;
-            ast.context.varsDefinition.forEach(varDef => {
-                const varName = ast.token.txt;
-                if (varDef.valueType !== ValueType.NUMBER) {
+            ast.context.varsDefinition.forEach(varDef => {                
+                if (varDef.valueType === ValueType.NUMBER) {
+                    sizeToRelease += 2;
+                } else if (varDef.valueType === ValueType.STRING) {
+                    sizeToRelease += 4;
+                } else {                
                     logError(ast.token.loc, `cannot reserve space on the stack for type ${humanReadableType(varDef.valueType)} yet`);
                     Deno.exit(1);
                 }
-                sizeToRelease += 2;
             });
             return [
                 "TSX",
@@ -815,13 +865,17 @@ function createVocabulary(): Vocabulary {
             if (ast.context.varsDefinition.size === 0) return [];
             let sizeToReserve = 0;
             ast.context.varsDefinition.forEach(varDef => {
-                if (varDef.valueType !== ValueType.NUMBER) {
+                varDef.offset = sizeToReserve;
+                if (varDef.valueType === ValueType.NUMBER) {
+                    sizeToReserve += 2;
+                } else if (varDef.valueType === ValueType.STRING) {
+                    sizeToReserve += 4;
+                } else {
                     logError(ast.token.loc, `cannot reserve space on the stack for type ${humanReadableType(varDef.valueType)} yet`);
                     Deno.exit(1);
                 }
-                varDef.offset = sizeToReserve;
-                sizeToReserve += 2;
             });
+
             return [
                 "TSX",
                 "TXA",

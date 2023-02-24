@@ -1,4 +1,8 @@
 a: 69 !n
-b: 69 * 420
-[a: 420 print a print b]
+b: "CAZZ"
+[
+    a: 420 print a
+    b: "ILLO" print b
+]
 print a
+print b
