@@ -1,2 +1,10 @@
-a: 0
-while 1 < 100 [print a a: a + 1]
+'a 11
+'b "CAZZILLO"
+
+while a < 100 [
+    'b number    
+    a: a + 1
+    b: a
+    print b 
+]
+print b

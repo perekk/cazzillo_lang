@@ -1,0 +1,20 @@
+'a "CAZZILLI"
+'b "BUS"
+'c a . b
+
+a: "SALTA"
+b: "FANCHIO"
+'d a . b
+
+a: "PISPOLO"
+b: ""
+'e a . b
+
+a: ""
+b: "BIELLE"
+'f a . b
+
+print c
+print d
+print e
+print f

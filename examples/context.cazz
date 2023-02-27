@@ -1,8 +1,19 @@
-a: 69 !n
-b: "CAZZ"
+'a 69
+'b "CAZZ"
+'c true
+'d 420
 [
-    a: 420 print a
-    b: "ILLO" print b
+    'a "ILLO"
+    'b 420
+    'c 69
+    'd false    
+    prin "A=" print a
+    prin "B=" print b
+    prin "C=" print c
+    prin "D=" print d
 ]
-print a
-print b
+prin "A=" print a
+prin "B=" print b
+prin "C=" print c
+prin "D=" print d
+
