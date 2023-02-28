@@ -1,0 +1,2 @@
+'double fn ['x number [x + x]]
+print double 3
