@@ -143,7 +143,7 @@ function humanReadableFunction(ast: ASTElement): string {
             return `()=>${out}`;
         }
     } else {
-        return humanReadableType(ast.token.valueType);
+        return humanReadableType(ast.token.internalValueType);
     }
 
 }
@@ -152,7 +152,7 @@ type Location = { row: number, col: number, filename: string }
 
 type Token = {
     type: TokenType;
-    valueType?: ValueType;
+    internalValueType?: ValueType;
     txt: string;
     loc: Location;
 };
@@ -526,12 +526,12 @@ function getReturnTypeOfAWord(ast: ASTElement): ValueType {
         }
 
     } else {
-        if (ast.token.valueType === undefined) {
+        if (ast.token.internalValueType === undefined) {
             console.log("ast", ast);
             logError(ast.token.loc, `${ast.token.txt} is a ${humanReadableToken(ast.token.type)} but does not have a return value`);
             Deno.exit(1);
         }
-        return ast.token.valueType;
+        return ast.token.internalValueType;
     }
 }
 
@@ -1031,7 +1031,7 @@ function createVocabulary(): Vocabulary {
             }
             return [ValueType.BOOL, typeThen, typeElse];
         },
-        out: (ast) => ast.childs[1].token.valueType!,
+        out: (ast) => ast.childs[1].token.internalValueType!,
         generateChildPreludeAsm: (ast, n) => {
             // no prelude for condition
             if (n === 0) return [];
@@ -1257,7 +1257,7 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: (ast) => {
             const funcDef = getWordDefinition(ast.context, ast.token.txt);
-            if (ast.token.valueType === ValueType.ADDR) {
+            if (ast.token.internalValueType === ValueType.ADDR) {
                 if (funcDef === undefined) {
                     logError(ast.token.loc, `cannot find definition for function '${ast.token.txt}', compiler error`);
                     Deno.exit(1);
@@ -1273,7 +1273,7 @@ function createVocabulary(): Vocabulary {
         out: ast => {
             const varName = ast.token.txt;
             const varDef = getWordDefinition(ast.context, varName);
-            if (ast.token.valueType === ValueType.ADDR) {
+            if (ast.token.internalValueType === ValueType.ADDR) {
                 if (varDef === undefined) {
                     logError(ast.token.loc, `cannot find definition for function '${ast.token.txt}', compiler error`);
                     Deno.exit(1);
@@ -1582,11 +1582,11 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: ast => {
             console.assert(ast.childs.length === 1, "'fn' should have one parameter");
-            if (ast.childs[0].token.valueType === undefined) {
+            if (ast.childs[0].token.internalValueType === undefined) {
                 logError(ast.token.loc, `can't determine the output value for function`);
                 Deno.exit(1);
             }
-            return [ast.childs[0].token.valueType];
+            return [ast.childs[0].token.internalValueType];
         },
         out: () => ValueType.ADDR,
         generateChildPreludeAsm: (ast, n) => {
@@ -1749,7 +1749,7 @@ function getInstructionForToken(vocabulary: Vocabulary, context: Context, token:
         return {
             arity: 0,
             ins: () => [],
-            out: () => { return token.valueType! },
+            out: () => { return token.internalValueType! },
             generateAsm: compileLiteral,
             position: InstructionPosition.PREFIX,
             userFunction: false,
@@ -1838,7 +1838,7 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<List
         } else if (tokenType.type === TokenType.LIT_WORD) {
             tokenText = tokenText.substring(1);
         }
-        ret.push({ type: tokenType.type, txt: tokenText, loc, valueType: tokenType.literalType });
+        ret.push({ type: tokenType.type, txt: tokenText, loc, internalValueType: tokenType.literalType });
     };
 
     while (index < sourceCode.length) {
@@ -2060,7 +2060,7 @@ function traverseAST(currentElement: ASTElement, f: (ast: ASTElement, index: num
 
 function calculateTypes(ast: ASTElement) {    
     traverseAST(ast, element => {
-        if (element.token.valueType !== undefined) return false;
+        if (element.token.internalValueType !== undefined) return false;
         const typesExpected = element.instruction.ins(element);
         if (typesExpected === undefined) {
             logError(ast.token.loc, `instruction ${element.token.txt} does not return the correct input params, returns undefined, compiler error`);
@@ -2077,13 +2077,13 @@ function calculateTypes(ast: ASTElement) {
                 Deno.exit(1);
             }
         }
-        element.token.valueType = element.instruction.out?.(element);
+        element.token.internalValueType = element.instruction.out?.(element);
         if (element.token.type === TokenType.LIT_WORD) {
             if (element.context === undefined) {
                 logError(element.token.loc, `calculateTypes: The token '${element.token.txt}' does not have a context, compiler error`);
                 Deno.exit(1);
             }
-            if (element.childs[0].token.valueType === ValueType.ADDR) {
+            if (element.childs[0].token.internalValueType === ValueType.ADDR) {
                 // 'name                  element
                 //   fn                   element.childs[0]
                 //     [... params]       element.childs[0].childs[0] paramBlock
@@ -2099,7 +2099,7 @@ function calculateTypes(ast: ASTElement) {
                     logError(ast.token.loc, `calculateTypes: cannot find the param block of '${element.token.txt}', compiler error`);
                     Deno.exit(1);
                 }
-                const returningValueType = paramBlock.token.valueType;
+                const returningValueType = paramBlock.token.internalValueType;
                 if (returningValueType === undefined) {
                     logError(ast.token.loc, `calculateTypes: cannot determine the return value of '${element.token.txt}', compiler error`);
                     Deno.exit(1);
@@ -2170,8 +2170,8 @@ function rebalanceTreeOLD(ast: ASTElement) {
                 Deno.exit(1);
             }
 
-            if (element.token.valueType !== inputExpected) {
-                logError(element.token.loc, `the function ${parentToAssign?.token.txt} expects '${element.token.txt}' to be ${humanReadableType(inputExpected)}, but is ${humanReadableType(element.token.valueType)}`);
+            if (element.token.internalValueType !== inputExpected) {
+                logError(element.token.loc, `the function ${parentToAssign?.token.txt} expects '${element.token.txt}' to be ${humanReadableType(inputExpected)}, but is ${humanReadableType(element.token.internalValueType)}`);
                 Deno.exit(1);
             }
             keepAsChild--;
@@ -2316,7 +2316,7 @@ function getAfterFunctionName(n: number): string {
 function compileLiteral(ast: ASTElement): Assembly {
     let ret: Assembly = [];
     console.assert(ValueType.VALUETYPESCOUNT === 6, "Exaustive value types count");
-    if (ast.token.valueType === ValueType.NUMBER) {
+    if (ast.token.internalValueType === ValueType.NUMBER) {
         ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} NUMBER VAL ${ast.token.txt}`);
         const MSB = (parseInt(ast.token.txt, 10) >> 8) & 255;
         ret.push(`LDA #${MSB}`);
@@ -2326,7 +2326,7 @@ function compileLiteral(ast: ASTElement): Assembly {
         ret.push(`STA STACKACCESS`);
         ret.push(`JSR PUSH16`);
 
-    } else if (ast.token.valueType === ValueType.BYTE) {
+    } else if (ast.token.internalValueType === ValueType.BYTE) {
         ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} BYTE VAL ${ast.token.txt}`);
         const LSB = parseInt(ast.token.txt, 10) & 255;
         ret.push(`LDA #${LSB}`);
@@ -2336,7 +2336,7 @@ function compileLiteral(ast: ASTElement): Assembly {
         ret.push(`JSR PUSH16`);
 
 
-    } else if (ast.token.valueType === ValueType.STRING) {
+    } else if (ast.token.internalValueType === ValueType.STRING) {
         ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} STRING VAL ${ast.token.txt}`);
         // push lenght 
         // todo: ora la lunghezza massima della stringa è 255 caratteri, aumentarla ?
@@ -2361,21 +2361,21 @@ function compileLiteral(ast: ASTElement): Assembly {
         ret.push(`STA STACKACCESS`);
         ret.push(`JSR PUSH16`);
 
-    } else if (ast.token.valueType === ValueType.BOOL) {
+    } else if (ast.token.internalValueType === ValueType.BOOL) {
         ret.push(`; ${ast.token.loc.row}:${ast.token.loc.col} BOOL VAL ${ast.token.txt}`);
         ret.push(`LDA #${ast.token.txt === "true" ? "1" : "0"}`);
         ret.push(`STA STACKACCESS`);
         ret.push(`LDA #0`);
         ret.push(`STA STACKACCESS+1`);
         ret.push(`JSR PUSH16`);
-    } else if (ast.token.valueType === ValueType.ADDR) {
+    } else if (ast.token.internalValueType === ValueType.ADDR) {
         logError(ast.token.loc, `'Addr' should not be compiled as a value, compiler error`);
         Deno.exit(1);
-    } else if (ast.token.valueType === ValueType.VOID) {
+    } else if (ast.token.internalValueType === ValueType.VOID) {
         logError(ast.token.loc, `'Void' should not be compiled as a value, compiler error`);
         Deno.exit(1);
     } else {
-        logError(ast.token.loc, `compiling the type '${ast.token.valueType}' is not supported yet`);
+        logError(ast.token.loc, `compiling the type '${ast.token.internalValueType}' is not supported yet`);
         Deno.exit(1);
     }
 
@@ -2930,7 +2930,7 @@ function dumpProgram(program: Listing) {
     for (let i = 0; i < program.length; i++) {
         const token = program[i];
         //logError(token.loc, `istr: ${token.type}, ${token.txt}`)
-        console.log(`${token.loc.row}:${token.loc.col} \t'${token.txt}' \t${humanReadableToken(token.type)} type is ${humanReadableType(token.valueType)}`);
+        console.log(`${token.loc.row}:${token.loc.col} \t'${token.txt}' \t${humanReadableToken(token.type)} type is ${humanReadableType(token.internalValueType)}`);
     }
 }
 
@@ -2943,8 +2943,8 @@ function dumpAst(ast: AST | ASTElement, prefix = "") {
         if (element.token.type === TokenType.WORD) {
             strType = humanReadableFunction(element);
         } else {
-            const ins = element.childs.map(child => humanReadableType(child.token.valueType!)).join(", ");
-            const out = humanReadableType(element.token.valueType!);
+            const ins = element.childs.map(child => humanReadableType(child.token.internalValueType!)).join(", ");
+            const out = humanReadableType(element.token.internalValueType!);
             strType = "(" + ins + ")=>" + out;
         }
         const strFun = element.instruction.userFunction ? "USER FUN" : "";
