@@ -1,0 +1,2 @@
+'plusone fn ['x Number [x + 1]]
+print plusone + 1
