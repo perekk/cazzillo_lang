@@ -123,7 +123,7 @@ function humanReadableType(t: ValueType | undefined): string {
 
 }
 
-function humanReadableFunction(ast: ASTElement): string {
+function humanReadableFunction(ast: Token): string {
     if (ast.token.type === TokenType.WORD) {
         const defFun = getWordDefinition(ast.context, ast.token.txt);
         if (defFun === undefined) {
@@ -151,10 +151,17 @@ function humanReadableFunction(ast: ASTElement): string {
 type Location = { row: number, col: number, filename: string }
 
 type Token = {
-    type: TokenType;
-    internalValueType?: ValueType;
+    type: TokenType;    
     txt: string;
     loc: Location;
+    internalValueType?: ValueType;
+    context?: Context;
+    ins?: Array<ValueType>;
+    out?: ValueType;
+    position?: InstructionPosition;
+    priority?: number;
+    isFunction?: boolean;
+    childs?: Token[];
 };
 
 enum InstructionPosition {
@@ -163,7 +170,7 @@ enum InstructionPosition {
     POSTFIX,
 }
 type VarDefinitionSpec = {
-    astElement: ASTElement,
+    Token: Token,
     valueType: ValueType,
     offset: number | undefined,
     isFunction: boolean,
@@ -172,12 +179,12 @@ type VarDefinitionSpec = {
 }
 
 type Context = {
-    element: ASTElement | undefined,
-    varsDefinition: Map<string, VarDefinitionSpec>;
+    element: Token | undefined,
+    varsDefinition: Record<string, VarDefinitionSpec>;
     parent: Context | undefined;
 }
 
-function getArity(element: ASTElement): number {
+function getArity(element: Token): number {
 
     if (element.token.type === TokenType.WORD) {
         const varDef = getWordDefinition(element.context, element.token.txt);
@@ -190,7 +197,7 @@ function getArity(element: ASTElement): number {
     return element.instruction.arity;
 }
 
-function getInstructionPosition(element: ASTElement): InstructionPosition {
+function getInstructionPosition(element: Token): InstructionPosition {
 
     if (element.token.type === TokenType.WORD) {
         const varDef = getWordDefinition(element.context, element.token.txt);
@@ -201,29 +208,20 @@ function getInstructionPosition(element: ASTElement): InstructionPosition {
     return element.instruction.position;
 }
 
-type Instruction = {
-    txt: string;
-    arity: number;
+type Instruction = {    
     position: InstructionPosition;
     priority: number | undefined;
     userFunction: boolean,
     functionIndex?: number,
-    ins: (ast: ASTElement) => Array<ValueType>;
-    out?: (ast: ASTElement) => ValueType;
-    generateAsm: (ast: ASTElement) => Assembly
-    generateChildPreludeAsm?: (ast: ASTElement, childIndex: number) => Assembly
+    ins: (ast: Token) => Array<ValueType>;
+    out?: (ast: Token) => ValueType;
+    generateAsm: (ast: Token) => Assembly
+    generateChildPreludeAsm?: (ast: Token, childIndex: number) => Assembly
 };
 
-type Vocabulary = Map<TokenType, Instruction>;
+type Vocabulary = Record<TokenType, Instruction>;
 
-type AST = ASTElement[];
-
-type ASTElement = {
-    token: Token;
-    instruction: Instruction;
-    childs: AST;
-    context: Context;
-};
+type AST = Token[];
 
 type Listing = Array<Token>;
 
@@ -302,7 +300,7 @@ function getAsmForSetWordGlobal(token: Token, varType: ValueType, varName: strin
 
 }
 
-function getAsmForSetWordLocal(ast: ASTElement, varType: ValueType, varName: string, offset: number): Assembly {
+function getAsmForSetWordLocal(ast: Token, varType: ValueType, varName: string, offset: number): Assembly {
 
     const popAndOffsetStack = [
         `JSR POP16`,
@@ -428,7 +426,7 @@ function getAsmForGetWordGlobal(token: Token, varType: ValueType, varName: strin
     }
 }
 
-function getAsmForGetWordLocal(ast: ASTElement, varType: ValueType, varName: string, offset: number, isFunction: boolean): Assembly {
+function getAsmForGetWordLocal(ast: Token, varType: ValueType, varName: string, offset: number, isFunction: boolean): Assembly {
 
     const asmOffset = [
         "TSX",
@@ -504,7 +502,7 @@ function getAsmForGetWordLocal(ast: ASTElement, varType: ValueType, varName: str
     Deno.exit(1);
 }
 
-function getReturnTypeOfAWord(ast: ASTElement): ValueType {
+function getReturnTypeOfAWord(ast: Token): ValueType {
     if (ast.token.type === TokenType.WORD) {
         const defWord = getWordDefinition(ast.context, ast.token.txt);
         if (defWord === undefined) {
@@ -1745,23 +1743,28 @@ function identifyToken(vocabulary: Vocabulary, txt: string): { type: TokenType, 
 
 function getInstructionForToken(vocabulary: Vocabulary, context: Context, token: Token): Instruction {
 
-    if (token.type === TokenType.LITERAL) {
-        return {
-            arity: 0,
-            ins: () => [],
-            out: () => { return token.internalValueType! },
-            generateAsm: compileLiteral,
-            position: InstructionPosition.PREFIX,
-            userFunction: false,
-            priority: 10,
-            txt: token.txt,
-            generateChildPreludeAsm: () => []
-        };
-    } else if (token.type === TokenType.WORD) {
+    // literal
+    if (token.type === TokenType.LITERAL) return {
+        ins: () => [],
+        out: () => { return token.internalValueType! },
+        generateAsm: compileLiteral,
+        position: InstructionPosition.PREFIX,
+        userFunction: false,
+        priority: 0,
+        generateChildPreludeAsm: () => []
+    };
+
+    // keyword
+    if (token.type in vocabulary) return vocabulary[token.type];
+
+    // word
+
+
+    if (token.type === TokenType.WORD) {
         const varDef = getWordDefinition(context, token.txt);
         if (varDef === undefined) {
             return {
-                arity: 0,
+
                 ins: () => [],
                 out: (ast) => {
                     // the return value will be generated in the future
@@ -1780,7 +1783,7 @@ function getInstructionForToken(vocabulary: Vocabulary, context: Context, token:
         const wordInstruction = vocabulary.get(TokenType.WORD)!;
         if (varDef.isFunction) {
             return {
-                arity: varDef.ins?.length!,
+
                 ins: () => varDef.ins!,
                 out: () => varDef.out!,
                 generateAsm: wordInstruction.generateAsm,
@@ -1902,15 +1905,15 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<List
     return ret;
 }
 
-function parse(vocabulary: Vocabulary, program: Listing, filename: string): ASTElement {
-    let currentContext: Context = { parent: undefined, element: undefined, varsDefinition: new Map<string, VarDefinitionSpec>() };
+function parse(vocabulary: Vocabulary, program: Listing, filename: string): Token {
+    let currentContext: Context = { parent: undefined, element: undefined, varsDefinition: {} };
     const ast: AST = [];
     const stack: { pos: number, context: Context }[] = [];
     for (let j = 0; j < program.length; j++) {
         const token = program[j];
         if (token.type === TokenType.OPEN_BRACKETS) {
             stack.push({ pos: ast.length, context: currentContext });
-            currentContext = { parent: currentContext, element: undefined, varsDefinition: new Map() };
+            currentContext = { parent: currentContext, element: undefined, varsDefinition: {} };
         } else if (token.type === TokenType.CLOSE_BRACKETS) {
             const state = stack.pop();
             if (state === undefined) {
@@ -1922,7 +1925,7 @@ function parse(vocabulary: Vocabulary, program: Listing, filename: string): ASTE
             const sequence = ast.splice(matchingIndex, j - matchingIndex + 1);  
             const childs = parseBlock(sequence);
             const blockToken = { type: TokenType.BLOCK, loc: matchingToken.loc, txt: "[" + sequence.map(t => t.token.txt).join(" ") + "]" };
-            const block: ASTElement = {
+            const block: Token = {
                 token: blockToken,
                 instruction: getInstructionForToken(vocabulary, currentContext, blockToken),
                 childs,
@@ -1932,9 +1935,14 @@ function parse(vocabulary: Vocabulary, program: Listing, filename: string): ASTE
 
             ast.push(block);
             currentContext = state.context;
-        } else {
+        } else {            
+            const instr = getInstructionForToken(vocabulary, currentContext, token);            
             ast.push({
-                token,
+                loc: token.loc,
+                txt: token.txt,
+                type: token.type,
+                internalValueType: token.internalValueType,
+
                 instruction: getInstructionForToken(vocabulary, currentContext, token),
                 childs: [],                
                 context: currentContext
@@ -1964,11 +1972,11 @@ function parse(vocabulary: Vocabulary, program: Listing, filename: string): ASTE
         instruction: getInstructionForToken(vocabulary, currentContext, topLevelToken),
         childs: childs,
         context: currentContext
-    } as ASTElement;
+    } as Token;
 
 }
 
-function groupFunctionToken(ast: AST, index: number): ASTElement {
+function groupFunctionToken(ast: AST, index: number): Token {
     const functionElement = ast[index];
     const functionPosition = getInstructionPosition(functionElement);
     let childs: AST;
@@ -2044,7 +2052,7 @@ function parseBlock(ast: AST): AST {
     return ast;
 }
 
-function traverseAST(currentElement: ASTElement, f: (ast: ASTElement, index: number, sequence: AST | undefined) => boolean, childsFirst: boolean, index: number, sequence: AST | undefined) {
+function traverseAST(currentElement: Token, f: (ast: Token, index: number, sequence: AST | undefined) => boolean, childsFirst: boolean, index: number, sequence: AST | undefined) {
     if (!childsFirst) {
         const ret = f.call({}, currentElement, index, sequence);
         if (ret) return;
@@ -2058,7 +2066,7 @@ function traverseAST(currentElement: ASTElement, f: (ast: ASTElement, index: num
     if (childsFirst) f.call({}, currentElement, index, sequence);
 }
 
-function calculateTypes(ast: ASTElement) {    
+function calculateTypes(ast: Token) {    
     traverseAST(ast, element => {
         if (element.token.internalValueType !== undefined) return false;
         const typesExpected = element.instruction.ins(element);
@@ -2120,7 +2128,7 @@ function calculateTypes(ast: ASTElement) {
 
                 element.context.varsDefinition.set(
                     element.token.txt, {
-                    astElement: element,
+                        Token: element,
                     valueType: ValueType.ADDR,
                     isFunction: true,
                     ins,
@@ -2131,7 +2139,7 @@ function calculateTypes(ast: ASTElement) {
             } else {
                 element.context.varsDefinition.set(
                     element.token.txt, {
-                    astElement: element,
+                        Token: element,
                     isFunction: false,
                     valueType: typesExpected[0],
                     offset: undefined
@@ -2143,12 +2151,12 @@ function calculateTypes(ast: ASTElement) {
     }, true, 0, undefined);
 }
 
-function rebalanceTreeOLD(ast: ASTElement) {
+function rebalanceTreeOLD(ast: Token) {
     // now we have all the declaration, we know the arity of each function declared
     // 
     console.log("REBALANCE TREE ---------- ");
     let keepAsChild = 0;
-    let parentToAssign: ASTElement | undefined;
+    let parentToAssign: Token | undefined;
 
     traverseAST(ast, (element, index, sequence) => {
         if (keepAsChild > 0) {
@@ -2236,12 +2244,12 @@ function rebalanceTreeOLD(ast: ASTElement) {
     console.log("END REBALANCE ---------- ");
 }
 
-function rebalanceTree(ast: ASTElement) {
+function rebalanceTree(ast: Token) {
     // now we have all the declaration, we know the arity of each function declared
     // 
     console.log("REBALANCE TREE ---------- ");
 
-    function needRebalance(element: ASTElement): boolean {
+    function needRebalance(element: Token): boolean {
         if (element.token.type === TokenType.WORD) {
             console.log("word found: ", element.token.txt);
             const wordDef = getWordDefinition(element.context, element.token.txt);
@@ -2313,7 +2321,7 @@ function getAfterFunctionName(n: number): string {
     return "AFTER_" + n;
 }
 
-function compileLiteral(ast: ASTElement): Assembly {
+function compileLiteral(ast: Token): Assembly {
     let ret: Assembly = [];
     console.assert(ValueType.VALUETYPESCOUNT === 6, "Exaustive value types count");
     if (ast.token.internalValueType === ValueType.NUMBER) {
@@ -2382,7 +2390,7 @@ function compileLiteral(ast: ASTElement): Assembly {
     return ret;
 }
 
-function compile(ast: ASTElement): Assembly {
+function compile(ast: Token): Assembly {
 
     let ret: Assembly = [];
     if (ast.token.type === TokenType.PARAM_BLOCK) {
@@ -2461,7 +2469,7 @@ function asmHeader(): Assembly {
     ]
 }
 
-function asmFooter(ast: ASTElement): Assembly {
+function asmFooter(ast: Token): Assembly {
     const lib = [
         "RTS",
         "BCD DS 3 ; USED IN BIN TO BCD",
@@ -2893,14 +2901,14 @@ function asmFooter(ast: ASTElement): Assembly {
     const vars: string[] = [];
     ast.context?.varsDefinition.forEach((value, key) => {
         const variableName = "V_" + key;
-        if (value.astElement.instruction.ins.length === 0) {
-            logError(value.astElement.token.loc, `cannot determine the value type stored in word '${value.astElement.token.txt}', it does not have inputs value types`);
+        if (value.Token.instruction.ins.length === 0) {
+            logError(value.Token.token.loc, `cannot determine the value type stored in word '${value.Token.token.txt}', it does not have inputs value types`);
             Deno.exit(1);
         }
         console.assert(ValueType.VALUETYPESCOUNT === 6, "Exaustive value types count");
         const valueType = value.valueType;
         if (valueType === ValueType.VOID) {
-            logError(value.astElement.token.loc, "cannot reserve memory for 'VOID' value type, compiler error");
+            logError(value.Token.token.loc, "cannot reserve memory for 'VOID' value type, compiler error");
             Deno.exit(1);
         } else if (valueType === ValueType.NUMBER) {
             vars.push(`${variableName} DS 2`);
@@ -2934,7 +2942,7 @@ function dumpProgram(program: Listing) {
     }
 }
 
-function dumpAst(ast: AST | ASTElement, prefix = "") {
+function dumpAst(ast: AST | Token, prefix = "") {
     const astToDump = ast instanceof Array ? ast : [ast];
     astToDump.forEach(element => {
         //console.log(prefix, element.token, );      
@@ -2971,7 +2979,7 @@ function dumpContext(context: Context) {
         let wordtype = "";
         if (value.isFunction) {
             //wordtype = "(" + value.ins!.map(t => humanReadableType(t)).join(",") + ")=>" + humanReadableType(value.out);
-            wordtype = humanReadableFunction(value.astElement);
+            wordtype = humanReadableFunction(value.Token);
         } else {
             wordtype = humanReadableType(value.valueType);
         }
