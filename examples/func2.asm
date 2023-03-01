@@ -10,18 +10,57 @@
 	JSR INITSTACK
 	JMP AFTER_0
 CALL_0:
+	; 1:12 STRING VAL SHOULD RETURN: 7 INFACT IS
+	LDA #0
+	STA STACKACCESS+1
+	LDA #26
+	STA STACKACCESS
+	JSR PUSH16
+	LDA #>str0
+	STA STACKACCESS+1
+	LDA #<str0
+	STA STACKACCESS
+	JSR PUSH16
+	; 1: 11 BLOCK [SHOULD RETURN: 7 INFACT IS] type: string
+	; 1: 8 FN fn type: addr
+	RTS
+AFTER_0:
+	LDA #<CALL_0
+	STA STACKACCESS
+	LDA #>CALL_0
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 1: 1 LIT_WORD const type: void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_const
+	LDA STACKACCESS + 1
+	STA V_const + 1
+	JMP AFTER_1
+CALL_1:
 	TSX
 	TXA
 	SEC
-	SBC #2
+	SBC #4
 	TAX
 	TXS
-	; 1: 16 NUMBER number type: number
-	LDA #0
-	STA STACKACCESS
-	STA STACKACCESS+1
-	JSR PUSH16
-	; 1: 13 LIT_WORD x type: void
+	; NOW WE SHOULD GRAB THE PARAMS VALUE FROM THE STACK
+	; 2: 30 NUMBER Number type: number
+	; DO NOTHING
+	; 2: 25 LIT_WORD y type: void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 2: 16 NUMBER Number type: number
+	; DO NOTHING
+	; 2: 13 LIT_WORD x type: void
 	JSR POP16
 	TSX
 	TXA
@@ -32,7 +71,7 @@ CALL_0:
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-	; 1: 24 WORD x type: number
+	; 2: 38 WORD x type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -43,59 +82,205 @@ CALL_0:
 	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 1: 28 WORD x type: number
+	; 2: 42 WORD y type: ()=>number
 	TSX
 	TXA
 	CLC
-	ADC #1
+	ADC #3
 	TAX
 	LDA $0100,X
 	STA STACKACCESS
 	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 1: 26 PLUS + type: number
+	; 2: 46 WORD y type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 2: 44 MULT * type: number
+	JSR MUL16
+	; 2: 40 PLUS + type: number
 	JSR ADD16
-	; 1: 16 BLOCK [...] type: number
-	; 1: 12 BLOCK [...] type: number
+	; 2: 16 BLOCK [+] type: number
+	; 2: 1 PARAM_BLOCK [x y [+]] type: number
 	TSX
 	TXA
 	CLC
-	ADC #2
+	ADC #4
 	TAX
 	TXS
-	; 1: 9 FN fn type: addr
+	; 2: 9 FN fn type: addr
 	RTS
-AFTER_0:
-	LDA #<CALL_0
+AFTER_1:
+	LDA #<CALL_1
 	STA STACKACCESS
-	LDA #>CALL_0
+	LDA #>CALL_1
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 1: 1 LIT_WORD double type: void
+	; 2: 1 LIT_WORD double type: void
 	JSR POP16
 	LDA STACKACCESS
 	STA V_double
 	LDA STACKACCESS + 1
 	STA V_double + 1
-	; 2: 7 WORD double type: (number)=>number
-	LDA V_double
-	STA CALL_FUN_9 + 1
-	LDA V_double + 1
-	STA CALL_FUN_9 + 2
-CALL_FUN_9:
-	JSR $1111 ; will be overwritten
-	; 2: 1 PRINT print type: void
+	JMP AFTER_2
+CALL_2:
+	TSX
+	TXA
+	SEC
+	SBC #6
+	TAX
+	TXS
+	; NOW WE SHOULD GRAB THE PARAMS VALUE FROM THE STACK
+	; 3: 30 NUMBER Number type: number
+	; DO NOTHING
+	; 3: 25 LIT_WORD num type: void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 3: 18 STRING String type: string
+	; 3: 13 LIT_WORD msg type: void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0102,X
+	LDA STACKACCESS + 1
+	STA $0103,X
+	TXA
+	PHA
+	JSR POP16
+	PLA
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 3: 43 WORD msg type: ()=>string
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	TXA
+	PHA
+	JSR PUSH16
+	PLA
+	TAX
+	LDA $0102,X
+	STA STACKACCESS
+	LDA $0103,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 3: 38 PRIN prin type: void
+	JSR PRINT_STRING
+	; 3:52 STRING VAL =
+	LDA #0
+	STA STACKACCESS+1
+	LDA #1
+	STA STACKACCESS
+	JSR PUSH16
+	LDA #>str1
+	STA STACKACCESS+1
+	LDA #<str1
+	STA STACKACCESS
+	JSR PUSH16
+	; 3: 47 PRIN prin type: void
+	JSR PRINT_STRING
+	; 3: 62 WORD num type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 3: 56 PRINT print type: void
 	JSR POP16
 	JSR PRINT_INT
 	LDA #13
 	JSR $FFD2
-	; 2:14 BYTE VAL 3
+	; 2: 37 BLOCK [prin prin print] type: void
+	; 2: 13 PARAM_BLOCK [msg num [prin prin print]] type: void
+	TSX
+	TXA
+	CLC
+	ADC #6
+	TAX
+	TXS
+	; 3: 9 FN fn type: addr
+	RTS
+AFTER_2:
+	LDA #<CALL_2
+	STA STACKACCESS
+	LDA #>CALL_2
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 3: 1 LIT_WORD log type: void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_log
+	LDA STACKACCESS + 1
+	STA V_log + 1
+	; 4: 5 WORD const type: ()=>string
+	LDA V_const
+	STA CALL_FUN_31 + 1
+	LDA V_const + 1
+	STA CALL_FUN_31 + 2
+CALL_FUN_31:
+	JSR $1111 ; will be overwritten
+	; 4:18 BYTE VAL 3
 	LDA #3
 	STA STACKACCESS
 	LDA #0
 	STA STACKACCESS+1
 	JSR PUSH16
+	; 4: 20 CAST_NUMBER !n type: number
+	; 4:23 BYTE VAL 2
+	LDA #2
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 4: 25 CAST_NUMBER !n type: number
+	; 4: 11 WORD double type: (number,number)=>number
+	LDA V_double
+	STA CALL_FUN_36 + 1
+	LDA V_double + 1
+	STA CALL_FUN_36 + 2
+CALL_FUN_36:
+	JSR $1111 ; will be overwritten
+	; 4: 1 WORD log type: (string,number)=>void
+	LDA V_log
+	STA CALL_FUN_37 + 1
+	LDA V_log + 1
+	STA CALL_FUN_37 + 2
+CALL_FUN_37:
+	JSR $1111 ; will be overwritten
 	; 1: 1 BLOCK [prog] type: void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
@@ -472,5 +657,9 @@ NOCARRY:
 	STA STACKACCESS + 1
 	JSR PUSH16
 	RTS
+str0: BYTE 83,72,79,85,76,68,32,82,69,84,85,82,78,58,32,55,32,73,78,70,65,67,84,32,73,83
+str1: BYTE 61
+V_const DS 2
 V_double DS 2
+V_log DS 2
 HEAPSTART:

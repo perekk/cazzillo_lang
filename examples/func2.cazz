@@ -1,2 +1,4 @@
-'double fn ['x number [x + x]]
-print double 3
+'const fn ["SHOULD RETURN: 7 INFACT IS"]
+'double fn ['x Number   'y   Number [x + y * y]]
+'log    fn ['msg String 'num Number [prin msg prin "=" print num]]
+log const double 3 !n 2 !n
