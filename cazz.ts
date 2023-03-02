@@ -161,7 +161,7 @@ type Token = {
     position?: InstructionPosition;
     priority?: number;
     isFunction?: boolean;
-    childs?: Token[];
+    childs: Token[];
 };
 
 enum InstructionPosition {
@@ -209,6 +209,7 @@ function getInstructionPosition(element: Token): InstructionPosition {
 }
 
 type Instruction = {    
+    txt: string;
     position: InstructionPosition;
     priority: number | undefined;
     userFunction: boolean,
@@ -219,7 +220,7 @@ type Instruction = {
     generateChildPreludeAsm?: (ast: Token, childIndex: number) => Assembly
 };
 
-type Vocabulary = Record<TokenType, Instruction>;
+type Vocabulary = Record<number, Instruction>;
 
 type AST = Token[];
 
@@ -230,10 +231,10 @@ type Assembly = Array<string>;
 function getWordDefinition(context: Context, variableName: string): ({ isGlobalContext: boolean } & VarDefinitionSpec) | undefined {
 
     const debug = false;
-    if (debug) console.log(`searchin ${variableName} in context ${context.parent === undefined ? "global" : context.element?.token.txt ?? "not yet assigned to an element"}`);
-    const tryDef = context.varsDefinition.get(variableName);
+    if (debug) console.log(`searchin ${variableName} in context ${context.parent === undefined ? "global" : context.element?.txt ?? "not yet assigned to an element"}`);
+    const tryDef = context.varsDefinition[variableName];
     if (tryDef !== undefined) {
-        if (debug) console.log(`found! ${variableName} in ${ast.token.txt}`);
+        if (debug) console.log(`found! ${variableName} in ${ast.txt}`);
         return { isGlobalContext: context.parent === undefined, ...tryDef };
     }
 
@@ -535,25 +536,24 @@ function getReturnTypeOfAWord(ast: Token): ValueType {
 
 function createVocabulary(): Vocabulary {
     console.assert(TokenType.TOKEN_COUNT === 36, "Exaustive token types count");
-    const voc: Vocabulary = new Map<TokenType, Instruction>();
-    voc.set(TokenType.PRINT, {
-        txt: "print",
-        arity: 1,
+    const voc: Vocabulary = {};
+    voc[TokenType.PRINT] = {
+        txt: "print",        
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: (ast) => {
-            const valueType = getReturnTypeOfAWord(ast.childs[0]);
+        ins: (token) => {
+            const valueType = getReturnTypeOfAWord(token.childs[0]);
             if (valueType === undefined) {
-                logError(ast.token.loc, `cannot determine the type of '${ast.token.txt}'`);
+                logError(token.loc, `cannot determine the type of '${token.txt}'`);
                 Deno.exit(1);
             }
             return [valueType];
         },
-        out: () => ValueType.VOID,        
-        generateAsm: (ast) => {
+        out: () => ValueType.VOID,
+        generateAsm: (token) => {
             console.assert(ValueType.VALUETYPESCOUNT === 6, "Exaustive value types count");
-            const valueType = getReturnTypeOfAWord(ast.childs[0]);
+            const valueType = getReturnTypeOfAWord(token.childs[0]);
             if (valueType === ValueType.NUMBER) {
                 return [
                     "JSR POP16",
@@ -601,27 +601,27 @@ function createVocabulary(): Vocabulary {
                     "JSR $FFD2",
                 ];
             } else {
-                logError(ast.token.loc, `print of ${humanReadableType(valueType)} is not supported yet`)
+                logError(token.loc, `print of ${humanReadableType(valueType)} is not supported yet`)
                 Deno.exit(1);
             }
         }
-    });
-    voc.set(TokenType.PRIN, {
+    };
+    voc[TokenType.PRIN] = {
         txt: "prin",
-        arity: 1,
+
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: (ast) => {
+        ins: (token) => {
             const valueType = getReturnTypeOfAWord(ast.childs[0]);
             if (valueType === undefined) {
-                logError(ast.token.loc, `cannot determine the type of '${ast.token.txt}'`);
+                logError(token.loc, `cannot determine the type of '${token.txt}'`);
                 Deno.exit(1);
             }
             return [valueType]
         },
         out: () => ValueType.VOID,        
-        generateAsm: (ast) => {
+        generateAsm: (token) => {
             console.assert(ValueType.VALUETYPESCOUNT === 6, "Exaustive value types count");
             const valueType = getReturnTypeOfAWord(ast.childs[0]);
             if (valueType === ValueType.NUMBER) {
@@ -660,45 +660,42 @@ function createVocabulary(): Vocabulary {
                     "JSR PRINT_INT",
                 ];
             } else {
-                logError(ast.token.loc, `print of ${humanReadableType(valueType)} is not supported yet`)
+                logError(token.loc, `print of ${humanReadableType(valueType)} is not supported yet`)
                 Deno.exit(1);
             }
         }
-    });
-    voc.set(TokenType.EMIT, {
+    };
+    voc[TokenType.EMIT] = {
         txt: "emit",
-        arity: 1,
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: (ast) => [ValueType.BYTE],
+        ins: (token) => [ValueType.BYTE],
         out: () => ValueType.VOID,        
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "JSR POP16",
             "LDA STACKACCESS",
             "JSR $FFD2",
         ],
-    });
-    voc.set(TokenType.NL, {
+    };
+    voc[TokenType.NL] = {
         txt: "nl",
-        arity: 0,
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: (ast) => [],
+        ins: (token) => [],
         out: () => ValueType.VOID,
         generateAsm: () => [
             "LDA #13",
             "JSR $FFD2",
         ],
-    });
-    voc.set(TokenType.PLUS, {
+    };
+    voc[TokenType.PLUS] = {
         txt: "+",
-        arity: 2,
         position: InstructionPosition.INFIX,
         priority: 80,
         userFunction: false,
-        ins: (ast) => {
+        ins: (token) => {
             console.assert(ast.childs.length === 2, "The childs of a plus operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(ast.childs[0]);
             const type2 = getReturnTypeOfAWord(ast.childs[1]);
@@ -708,17 +705,16 @@ function createVocabulary(): Vocabulary {
             return [ValueType.NUMBER, ValueType.NUMBER];
         },
         out: () => ValueType.NUMBER,
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "JSR ADD16"
         ]
-    });
-    voc.set(TokenType.MINUS, {
+    };
+    voc[TokenType.MINUS] = {
         txt: "-",
-        arity: 2,
         position: InstructionPosition.INFIX,
         priority: 80,
         userFunction: false,
-        ins: (ast) => {
+        ins: (token) => {
             console.assert(ast.childs.length === 2, "The childs of a minus operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(ast.childs[0]);
             const type2 = getReturnTypeOfAWord(ast.childs[1]);
@@ -728,17 +724,16 @@ function createVocabulary(): Vocabulary {
             return [ValueType.NUMBER, ValueType.NUMBER];
         },
         out: () => ValueType.NUMBER,
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "JSR SUB16"
         ]
-    });
-    voc.set(TokenType.MULT, {
+    };
+    voc[TokenType.MULT] = {
         txt: "*",
-        arity: 2,
         position: InstructionPosition.INFIX,
         priority: 90,
         userFunction: false,
-        ins: (ast) => {
+        ins: (token) => {
             console.assert(ast.childs.length === 2, "The childs of a multiply operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(ast.childs[0]);
             const type2 = getReturnTypeOfAWord(ast.childs[1]);
@@ -748,17 +743,16 @@ function createVocabulary(): Vocabulary {
             return [ValueType.NUMBER, ValueType.NUMBER];
         },
         out: () => ValueType.NUMBER,
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "JSR MUL16"
         ]
-    });
-    voc.set(TokenType.DIV, {
+    };
+    voc[TokenType.DIV] = {
         txt: "/",
-        arity: 2,
         position: InstructionPosition.INFIX,
         priority: 90,
         userFunction: false,
-        ins: (ast) => {
+        ins: (token) => {
             console.assert(ast.childs.length === 2, "The childs of a division operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(ast.childs[0]);
             const type2 = getReturnTypeOfAWord(ast.childs[1]);
@@ -768,17 +762,16 @@ function createVocabulary(): Vocabulary {
             return [ValueType.NUMBER, ValueType.NUMBER];
         },
         out: () => ValueType.NUMBER,
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "JSR DIV16"
         ]
-    });
-    voc.set(TokenType.MOD, {
+    };
+    voc[TokenType.MOD] = {
         txt: "%",
-        arity: 2,
         position: InstructionPosition.INFIX,
         priority: 90,
         userFunction: false,
-        ins: (ast) => {
+        ins: (token) => {
             console.assert(ast.childs.length === 2, "The childs of a plus operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(ast.childs[0]);
             const type2 = getReturnTypeOfAWord(ast.childs[1]);
@@ -788,29 +781,28 @@ function createVocabulary(): Vocabulary {
             return [ValueType.NUMBER, ValueType.NUMBER];
         },
         out: () => ValueType.NUMBER,
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "JSR MOD16"
         ]
-    });
-    voc.set(TokenType.NOT, {
+    };
+    voc[TokenType.NOT] = {
         txt: "!",
-        arity: 1,
         position: InstructionPosition.POSTFIX,
         priority: 100,
         userFunction: false,
-        ins: (ast) => {
+        ins: (token) => {
             console.assert(ast.childs.length === 1, "The childs of a not operand should be 1, compiler error");
             const valueType = getReturnTypeOfAWord(ast.childs[0]);
             if (valueType === ValueType.BYTE || valueType === ValueType.NUMBER || valueType === ValueType.BOOL) return [valueType];
             return [ValueType.NUMBER];
         },
-        out: (ast) => {
+        out: (token) => {
             console.assert(ast.childs.length === 1, "The childs of a not operand should be 1, compiler error");
             const valueType = getReturnTypeOfAWord(ast.childs[0]);
             if (valueType === ValueType.BYTE || valueType === ValueType.NUMBER || valueType === ValueType.BOOL) return valueType;
             return ValueType.NUMBER;
         },
-        generateAsm: (ast) => {
+        generateAsm: (token) => {
             const valueType = getReturnTypeOfAWord(ast.childs[0]);
             if (valueType === ValueType.NUMBER) {
                 return [
@@ -847,20 +839,19 @@ function createVocabulary(): Vocabulary {
                     "INC STACKBASE + 1,X"
                 ]
             } else {
-                logError(ast.token.loc, `value type for 'not' is ${humanReadableType(valueType)} compiler error`);
+                logError(token.loc, `value type for 'not' is ${humanReadableType(valueType)} compiler error`);
                 Deno.exit(1);
             }
 
 
         }
-    });
-    voc.set(TokenType.LT, {
+    };
+    voc[TokenType.LT] = {
         txt: "<",
-        arity: 2,
         position: InstructionPosition.INFIX,
         priority: 70,
         userFunction: false,
-        ins: (ast) => {
+        ins: (token) => {
             console.assert(ast.childs.length === 2, "The childs of a less-than operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(ast.childs[0]);
             const type2 = getReturnTypeOfAWord(ast.childs[1]);
@@ -870,7 +861,7 @@ function createVocabulary(): Vocabulary {
             return [ValueType.NUMBER, ValueType.NUMBER];
         },
         out: () => ValueType.BOOL,
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "LDX SP16",
             "LDA STACKBASE + 4,X",
             "CMP STACKBASE + 2,X",
@@ -895,14 +886,13 @@ function createVocabulary(): Vocabulary {
             "STA STACKBASE + 2,X",
             "STX SP16",
         ]
-    });
-    voc.set(TokenType.EQ, {
+    };
+    voc[TokenType.EQ] = {
         txt: "=",
-        arity: 2,
         position: InstructionPosition.INFIX,
         priority: 70,
         userFunction: false,
-        ins: (ast) => {
+        ins: (token) => {
             console.assert(ast.childs.length === 2, "The childs of a equal operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(ast.childs[0]);
             const type2 = getReturnTypeOfAWord(ast.childs[1]);
@@ -911,9 +901,8 @@ function createVocabulary(): Vocabulary {
             }
             return [ValueType.NUMBER, ValueType.NUMBER];
         },
-
         out: () => ValueType.BOOL,
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "LDX SP16",
             "LDA STACKBASE + 4,X",
             "CMP STACKBASE + 2,X",
@@ -935,14 +924,13 @@ function createVocabulary(): Vocabulary {
             "STA STACKBASE + 2",
             "STX SP16",
         ]
-    });
-    voc.set(TokenType.GT, {
+    };
+    voc[TokenType.GT] = {
         txt: ">",
-        arity: 2,
         position: InstructionPosition.INFIX,
         priority: 70,
         userFunction: false,
-        ins: (ast) => {
+        ins: (token) => {
             console.assert(ast.childs.length === 2, "The childs of a greater-than operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(ast.childs[0]);
             const type2 = getReturnTypeOfAWord(ast.childs[1]);
@@ -952,7 +940,7 @@ function createVocabulary(): Vocabulary {
             return [ValueType.NUMBER, ValueType.NUMBER];
         },
         out: () => ValueType.BOOL,
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "LDX SP16",
             "LDA STACKBASE + 2,X",
             "CMP STACKBASE + 4,X",
@@ -977,10 +965,9 @@ function createVocabulary(): Vocabulary {
             "STA STACKBASE + 2,X",
             "STX SP16",
         ]
-    });
-    voc.set(TokenType.IF, {
+    };
+    voc[TokenType.IF] = {
         txt: "if",
-        arity: 2,
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
@@ -999,37 +986,36 @@ function createVocabulary(): Vocabulary {
             ];
             return [];
         },
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "endblock@:"
         ],
-    });
-    voc.set(TokenType.EITHER, {
-        txt: "either",
-        arity: 3,
+    };
+    voc[TokenType.EITHER] = {
+        txt: "either",        
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: ast => {
+        ins: token => {
             console.assert(ast.childs.length === 3, "'Either' should have 3 childs");
             const typeThen = getReturnTypeOfAWord(ast.childs[1]);
             const typeElse = getReturnTypeOfAWord(ast.childs[2]);
 
             if (typeThen === undefined) {
-                logError(ast.childs[1].token.loc, `cannot determine the type of '${ast.childs[1].token.txt}'`);
+                logError(ast.childs[1].loc, `cannot determine the type of '${ast.childs[1].txt}'`);
                 Deno.exit(1);
             }
             if (typeElse === undefined) {
-                logError(ast.childs[2].token.loc, `cannot determine the type of '${ast.childs[2].token.txt}'`);
+                logError(ast.childs[2].loc, `cannot determine the type of '${ast.childs[2].txt}'`);
                 Deno.exit(1);
             }
             if (typeThen !== typeElse) {
-                logError(ast.childs[1].token.loc, `the then branch returns '${humanReadableType(typeThen)}'`);
-                logError(ast.childs[2].token.loc, `while the 'else' branch returns '${humanReadableType(typeElse)}'`);
+                logError(ast.childs[1].loc, `the then branch returns '${humanReadableType(typeThen)}'`);
+                logError(ast.childs[2].loc, `while the 'else' branch returns '${humanReadableType(typeElse)}'`);
                 Deno.exit(1);
             }
             return [ValueType.BOOL, typeThen, typeElse];
         },
-        out: (ast) => ast.childs[1].token.internalValueType!,
+        out: (token) => ast.childs[1].internalValueType!,
         generateChildPreludeAsm: (ast, n) => {
             // no prelude for condition
             if (n === 0) return [];
@@ -1050,62 +1036,62 @@ function createVocabulary(): Vocabulary {
                 "elseblock@:"
             ];
         },
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "endblock@:",
         ],
-    });
-    voc.set(TokenType.OPEN_BRACKETS, {
+    };
+    voc[TokenType.OPEN_BRACKETS] = {
         txt: "[",
-        arity: 0,
+
         position: InstructionPosition.PREFIX,
         priority: 150,
         userFunction: false,
         ins: () => [],
         out: () => ValueType.VOID,
-        generateAsm: (ast) => []
-    });
-    voc.set(TokenType.CLOSE_BRACKETS, {
+        generateAsm: (token) => []
+    };
+    voc[TokenType.CLOSE_BRACKETS] = {
         txt: "]",
-        arity: 0,
+
         position: InstructionPosition.POSTFIX,
         priority: 150,
         userFunction: false,
         ins: () => [],
         out: () => ValueType.VOID,
-        generateAsm: (ast) => []
-    });
-    voc.set(TokenType.BLOCK, {
+        generateAsm: (token) => []
+    };
+    voc[TokenType.BLOCK] = {
         txt: "",
-        arity: 0,
+
         position: InstructionPosition.PREFIX,
         priority: 150,
         userFunction: false,
-        ins: ast => {
+        ins: token => {
             const childNumber = ast.childs.length;
             if (childNumber === 0) return [];
             //return new Array(childNumber).fill(ValueType.VOID);
             return ast.childs.map((child, index) => index === childNumber - 1 ? getReturnTypeOfAWord(child) : ValueType.VOID);
         },
-        out: (ast) => {
+        out: (token) => {
             if (ast.childs.length === 0) return ValueType.VOID;
             const lastChild = ast.childs[ast.childs.length - 1];
             const valueType = getReturnTypeOfAWord(lastChild);
             if (valueType === undefined) {
-                logError(lastChild.token.loc, `cannot determine the type of '${lastChild.token.txt}'`);
+                logError(lastChild.loc, `cannot determine the type of '${lastChild.txt}'`);
                 Deno.exit(1);
             }
             return valueType;
         },
-        generateAsm: ast => {
-            if (ast.context === undefined) {
-                logError(ast.token.loc, `can't find context for ${ast.token.txt}, compiler error`);
+        generateAsm: token => {
+            if (token.context === undefined) {
+                logError(token.loc, `can't find context for ${token.txt}, compiler error`);
                 Deno.exit(1);
-            }
-            if (ast.context.varsDefinition.size === 0) return [];
-            if (ast.context.element === undefined) return []; // the global context
+                }            
+                if (token.context.parent === undefined) return []; // the global context
 
             let sizeToRelease = 0;
-            ast.context.varsDefinition.forEach(varDef => {                
+
+                token.context.varsDefinition.forEach(varDef => {                
                 if (varDef.valueType === ValueType.NUMBER) {
                     sizeToRelease += 2;
                 } else if (varDef.valueType === ValueType.STRING) {
@@ -1117,10 +1103,11 @@ function createVocabulary(): Vocabulary {
                 } else if (varDef.valueType === ValueType.ADDR) {
                     sizeToRelease += 2;
                 } else {                
-                    logError(ast.token.loc, `cannot release space on the stack for type ${humanReadableType(varDef.valueType)} yet`);
+                    logError(token.loc, `cannot release space on the stack for type ${humanReadableType(varDef.valueType)} yet`);
                     Deno.exit(1);
                 }
             });
+
             return [
                 "TSX",
                 "TXA",
@@ -1133,14 +1120,14 @@ function createVocabulary(): Vocabulary {
         generateChildPreludeAsm: (ast, n) => {
             if (n > 0) return [];
             // at the start we make some space on the stack, for variables
-            if (ast.context === undefined) {
-                logError(ast.token.loc, `can't find context for ${ast.token.txt}, compiler error`);
+            if (token.context === undefined) {
+                logError(token.loc, `can't find context for ${token.txt}, compiler error`);
                 Deno.exit(1);
             }
-            if (ast.context.varsDefinition.size === 0) return [];
-            if (ast.context.element === undefined) return []; // the global context
+            if (token.context.varsDefinition.size === 0) return [];
+            if (token.context.element === undefined) return []; // the global context
             let sizeToReserve = 0;            
-            ast.context.varsDefinition.forEach(varDef => {
+            token.context.varsDefinition.forEach(varDef => {
                 varDef.offset = sizeToReserve;
                 if (varDef.valueType === ValueType.NUMBER) {
                     sizeToReserve += 2;
@@ -1153,7 +1140,7 @@ function createVocabulary(): Vocabulary {
                 } else if (varDef.valueType === ValueType.ADDR) {
                     sizeToReserve += 2;
                 } else {
-                    logError(ast.token.loc, `cannot reserve space on the stack for type ${humanReadableType(varDef.valueType)} yet`);
+                    logError(token.loc, `cannot reserve space on the stack for type ${humanReadableType(varDef.valueType)} yet`);
                     Deno.exit(1);
                 }
             });
@@ -1167,14 +1154,14 @@ function createVocabulary(): Vocabulary {
                 "TXS"
             ];
         }
-    });
-    voc.set(TokenType.SET_WORD, {
+    };
+    voc[TokenType.SET_WORD] = {
         txt: "",
-        arity: 1,
+
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: ast => {
+        ins: token => {
             console.assert(ast.childs.length === 1, "'set word' should have one child");
             const child = ast.childs[0];
             const valueType = getReturnTypeOfAWord(child);
@@ -1183,40 +1170,40 @@ function createVocabulary(): Vocabulary {
                 Deno.exit(1);
             }
             if (valueType === ValueType.VOID) {
-                logError(ast.token.loc, `can't store 'void' values in variables`);
+                logError(token.loc, `can't store 'void' values in variables`);
                 Deno.exit(1);
             }
-            const varDef = getWordDefinition(ast.context, ast.token.txt);
+                const varDef = getWordDefinition(token.context, token.txt);
             if (varDef === undefined) {
-                logError(ast.token.loc, `can't find variable definition for '${ast.token.txt}', compiler error`);
+                logError(token.loc, `can't find variable definition for '${token.txt}', compiler error`);
                 Deno.exit(1);
             }
             return [varDef.valueType];
         },
         out: () => ValueType.VOID,
-        generateAsm: ast => {
-            const varName = ast.token.txt;
-            const varDef = getWordDefinition(ast.context, varName);
+        generateAsm: token => {
+            const varName = token.txt;
+            const varDef = getWordDefinition(token.context, varName);
             if (varDef === undefined) {
-                logError(ast.token.loc, `cannot find declaration for '${varName}', compiler error`);
+                logError(token.loc, `cannot find declaration for '${varName}', compiler error`);
                 Deno.exit(1);
             }
             if (varDef.isGlobalContext) return getAsmForSetWordGlobal(ast.token, varDef.valueType, varName);
 
             if (varDef.offset === undefined) {
-                logError(ast.token.loc, `SET_WORD generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
+                logError(token.loc, `SET_WORD generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
                 Deno.exit(1);
             }
             return getAsmForSetWordLocal(ast, varDef.valueType, varName, varDef.offset);            
         },
-    });
-    voc.set(TokenType.LIT_WORD, {
+    };
+    voc[TokenType.LIT_WORD] = {
         txt: "",
-        arity: 1,
+
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: ast => {
+        ins: token => {
             console.assert(ast.childs.length === 1, "'lit word' should have one child");
             const child = ast.childs[0];
             const valueType = getReturnTypeOfAWord(child);
@@ -1225,94 +1212,94 @@ function createVocabulary(): Vocabulary {
                 Deno.exit(1);
             }
             if (valueType === ValueType.VOID) {
-                logError(ast.token.loc, `can't store 'void' values in variables`);
+                logError(token.loc, `can't store 'void' values in variables`);
                 Deno.exit(1);
             }
             return [valueType];
         },
         out: () => ValueType.VOID,
-        generateAsm: ast => {
-            const varName = ast.token.txt;
-            const varDef = getWordDefinition(ast.context, varName);
+        generateAsm: token => {
+            const varName = token.txt;
+            const varDef = getWordDefinition(token.context, varName);
             if (varDef === undefined) {
-                logError(ast.token.loc, `LIT_WORD generateAsm cannot find declaration for '${varName}', compiler error`);
+                logError(token.loc, `LIT_WORD generateAsm cannot find declaration for '${varName}', compiler error`);
                 Deno.exit(1);
             }
             if (varDef.isGlobalContext) return getAsmForSetWordGlobal(ast.token, varDef.valueType, varName);
 
             if (varDef.offset === undefined) {
-                logError(ast.token.loc, `LIT_WORD generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
+                logError(token.loc, `LIT_WORD generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
                 Deno.exit(1);
             }
             return getAsmForSetWordLocal(ast, varDef.valueType, varName, varDef.offset);            
         },
-    });
-    voc.set(TokenType.WORD, {
+    };
+    voc[TokenType.WORD] = {
         txt: "",
-        arity: 0,
+
         position: InstructionPosition.PREFIX,
         priority: 10,        
         userFunction: false,
-        ins: (ast) => {
-            const funcDef = getWordDefinition(ast.context, ast.token.txt);
-            if (ast.token.internalValueType === ValueType.ADDR) {
+        ins: (token) => {
+            const funcDef = getWordDefinition(token.context, token.txt);
+            if (token.internalValueType === ValueType.ADDR) {
                 if (funcDef === undefined) {
-                    logError(ast.token.loc, `cannot find definition for function '${ast.token.txt}', compiler error`);
+                    logError(token.loc, `cannot find definition for function '${token.txt}', compiler error`);
                     Deno.exit(1);
                 }
                 if (funcDef.ins === undefined) {
-                    logError(ast.token.loc, `the function '${ast.token.txt}' should have a list of parameters type, compiler error`);
+                    logError(token.loc, `the function '${token.txt}' should have a list of parameters type, compiler error`);
                     Deno.exit(1);
                 }
                 return funcDef.ins;
             }
             return [];
         },
-        out: ast => {
-            const varName = ast.token.txt;
-            const varDef = getWordDefinition(ast.context, varName);
-            if (ast.token.internalValueType === ValueType.ADDR) {
+        out: token => {
+            const varName = token.txt;
+            const varDef = getWordDefinition(token.context, varName);
+            if (token.internalValueType === ValueType.ADDR) {
                 if (varDef === undefined) {
-                    logError(ast.token.loc, `cannot find definition for function '${ast.token.txt}', compiler error`);
+                    logError(token.loc, `cannot find definition for function '${token.txt}', compiler error`);
                     Deno.exit(1);
                 }
                 if (varDef.out === undefined) {
-                    logError(ast.token.loc, `the function '${ast.token.txt}' should return a type value, compiler error`);
+                    logError(token.loc, `the function '${token.txt}' should return a type value, compiler error`);
                     Deno.exit(1);
                 }
                 return varDef.out;
             } else {
                 if (varDef !== undefined) return varDef.valueType;
-                logError(ast.token.loc, `word '${varName}' not defined`);
+                    logError(token.loc, `word '${varName}' not defined`);
                 Deno.exit(1);
             }
         },
-        generateAsm: ast => {
-            const varName = ast.token.txt;
-            const varDef = getWordDefinition(ast.context, varName);
+        generateAsm: token => {
+            const varName = token.txt;
+            const varDef = getWordDefinition(token.context, varName);
             if (varDef === undefined) {
-                logError(ast.token.loc, `cannot find declaration for '${varName}', compiler error`);
+                logError(token.loc, `cannot find declaration for '${varName}', compiler error`);
                 Deno.exit(1);
             }
-            //const valueType = ast.token.valueType === ValueType.ADDR ? varDef.out : varDef.valueType;
+            //const valueType = token.valueType === ValueType.ADDR ? varDef.out : varDef.valueType;
             const valueType = varDef.valueType;
             if (valueType === undefined) {
-                logError(ast.token.loc, `cannot determine the result type of function '${varName}', compiler error`);
+                logError(token.loc, `cannot determine the result type of function '${varName}', compiler error`);
                 Deno.exit(1);
             }
 
             if (varDef.isGlobalContext) return getAsmForGetWordGlobal(ast.token, valueType, varName, varDef.isFunction);
 
             if (varDef.offset === undefined) {
-                logError(ast.token.loc, `WORD generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
+                logError(token.loc, `WORD generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
                 Deno.exit(1);
             }
             return getAsmForGetWordLocal(ast, valueType, varName, varDef.offset, varDef.isFunction);
         }
-    });
-    voc.set(TokenType.WHILE, {
+    };
+    voc[TokenType.WHILE] = {
         txt: "while",
-        arity: 2,
+
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
@@ -1336,20 +1323,20 @@ function createVocabulary(): Vocabulary {
                 ];
             }
         },
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "JMP startloop@",
             "endblock@:",
         ],
-    });
-    voc.set(TokenType.POKE, {
+    };
+    voc[TokenType.POKE] = {
         txt: "poke",
-        arity: 2,
+
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
         ins: () => [ValueType.NUMBER, ValueType.BYTE],
         out: () => ValueType.VOID,
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "JSR POP16",
             "LDY STACKACCESS",
             "JSR POP16",
@@ -1357,16 +1344,16 @@ function createVocabulary(): Vocabulary {
             "LDY #0",
             "STA (STACKACCESS),Y"
         ]
-    });
-    voc.set(TokenType.PEEK, {
+    };
+    voc[TokenType.PEEK] = {
         txt: "peek",
-        arity: 1,
+
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
         ins: () => [ValueType.NUMBER],
         out: () => ValueType.BYTE,
-        generateAsm: (ast) => [
+        generateAsm: (token) => [
             "JSR POP16",
             "LDY #0",
             "LDA (STACKACCESS),Y",
@@ -1374,10 +1361,10 @@ function createVocabulary(): Vocabulary {
             "STY STACKACCESS+1",
             "JSR PUSH16"
         ]
-    });
-    voc.set(TokenType.CAST_BYTE, {
+    };
+    voc[TokenType.CAST_BYTE] = {
         txt: "!<",
-        arity: 1,
+
         position: InstructionPosition.POSTFIX,
         priority: 100,
         userFunction: false,
@@ -1388,20 +1375,20 @@ function createVocabulary(): Vocabulary {
             "LDA #0",
             "STA STACKBASE + 2,X"
         ]
-    });
-    voc.set(TokenType.CAST_NUMBER, {
+    };
+    voc[TokenType.CAST_NUMBER] = {
         txt: "!n",
-        arity: 1,
+
         position: InstructionPosition.POSTFIX,
         priority: 100,
         userFunction: false,
         ins: () => [ValueType.BYTE],
         out: () => ValueType.NUMBER,
         generateAsm: () => []
-    });
-    voc.set(TokenType.NUMBER, {
+    };
+    voc[TokenType.NUMBER] = {
         txt: "Number",
-        arity: 0,
+
         position: InstructionPosition.PREFIX,
         priority: 100,
         userFunction: false,
@@ -1414,20 +1401,20 @@ function createVocabulary(): Vocabulary {
             // "JSR PUSH16",
             "; DO NOTHING"
         ]
-    });
-    voc.set(TokenType.STRING, {
+    };
+    voc[TokenType.STRING] = {
         txt: "String",
-        arity: 0,
+
         position: InstructionPosition.PREFIX,
         priority: 100,
         userFunction: false,
         ins: () => [],
         out: () => ValueType.STRING,
         generateAsm: () => []
-    });
-    voc.set(TokenType.BYTE, {
+    };
+    voc[TokenType.BYTE] = {
         txt: "Byte",
-        arity: 0,
+
         position: InstructionPosition.PREFIX,
         priority: 100,
         userFunction: false,
@@ -1440,10 +1427,10 @@ function createVocabulary(): Vocabulary {
             // "JSR PUSH16",
             "; DO NOTHING"
         ]
-    });
-    voc.set(TokenType.BOOL, {
+    };
+    voc[TokenType.BOOL] = {
         txt: "Bool",
-        arity: 0,
+
         position: InstructionPosition.PREFIX,
         priority: 100,
         userFunction: false,
@@ -1456,10 +1443,10 @@ function createVocabulary(): Vocabulary {
             // "JSR PUSH16",
             "; DO NOTHING"
         ]
-    });
-    voc.set(TokenType.STR_JOIN, {
+    };
+    voc[TokenType.STR_JOIN] = {
         txt: ".",
-        arity: 2,
+
         position: InstructionPosition.INFIX,
         priority: 100,
         userFunction: false,
@@ -1543,10 +1530,10 @@ function createVocabulary(): Vocabulary {
             "STA STACKACCESS+1",
             "JSR PUSH16",
         ]
-    });
-    voc.set(TokenType.HEAP, {
+    };
+    voc[TokenType.HEAP] = {
         txt: "heap",
-        arity: 0,
+
         position: InstructionPosition.PREFIX,
         priority: 100,
         userFunction: false,
@@ -1559,10 +1546,10 @@ function createVocabulary(): Vocabulary {
             "STA STACKACCESS+1",
             "JSR PUSH16",
         ]
-    });
-    voc.set(TokenType.STR_LEN, {
+    };
+    voc[TokenType.STR_LEN] = {
         txt: "#",
-        arity: 0,
+
         position: InstructionPosition.POSTFIX,
         priority: 100,
         userFunction: false,
@@ -1571,20 +1558,20 @@ function createVocabulary(): Vocabulary {
         generateAsm: () => [
             "JSR POP16",
         ]
-    });
-    voc.set(TokenType.FN, {
+    };
+    voc[TokenType.FN] = {
         txt: "fn",
-        arity: 1,
+
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: ast => {
+        ins: token => {
             console.assert(ast.childs.length === 1, "'fn' should have one parameter");
-            if (ast.childs[0].token.internalValueType === undefined) {
-                logError(ast.token.loc, `can't determine the output value for function`);
+                if (ast.childs[0].token.internalValueType === undefined) {
+                    logError(token.loc, `can't determine the output value for function`);
                 Deno.exit(1);
             }
-            return [ast.childs[0].token.internalValueType];
+                return [ast.childs[0].token.internalValueType];
         },
         out: () => ValueType.ADDR,
         generateChildPreludeAsm: (ast, n) => {
@@ -1597,10 +1584,10 @@ function createVocabulary(): Vocabulary {
                     `${asmFunctionName}:`,
                 ];
             }
-            logError(ast.token.loc, `'fn should have only one parameter'`);
+            logError(token.loc, `'fn should have only one parameter'`);
             Deno.exit(1);
         },
-        generateAsm: (ast) => {
+        generateAsm: (token) => {
             const asmFunctionName = getFunctionName(ast.instruction.functionIndex!);
             const asmAfterFunctionName = getAfterFunctionName(ast.instruction.functionIndex!);
             return [
@@ -1613,20 +1600,20 @@ function createVocabulary(): Vocabulary {
                 "JSR PUSH16",
             ];
         },
-    });
-    voc.set(TokenType.PARAM_BLOCK, {
+    };
+    voc[TokenType.PARAM_BLOCK] = {
         txt: "",
-        arity: 0,
+
         position: InstructionPosition.PREFIX,
         priority: 150,
         userFunction: false,
-        ins: ast => {
+        ins: token => {
             const childNumber = ast.childs.length;
             if (childNumber === 0) return [];
             //return new Array(childNumber).fill(ValueType.VOID);
             return ast.childs.map((child, index) => index === childNumber - 1 ? getReturnTypeOfAWord(child) : ValueType.VOID);
         },
-        out: (ast) => {
+        out: (token) => {
             if (ast.childs.length === 0) return ValueType.VOID;
             const lastChild = ast.childs[ast.childs.length - 1];
             const valueType = getReturnTypeOfAWord(lastChild);
@@ -1636,16 +1623,16 @@ function createVocabulary(): Vocabulary {
             }
             return valueType;
         },
-        generateAsm: ast => {
-            if (ast.context === undefined) {
-                logError(ast.token.loc, `can't find context for ${ast.token.txt}, compiler error`);
+        generateAsm: token => {
+            if (token.context === undefined) {
+                logError(token.loc, `can't find context for ${token.txt}, compiler error`);
                 Deno.exit(1);
             }
-            if (ast.context.varsDefinition.size === 0) return [];
-            if (ast.context.element === undefined) return []; // the global context
+                if (token.context.varsDefinition.size === 0) return [];
+                if (token.context.element === undefined) return []; // the global context
 
             let sizeToRelease = 0;
-            ast.context.varsDefinition.forEach(varDef => {
+                token.context.varsDefinition.forEach(varDef => {
                 if (varDef.valueType === ValueType.NUMBER) {
                     sizeToRelease += 2;
                 } else if (varDef.valueType === ValueType.STRING) {
@@ -1657,7 +1644,7 @@ function createVocabulary(): Vocabulary {
                 } else if (varDef.valueType === ValueType.ADDR) {
                     sizeToRelease += 2;
                 } else {
-                    logError(ast.token.loc, `cannot release space on the stack for type ${humanReadableType(varDef.valueType)} yet`);
+                    logError(token.loc, `cannot release space on the stack for type ${humanReadableType(varDef.valueType)} yet`);
                     Deno.exit(1);
                 }
             });
@@ -1675,14 +1662,14 @@ function createVocabulary(): Vocabulary {
             const indexFirstChild = ast.childs.length - 2;
             if (n !== indexFirstChild) return [];
             // at the start we make some space on the stack, for variables
-            if (ast.context === undefined) {
-                logError(ast.token.loc, `can't find context for ${ast.token.txt}, compiler error`);
+            if (token.context === undefined) {
+                logError(token.loc, `can't find context for ${token.txt}, compiler error`);
                 Deno.exit(1);
             }
-            if (ast.context.varsDefinition.size === 0) return [];
-            if (ast.context.element === undefined) return []; // the global context
+            if (token.context.varsDefinition.size === 0) return [];
+            if (token.context.element === undefined) return []; // the global context
             let sizeToReserve = 0;
-            ast.context.varsDefinition.forEach(varDef => {
+            token.context.varsDefinition.forEach(varDef => {
                 varDef.offset = sizeToReserve;
                 if (varDef.valueType === ValueType.NUMBER) {
                     sizeToReserve += 2;
@@ -1710,7 +1697,8 @@ function createVocabulary(): Vocabulary {
                 "; NOW WE SHOULD GRAB THE PARAMS VALUE FROM THE STACK"
             ];
         }
-    });
+    };
+
     return voc;
 }
 
@@ -1741,7 +1729,7 @@ function identifyToken(vocabulary: Vocabulary, txt: string): { type: TokenType, 
     return { type: TokenType.WORD, literalType: undefined };
 }
 
-function getInstructionForToken(vocabulary: Vocabulary, context: Context, token: Token): Instruction {
+function getInstructionForToken(vocabulary: Vocabulary, token: Token): Instruction {
 
     // literal
     if (token.type === TokenType.LITERAL) return {
@@ -1756,61 +1744,12 @@ function getInstructionForToken(vocabulary: Vocabulary, context: Context, token:
 
     // keyword
     if (token.type in vocabulary) return vocabulary[token.type];
+    logError(token.loc, `unknown token '${token.txt}'`);
+    Deno.exit(1);
 
-    // word
+    logError(token.loc, `unknown token '${token.txt}'`);
+    Deno.exit(1);
 
-
-    if (token.type === TokenType.WORD) {
-        const varDef = getWordDefinition(context, token.txt);
-        if (varDef === undefined) {
-            return {
-
-                ins: () => [],
-                out: (ast) => {
-                    // the return value will be generated in the future
-                    const varDef = getWordDefinition(ast.context, ast.token.txt);
-                    if (varDef?.isFunction) return varDef.out!;
-                    return varDef?.valueType!;
-                },
-                generateAsm: vocabulary.get(TokenType.WORD)?.generateAsm!,
-                position: InstructionPosition.PREFIX,
-                priority: 10,
-                userFunction: false,
-                txt: token.txt,
-                generateChildPreludeAsm: vocabulary.get(TokenType.WORD)?.generateChildPreludeAsm,
-            };
-        }
-        const wordInstruction = vocabulary.get(TokenType.WORD)!;
-        if (varDef.isFunction) {
-            return {
-
-                ins: () => varDef.ins!,
-                out: () => varDef.out!,
-                generateAsm: wordInstruction.generateAsm,
-                position: InstructionPosition.PREFIX,
-                userFunction: true,
-                priority: 10,
-                txt: token.txt + "()",
-                generateChildPreludeAsm: wordInstruction.generateChildPreludeAsm
-            };
-        }
-        return {
-            arity: 0,
-            ins: () => [],
-            out: () => varDef.out!,
-            generateAsm: wordInstruction.generateAsm,
-            position: InstructionPosition.PREFIX,
-            userFunction: false,
-            priority: 10,
-            txt: token.txt,
-            generateChildPreludeAsm: wordInstruction.generateChildPreludeAsm
-        };
-    } else if (vocabulary.has(token.type)) {
-        return vocabulary.get(token.type)!;
-    } else {
-        logError(token.loc, `unknown token '${token.txt}'`);
-        Deno.exit(1);
-    }
 
 }
 
