@@ -1,4 +1,4 @@
-a: 1064 
+'a 1064 
 while a < 1104 [
     asciicode: 128 + peek a
     poke a + 40 * 19 asciicode !>

@@ -1,0 +1,7 @@
+// this is the problem:
+// first try : first parse, then typecheck, the rebalance the ast with user definition 
+// second try : with bottom up parsing we encounter a before it's definition
+
+'a 1064 
+[ print a]
+
