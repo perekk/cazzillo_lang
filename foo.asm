@@ -8,18 +8,185 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
-	; 1:4 BYTE VAL 0
-	LDA #0
-	STA STACKACCESS
+	; 1:4 NUMBER VAL 11
 	LDA #0
 	STA STACKACCESS+1
+	LDA #11
+	STA STACKACCESS
 	JSR PUSH16
-	; 1: 1 LIT_WORD x type: void
+	; 1: 1 LIT_WORD a type: (number)=>void
 	JSR POP16
 	LDA STACKACCESS
-	STA V_x
-	; 1: 6 WORD x type: void
-	; 1: 1 BLOCK [prog] type: void
+	STA V_a
+	LDA STACKACCESS + 1
+	STA V_a + 1
+	; 2:4 STRING VAL CAZZILLO
+	LDA #0
+	STA STACKACCESS+1
+	LDA #8
+	STA STACKACCESS
+	JSR PUSH16
+	LDA #>str0
+	STA STACKACCESS+1
+	LDA #<str0
+	STA STACKACCESS
+	JSR PUSH16
+	; 2: 1 LIT_WORD b type: (string)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_b + 2
+	LDA STACKACCESS + 1
+	STA V_b + 3
+	JSR POP16
+	LDA STACKACCESS
+	STA V_b
+	LDA STACKACCESS + 1
+	STA V_b + 1
+startloop18:
+	; 4: 7 WORD a type: ()=>number
+	LDA V_a
+	STA STACKACCESS
+	LDA V_a + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 4:11 NUMBER VAL 100
+	LDA #0
+	STA STACKACCESS+1
+	LDA #100
+	STA STACKACCESS
+	JSR PUSH16
+	; 4: 9 LT < type: (number,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BCC less6
+	BNE greaterorequal6
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BCC less6
+greaterorequal6:
+	LDA #00
+	JMP store6
+less6:
+	LDA #01
+store6:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock18
+	LDA STACKACCESS + 1
+	BNE trueblock18
+	JMP endblock18 ; if all zero
+trueblock18:
+	; reserve 2 on the stack for: c (number offset 0)
+	TSX
+	TXA
+	SEC
+	SBC #2
+	TAX
+	TXS
+	; 5:8 NUMBER VAL 0
+	LDA #0
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	JSR PUSH16
+	; 5: 5 LIT_WORD c type: (number)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 6: 8 WORD a type: ()=>number
+	LDA V_a
+	STA STACKACCESS
+	LDA V_a + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 6:12 NUMBER VAL 1
+	LDA #0
+	STA STACKACCESS+1
+	LDA #1
+	STA STACKACCESS
+	JSR PUSH16
+	; 6: 10 PLUS + type: (number,number)=>number
+	JSR ADD16
+	; 6: 5 SET_WORD a type: (number)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_a
+	LDA STACKACCESS + 1
+	STA V_a + 1
+	; 7: 8 WORD a type: ()=>number
+	LDA V_a
+	STA STACKACCESS
+	LDA V_a + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 7: 5 SET_WORD c type: (number)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 8: 11 WORD c type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 8: 5 PRINT print type: (number)=>void
+	JSR POP16
+	JSR PRINT_INT
+	LDA #13
+	JSR $FFD2
+	; 4: 15 BLOCK [c 0 a a + 1 c a print c] type: ()=>void
+	; release 2 on the stack
+	TSX
+	TXA
+	CLC
+	ADC #2
+	TAX
+	TXS
+	; 4: 1 WHILE while type: (boolean,void)=>void
+	JMP startloop18
+endblock18:
+	; 10: 7 WORD b type: ()=>string
+	LDA V_b
+	STA STACKACCESS
+	LDA V_b + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	LDA V_b + 2
+	STA STACKACCESS
+	LDA V_b + 3
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 10: 1 PRINT print type: (string)=>void
+	JSR PRINT_STRING
+	LDA #13
+	JSR $FFD2
+	; 1: 1 BLOCK [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
 HEAPSAVE DS 3 ; USED IN COPYSTRING
@@ -395,5 +562,7 @@ NOCARRY:
 	STA STACKACCESS + 1
 	JSR PUSH16
 	RTS
-V_x DS 1
+str0: BYTE 67,65,90,90,73,76,76,79
+V_a DS 2
+V_b DS 4
 HEAPSTART:

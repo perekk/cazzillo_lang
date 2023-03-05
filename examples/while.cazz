@@ -2,9 +2,9 @@
 'b "CAZZILLO"
 
 while a < 100 [
-    'b number    
+    'c 0    
     a: a + 1
-    b: a
-    print b 
+    c: a
+    print c
 ]
 print b

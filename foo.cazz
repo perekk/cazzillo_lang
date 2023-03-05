@@ -1,15 +1,10 @@
-// this is the problem:
-// first try : first parse, then typecheck, the rebalance the ast with user definition 
-// second try : with bottom up parsing we encounter a before it's definition
-// let's follow the flow: 
-//   1) first group lists 
-//   2) group by expected arity out = 0
+'a 11
+'b "CAZZILLO"
 
-'a 420
-'b a - 1
-nl
-'b 69 + a - peek a
-'c 10 + a < ['e 1 20 + b]
-[print a]
-'d peek a 
-1
+while a < 100 [
+    'c 0    
+    a: a + 1
+    c: a
+    print c
+]
+print b

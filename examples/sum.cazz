@@ -1,5 +1,5 @@
-print 147
-print 10 + 22 + 35
-print 30 + 35
-print 30 + 34 + 26
-print 90 
+emit 147 !<                 // clear screen
+emit [10 + 22 + 35] !<      // C
+emit [30 + 35] !<           // A
+emit [30 + 34 + 26] !<      // Z
+emit 90 !<                  // Z

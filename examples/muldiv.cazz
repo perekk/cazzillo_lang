@@ -1,9 +1,9 @@
-a: 1
+'a 1
 while a < 11 [
-    b: 1
+    'b 1
     while b < 11 [
-        c: a * b
-        if c < 10 prin " "        
+        'c a * b
+        if c < 10 [prin " "]
         prin a * b
         prin " "
         b: b + 1
@@ -26,5 +26,5 @@ print a
 a: 256 % 50
 print a
 
-//b: 256 / 4
-//print b
+'b 256 / 4
+print b

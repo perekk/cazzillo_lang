@@ -1,26 +1,2 @@
-'const fn [69]
-'const2 fn [false]
-'const3 fn [2 + 3 * 4]
-'const4 fn ["CAZZ" . "ILLO"]
-'log fn [
-    print const
-    print const2
-    print const3
-    print const4
-    prin "LOG "
-    prin "SI "
-    print "FUNGE!"    
-]
-
-'test fn [
-    'drawline fn [print "-------"]
-    'i number
-    while i < 10 [
-        drawline
-        i: i + 1
-    ]
-    log
-]
-
-test
-
+'a :[print 69]
+//'b :['x Number x + 1]

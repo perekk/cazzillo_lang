@@ -1,5 +1,5 @@
-'a number
-'b string
+'a 0
+'b ""
 
 while a < 10 [
     b: b . "X"
@@ -8,4 +8,4 @@ while a < 10 [
 
 prin "DISPLAY " prin a print "X'S"
 prin "HERE WE GO " prin b print " !"
-prin "LEN =" prin b # print " #"
+prin "LEN = " prin b # print " #"

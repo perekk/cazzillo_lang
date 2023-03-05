@@ -1,9 +1,9 @@
-'keyboard_loc 197 !n
+'keyboard_loc 197
 'quit false
-
+print "PRESS KEY - Q TO QUIT"
 while quit ! [
     'key peek keyboard_loc
-    key: [key + 64] !>
+    key: [key + 64] !<
     quit: key = 126
     if [key = 128] ! [
         prin "YOU PRESSED: "
