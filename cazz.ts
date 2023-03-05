@@ -19,6 +19,7 @@ enum TokenType {
     IF,
     EITHER,    
     BLOCK,
+    REF_BLOCK,
     SET_WORD,
     LIT_WORD,
     WORD,
@@ -71,7 +72,7 @@ const sizeForValueType: { [key in ValueType]: number } = {
 
 function humanReadableToken(t: TokenType | undefined): string {
     if (t === undefined) return "undefined";
-    console.assert(TokenType.TOKEN_COUNT === 35, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 36, "Exaustive token types count");
     switch (t) {
         case TokenType.LITERAL: return "LITERAL";
         case TokenType.PLUS: return "PLUS";
@@ -93,6 +94,7 @@ function humanReadableToken(t: TokenType | undefined): string {
         case TokenType.IF: return "IF";
         case TokenType.EITHER: return "EITHER";
         case TokenType.BLOCK: return "BLOCK";
+        case TokenType.REF_BLOCK: return "REF_BLOCK";
         case TokenType.SET_WORD: return "SET_WORD";
         case TokenType.WORD: return "WORD";
         case TokenType.LIT_WORD: return "LIT_WORD";
@@ -174,7 +176,8 @@ type VarDefinitionSpec = {
     offset: number | undefined,
     isUserFunction: boolean,
     ins: ValueType[],
-    out: ValueType,    
+    out: ValueType,
+    internalType: ValueType,
     position?: InstructionPosition,
     priority?: number
 }
@@ -232,7 +235,7 @@ type Assembly = Array<string>;
 function sizeOfContext(context: Context): number {
     let size = 0;
     Object.values(context.varsDefinition).forEach(varDef => {
-        size += sizeForValueType[varDef.out];
+        size += sizeForValueType[varDef.internalType];
     });
     return size;
 }
@@ -266,7 +269,7 @@ function getInternalType(token: Token): ValueType {
     }
 
     if (token.type === TokenType.WORD) {
-        if (token.isUserFunction) return ValueType.ADDR
+        if (token.isUserFunction) return ValueType.ADDR;
         if (token.out === undefined) {
             logError(token.loc, `'${token.txt}' does not have the out type value set`);
             Deno.exit(1);
@@ -386,7 +389,7 @@ function getAsmForSetWordLocal(token: Token, varType: ValueType, varName: string
         ]);
     }
 
-    logError(token.loc, `set word local is not implemented yet for ${humanReadableType(varType)}`);
+    logError(token.loc, `'${varName}' set word local is not implemented yet for ${humanReadableType(varType)}`);
     Deno.exit(1);
 }
 
@@ -541,6 +544,7 @@ function getReturnTypeOfAWord(token: Token): ValueType {
         dumpAst(astProgram);
         Deno.exit(1);
     }
+    if (token.type === TokenType.REF_BLOCK) return ValueType.ADDR;
     return token.out;
 }
 
@@ -552,7 +556,7 @@ function assertChildNumber(token: Token, num: number) {
 }
 
 function createVocabulary(): Vocabulary {
-    console.assert(TokenType.TOKEN_COUNT === 35, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 36, "Exaustive token types count");
     const voc: Vocabulary = {};
     voc[TokenType.PRINT] = {
         txt: "print",        
@@ -899,7 +903,7 @@ function createVocabulary(): Vocabulary {
             return [ValueType.NUMBER, ValueType.NUMBER];
         },
         out: () => ValueType.BOOL,
-        generateAsm: (token) => [
+        generateAsm: () => [
             "LDX SP16",
             "LDA STACKBASE + 4,X",
             "CMP STACKBASE + 2,X",
@@ -943,7 +947,7 @@ function createVocabulary(): Vocabulary {
             return [ValueType.NUMBER, ValueType.NUMBER];
         },
         out: () => ValueType.BOOL,
-        generateAsm: (token) => [
+        generateAsm: () => [
             "LDX SP16",
             "LDA STACKBASE + 4,X",
             "CMP STACKBASE + 2,X",
@@ -1151,8 +1155,8 @@ function createVocabulary(): Vocabulary {
             if (token.context === undefined) {
                 logError(token.loc, `can't find context for ${token.txt}, compiler error`);
                 Deno.exit(1);
-                }            
-                if (token.context.parent === undefined) return []; // the global context
+            }
+            if (token.context.parent === undefined) return []; // the global context
 
             let sizeToRelease = sizeOfContext(token.context);
             if (sizeToRelease === 0) return ["; no stack memory to release"];
@@ -1179,7 +1183,7 @@ function createVocabulary(): Vocabulary {
             let sizeToReserve = 0;
             for (const [key, varDef] of Object.entries(token.context.varsDefinition)) {
                 varDef.offset = sizeToReserve;
-                const valueType = varDef.token.isUserFunction ? ValueType.ADDR : varDef.out;
+                const valueType = varDef.internalType;
                 if (valueType === undefined) {
                     logError(varDef.token.loc, `the internal type of word '${varDef.token.txt}' is undefined, cannot reserve space on stack`);
                     Deno.exit(1);
@@ -1203,6 +1207,96 @@ function createVocabulary(): Vocabulary {
                 "TXS"
             ];
         }
+    };
+    voc[TokenType.REF_BLOCK] = {
+        txt: "",
+        expectedArity: 0,
+        expectedArityOut: 0,
+        position: InstructionPosition.PREFIX,
+        priority: 10,
+        userFunction: true,
+        ins: getParametersRequestedByBlock,
+        out: getReturnValueByBlock,
+        generateChildPreludeAsm: (token, n) => {
+            if (n > 0) return [];
+            // at the start we make some space on the stack, for variables
+            if (token.context === undefined) {
+                logError(token.loc, `can't find context for ${token.txt}, compiler error`);
+                Deno.exit(1);
+            }
+            if (token.context.parent === undefined) {
+                logError(token.loc, `the context of '${token.txt}' is the global context, compiler error`);
+                Deno.exit(1);
+            }
+
+            let sizeToReserve = 0;
+            for (const [key, varDef] of Object.entries(token.context.varsDefinition)) {
+                varDef.offset = sizeToReserve;
+                const valueType = varDef.internalType;
+                if (valueType === undefined) {
+                    logError(varDef.token.loc, `the internal type of word '${varDef.token.txt}' is undefined, cannot reserve space on stack`);
+                    Deno.exit(1);
+                }
+                if (!(valueType in sizeForValueType)) {
+                    logError(varDef.token.loc, `cannot reserve space on the stack for type ${humanReadableType(valueType)} yet`);
+                    Deno.exit(1);
+                }
+                sizeToReserve += sizeForValueType[valueType];
+            }
+
+            const strVariables = Object.values(token.context.varsDefinition).map(varDef => varDef.token.txt + " (" + humanReadableType(varDef.internalType) + " offset " + varDef.offset + ")").join(", ");
+
+            const asmReserveStackSpace = sizeToReserve === 0 ? ["; no stack memory to reserve"] : [
+                `; reserve ${sizeToReserve} on the stack for: ${strVariables}`,
+                "TSX",
+                "TXA",
+                "SEC",
+                `SBC #${sizeToReserve}`,
+                "TAX",
+                "TXS"
+            ];
+            token.functionIndex = getFunctionIndex();
+            const asmFunctionName = getFunctionName(token.functionIndex);
+            const asmAfterFunctionName = getAfterFunctionName(token.functionIndex);
+            return [
+                `JMP ${asmAfterFunctionName}`,
+                `${asmFunctionName}:`,
+            ].concat(asmReserveStackSpace);
+        },
+        generateAsm: token => {
+            if (token.context === undefined) {
+                logError(token.loc, `can't find context for ${token.txt}, compiler error`);
+                Deno.exit(1);
+            }
+            if (token.context.parent === undefined) return []; // the global context
+
+            let sizeToRelease = sizeOfContext(token.context);
+            const asmReleaseSpace = sizeToRelease === 0 ? ["; no stack memory to release"] : [
+                `; release ${sizeToRelease} on the stack`,
+                "TSX",
+                "TXA",
+                "CLC",
+                `ADC #${sizeToRelease}`,
+                "TAX",
+                "TXS"
+            ];
+
+            if (token.functionIndex === undefined) {
+                logError(token.loc, `'${token.txt}' function index is not defined`);
+                Deno.exit(1);
+            }
+            const asmFunctionName = getFunctionName(token.functionIndex);
+            const asmAfterFunctionName = getAfterFunctionName(token.functionIndex);
+            return asmReleaseSpace.concat([
+                `RTS`,
+                `${asmAfterFunctionName}:`,
+                `LDA #<${asmFunctionName}`,
+                "STA STACKACCESS",
+                `LDA #>${asmFunctionName}`,
+                "STA STACKACCESS + 1",
+                "JSR PUSH16",
+            ]);
+        },
     };
     voc[TokenType.SET_WORD] = {
         txt: "",
@@ -1238,13 +1332,13 @@ function createVocabulary(): Vocabulary {
                 logError(token.loc, `cannot find declaration for '${varName}', compiler error`);
                 Deno.exit(1);
             }
-            if (varDef.isGlobalContext) return getAsmForSetWordGlobal(token, varDef.out, varName);
+            if (varDef.isGlobalContext) return getAsmForSetWordGlobal(token, varDef.internalType, varName);
 
             if (varDef.offset === undefined) {
                 logError(token.loc, `SET_WORD generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
                 Deno.exit(1);
             }
-            return getAsmForSetWordLocal(token, varDef.out, varName, varDef.offset);            
+            return getAsmForSetWordLocal(token, varDef.internalType, varName, varDef.offset);            
         },
     };
     voc[TokenType.LIT_WORD] = {
@@ -1277,13 +1371,13 @@ function createVocabulary(): Vocabulary {
                 logError(token.loc, `LIT_WORD generateAsm cannot find declaration for '${varName}', compiler error`);
                 Deno.exit(1);
             }
-            if (varDef.isGlobalContext) return getAsmForSetWordGlobal(token, varDef.out, varName);
+            if (varDef.isGlobalContext) return getAsmForSetWordGlobal(token, varDef.internalType, varName);
 
             if (varDef.offset === undefined) {
                 logError(token.loc, `LIT_WORD generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
                 Deno.exit(1);
             }
-            return getAsmForSetWordLocal(token, varDef.out, varName, varDef.offset);            
+            return getAsmForSetWordLocal(token, varDef.internalType, varName, varDef.offset);
         },
     };
     voc[TokenType.WORD] = {
@@ -1696,6 +1790,11 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<AST>
                 while (index < sourceCode.length && sourceCode[index] !== "\n") index++;
                 col = 0;
                 row++;
+            } else if (char === ":" && index + 1 < sourceCode.length && sourceCode[index + 1] === "[") {
+                const loc = { row, col, filename };
+                ret.push({ type: TokenType.OPEN_REF_BRACKETS, txt: ":[", loc, childs: [] });
+                index++;
+                col++;
             } else if (char === "[") {
                 const loc = { row, col, filename };
                 ret.push({ type: TokenType.OPEN_BRACKETS, txt: "[", loc, childs: [] });
@@ -1798,10 +1897,53 @@ function groupFunctionToken(ast: AST, index: number): Token {
     return functionElement;
 }
 
+function getParametersRequestedByBlock(block: Token) {
+
+    if (block.type !== TokenType.BLOCK && block.type !== TokenType.REF_BLOCK) {
+        logError(block.loc, `the token '${block.txt}' is not a block or ref block!`);
+        Deno.exit(1);
+    }
+
+    // let's search for something like ['x Number 'y Number] where Number accepts a value but does not have child
+    let ins: ValueType[] = [];
+    for (let i = 0; i < block.childs.length - 1; i++) {
+        const currChild = block.childs[i];
+        if (currChild.childs.length === 1) {
+            const firstChildOfChild = currChild.childs[0];
+            if (firstChildOfChild.ins === undefined) {
+                logError(firstChildOfChild.loc, `can't get the parameter list for the function '${firstChildOfChild.txt}')}`);
+                Deno.exit(1);
+            }
+            if (firstChildOfChild.ins.length! > firstChildOfChild.childs.length) {
+                ins.concat(firstChildOfChild.ins.slice(firstChildOfChild.childs.length));
+            }
+        }
+    }
+    return ins;
+
+}
+
+function getReturnValueByBlock(block: Token) {
+
+    if (block.type !== TokenType.BLOCK && block.type !== TokenType.REF_BLOCK) {
+        logError(block.loc, `the token '${block.txt}' is not a block or ref block!`);
+        Deno.exit(1);
+    }
+    const lastChild = block.childs.at(-1);
+    if (lastChild === undefined) return ValueType.VOID;
+
+    const lastChildType = lastChild.out;
+    if (lastChildType === undefined) {
+        logError(lastChild.loc, `the return type of '${lastChild.txt}' is undefined`);
+        Deno.exit(1);
+    }
+    return lastChildType;
+}
+
 function typeCheckBlock(block: Token) {
 
-    if (block.type !== TokenType.BLOCK) {
-        logError(block.loc, `the token '${block.txt}' is not a block!`);
+    if (block.type !== TokenType.BLOCK && block.type !== TokenType.REF_BLOCK) {
+        logError(block.loc, `the token '${block.txt}' is not a block or ref block!`);
         Deno.exit(1);
     }
 
@@ -1830,11 +1972,10 @@ function typeCheckBlock(block: Token) {
         }
     }
 
-    block.ins = ins;
+    block.ins = getParametersRequestedByBlock(block);
     block.expectedArity = ins.length;
-    const out = block.childs.length > 0 ? block.childs.at(- 1)!.out : ValueType.VOID;
-    block.out = out;
-    block.expectedArityOut = out === ValueType.VOID ? 0 : 1;
+    block.out = getReturnValueByBlock(block);
+    block.expectedArityOut = block.out === ValueType.VOID ? 0 : 1;
 
 }
 
@@ -1852,7 +1993,7 @@ function typeCheck(token: Token) {
     }
 
     const arity = getArity(token);
-    if (token.type === TokenType.BLOCK) {
+    if (token.type === TokenType.BLOCK || token.type === TokenType.REF_BLOCK) {
         // in block the number of ins is not the number of childs
     } else {
         if (arity !== token.childs.length) {
@@ -1864,9 +2005,9 @@ function typeCheck(token: Token) {
 
     const ins = getInputParametersValue(token);
     for (let i = 0; i < ins.length; i++) {
-        if (ins[i] !== token.childs[i].out) {
+        if (ins[i] !== getReturnTypeOfAWord(token.childs[i])) {
             logError(token.childs[i].loc, `the function '${token.txt}' expects parameter in position ${i + 1} to be ${humanReadableType(ins[i])}, but it is ${humanReadableType(token.childs[i].out)}`);
-            //dumpAst(token);
+            dumpAst(token);
             Deno.exit(1);
         }
     }
@@ -1906,8 +2047,8 @@ function setWordDefinition(token: Token) {
         Deno.exit(1);
     }
 
-    //const isUserFunction = token.childs[0].type === TokenType.REFERENCE_BLOCK;
-    const isUserFunction = false;
+    const isUserFunction = token.childs[0].type === TokenType.REF_BLOCK;
+    //const isUserFunction = false;
 
     token.context.varsDefinition[token.txt] = {
         ins: child.ins,
@@ -1915,7 +2056,8 @@ function setWordDefinition(token: Token) {
         token,
         position: child.position,
         priority: child.priority,
-        isUserFunction,
+        isUserFunction: isUserFunction,
+        internalType: isUserFunction ? ValueType.ADDR : child.out,
         offset: undefined
     };
 }
@@ -2058,6 +2200,14 @@ function groupByExpectedArityOutZero(sequence: AST) {
                 Deno.exit(1);
             }
             childLeft = childLeft + varDef.ins.length - (varDef.out === ValueType.VOID ? 0 : 1);
+        } else if (token.type === TokenType.REF_BLOCK) {
+            const childs = token.childs;
+            groupByExpectedArityOutZero(childs);
+            //token.childs = childs;
+            typeCheckBlock(token);
+            // since we just type checked the block the arities must be a number
+            //childLeft = childLeft + token.expectedArity! - token.expectedArityOut!;
+            childLeft = childLeft - 1;
         } else if (token.type === TokenType.BLOCK) {
             const childs = token.childs;
             groupByExpectedArityOutZero(childs);
@@ -2135,11 +2285,14 @@ function groupSequence(vocabulary: Vocabulary, program: AST): Token {
 
     let currentContext: Context = { parent: undefined, element: undefined, varsDefinition: {} };
     const ast: AST = [];
-    const stack: { pos: number, context: Context, loc: Location }[] = [];
+    const stack: { pos: number, context: Context, loc: Location, type: TokenType }[] = [];
     for (let j = 0; j < program.length; j++) {
         const token = program[j];
         if (token.type === TokenType.OPEN_BRACKETS) {
-            stack.push({ pos: ast.length, context: currentContext, loc: token.loc });
+            stack.push({ pos: ast.length, context: currentContext, loc: token.loc, type: token.type });
+            currentContext = { parent: currentContext, element: undefined, varsDefinition: {} };
+        } else if (token.type === TokenType.OPEN_REF_BRACKETS) {
+            stack.push({ pos: ast.length, context: currentContext, loc: token.loc, type: token.type });
             currentContext = { parent: currentContext, element: undefined, varsDefinition: {} };
         } else if (token.type === TokenType.CLOSE_BRACKETS) {
             const state = stack.pop();
@@ -2149,12 +2302,13 @@ function groupSequence(vocabulary: Vocabulary, program: AST): Token {
             }
             const matchingIndex = state.pos;
             const matchingLoc = state.loc;
+            const matchingType = state.type;
             const sequence = ast.splice(matchingIndex, j - matchingIndex + 1);
 
             const blockToken: Token = {
-                type: TokenType.BLOCK,
+                type: matchingType === TokenType.OPEN_REF_BRACKETS ? TokenType.REF_BLOCK : TokenType.BLOCK,
                 loc: matchingLoc,
-                txt: "[" + sequence.map(t => t.txt).join(" ") + "]",
+                txt: (matchingType === TokenType.OPEN_REF_BRACKETS ? ":" : "") + "[" + sequence.map(t => t.txt).join(" ") + "]",
                 childs: sequence,
                 position: InstructionPosition.PREFIX,
                 context: currentContext,
@@ -2259,7 +2413,7 @@ function compileLiteral(ast: Token): Assembly {
     let ret: Assembly = [];
     console.assert(ValueType.VALUETYPESCOUNT === 6, "Exaustive value types count");
     if (ast.out === ValueType.NUMBER) {
-        ret.push(`; ${ast.loc.row}:${ast.loc.col} NUMBER VAL ${ast.txt}`);
+        ret.push(`; ${ast.loc.row}:${ast.loc.col} NUMBER ${ast.txt}`);
         const MSB = (parseInt(ast.txt, 10) >> 8) & 255;
         ret.push(`LDA #${MSB}`);
         ret.push(`STA STACKACCESS+1`);
@@ -2269,17 +2423,15 @@ function compileLiteral(ast: Token): Assembly {
         ret.push(`JSR PUSH16`);
 
     } else if (ast.out === ValueType.BYTE) {
-        ret.push(`; ${ast.loc.row}:${ast.loc.col} BYTE VAL ${ast.txt}`);
+        ret.push(`; ${ast.loc.row}:${ast.loc.col} BYTE ${ast.txt}`);
         const LSB = parseInt(ast.txt, 10) & 255;
         ret.push(`LDA #${LSB}`);
         ret.push(`STA STACKACCESS`);
         ret.push(`LDA #0`);
         ret.push(`STA STACKACCESS+1`);
         ret.push(`JSR PUSH16`);
-
-
     } else if (ast.out === ValueType.STRING) {
-        ret.push(`; ${ast.loc.row}:${ast.loc.col} STRING VAL ${ast.txt}`);
+        ret.push(`; ${ast.loc.row}:${ast.loc.col} STRING "${ast.txt}"`);
         // push lenght 
         // todo: ora la lunghezza massima della stringa è 255 caratteri, aumentarla ?
         const stringToPush = ast.txt;
@@ -2287,7 +2439,6 @@ function compileLiteral(ast: Token): Assembly {
             logError(ast.loc, "strings must be less than 256 chars");
             Deno.exit(1);
         }
-
         ret.push(`LDA #0`);
         ret.push(`STA STACKACCESS+1`);
         ret.push(`LDA #${ast.txt.length}`);
@@ -2304,7 +2455,7 @@ function compileLiteral(ast: Token): Assembly {
         ret.push(`JSR PUSH16`);
 
     } else if (ast.out === ValueType.BOOL) {
-        ret.push(`; ${ast.loc.row}:${ast.loc.col} BOOL VAL ${ast.txt}`);
+        ret.push(`; ${ast.loc.row}:${ast.loc.col} BOOL ${ast.txt}`);
         ret.push(`LDA #${ast.txt === "true" ? "1" : "0"}`);
         ret.push(`STA STACKACCESS`);
         ret.push(`LDA #0`);
@@ -2327,6 +2478,8 @@ function compileLiteral(ast: Token): Assembly {
 function compile(vocabulary: Vocabulary, ast: Token): Assembly {
 
     let ret: Assembly = [];
+
+
     // if (ast.type === TokenType.PARAM_BLOCK) {
     //     for (let i = ast.childs.length - 2; i >= 0; i--) {
     //         console.log("compiling param " + ast.childs[i].txt);
@@ -2357,6 +2510,7 @@ function compile(vocabulary: Vocabulary, ast: Token): Assembly {
         const wordtype = humanReadableFunction(ast);
         const tokenType = humanReadableToken(ast.type);
         ret.push(`; ${loc} ${tokenType} ${ast.txt} type: ${wordtype}`);
+
         const inst = vocabulary[ast.type];
         ret = ret.concat(inst.generateAsm(ast));
     }
@@ -2418,11 +2572,11 @@ function asmFooter(ast: Token): Assembly {
         "TOADD:",
         "STA $1111",
         "INC FROMADD + 1",
-        "BCC COPY_NO_CARRY1",
+        "BNE COPY_NO_CARRY1",
         "INC FROMADD + 2",
         "COPY_NO_CARRY1:",
         "INC TOADD + 1",
-        "BCC COPY_NO_CARRY2",
+        "BNE COPY_NO_CARRY2",
         "INC TOADD + 2",
         "COPY_NO_CARRY2:",
         "DEY",
@@ -2830,12 +2984,16 @@ function asmFooter(ast: Token): Assembly {
     if (ast.context !== undefined) {
         Object.entries(ast.context.varsDefinition).forEach(([name, varDef]) => {
             const variableName = "V_" + name;
-            const size = sizeForValueType[varDef.out];
+            if (!(varDef.internalType in sizeForValueType)) {
+                logError(varDef.token.loc, `cannot find the size of '${varDef.token.txt}' to allocate on the heap`);
+                Deno.exit(1);
+            }
+            const size = sizeForValueType[varDef.internalType];
             vars.push(`${variableName} DS ${size}`);
         });
     }
 
-    const heap = [
+    const heap = [        
         "HEAPSTART:",
     ]
 
@@ -2863,8 +3021,11 @@ function dumpAst(ast: AST | Token, prefix = "") {
         const contextTokenName = contextToken?.txt ?? "";
         const ctxName = contextTokenName.length > 10 ? "[" + contextTokenName.substring(1, 6) + "...]" : "[" + contextTokenName + "]";
         const ctx = element.context?.parent === undefined ? "global" : ctxName;
-        const ctxVars = Object.keys(element.context?.varsDefinition!);
-        const vars = ctxVars.length === 0 ? "none" : ctxVars.join(", ");
+        const ctxVars = Object.entries(element.context?.varsDefinition!);
+        // const vars = ctxVars.length === 0 ? "none" : ctxVars.map(([key, def]) => {
+        //     return `${key} ins: ${def.ins.map(t => humanReadableType(t)).join(",")} out ${humanReadableType(def.out)}`;
+        // }).join(", ");
+        const vars = ctxVars.length === 0 ? "none" : ctxVars.map(d => d[0]).join(",");
         console.log(prefix, element.txt + " " + tokenType + " " + strFun + " " + strType + " ctx:" + ctx + " (" + vars + ")");
 
         // console.log(prefix, sourceCode.split("\n")[element.loc.row - 1]);
