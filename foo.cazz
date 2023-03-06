@@ -1,10 +1,13 @@
-'a 11
-'b "CAZZILLO"
+'plusone :['x Number x + 1]
+print plusone 11
 
-while a < 100 [
-    'c 0    
-    a: a + 1
-    c: a
-    print c
-]
-print b
+'salute :['name String print "HELLO " . name]
+salute "WORLD"
+
+'get_num :[69]
+
+'empty :[]
+
+// 3 69 Number
+'sumandmult :['x Number 'y Number x + y * y]
+print sumandmult 3 4

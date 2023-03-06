@@ -157,6 +157,7 @@ type Token = {
     context?: Context;
     expectedArity?: number,
     expectedArityOut?: number,
+    grabFromStack?: boolean,
     ins?: Array<ValueType>;
     out?: ValueType;
     position?: InstructionPosition;
@@ -189,6 +190,14 @@ type Context = {
 }
 
 function getArity(token: Token): number {
+    if (token.type === TokenType.WORD) {
+        const varDef = getWordDefinition(token.context, token.txt);
+        if (varDef === undefined) {
+            logError(token.loc, `Unnkown word '${token.txt}'`);
+            Deno.exit(1);
+        }
+        return varDef.ins.length;
+    }
     if (token.ins !== undefined) return token.ins.length;
     const expectedArity = vocabulary[token.type]?.expectedArity;
     if (expectedArity !== undefined) return expectedArity;
@@ -197,6 +206,15 @@ function getArity(token: Token): number {
 }
 
 function getInputParametersValue(token: Token): ValueType[] {
+    if (token.type === TokenType.WORD) {
+        const varDef = getWordDefinition(token.context, token.txt);
+        if (varDef === undefined) {
+            logError(token.loc, `Unnkown word '${token.txt}'`);
+            Deno.exit(1);
+        }
+        return varDef.ins;
+    }
+
     if (token.ins === undefined) {
         logError(token.loc, `the input parameters for word '${token.txt}' are undefined`);
         Deno.exit(1);
@@ -217,12 +235,14 @@ type Instruction = {
     position: InstructionPosition;
     priority: number | undefined;
     userFunction: boolean,
+    grabFromStack: boolean,
     expectedArity: number,
     expectedArityOut: number,
     functionIndex?: number,
     ins: (ast: Token) => Array<ValueType>;
     out: (ast: Token) => ValueType;
-    generateAsm: (ast: Token) => Assembly
+    generateAsm: (ast: Token) => Assembly;
+    generatePreludeAsm?: (ast: Token) => Assembly;
     generateChildPreludeAsm?: (ast: Token, childIndex: number) => Assembly
 };
 
@@ -562,6 +582,7 @@ function createVocabulary(): Vocabulary {
         txt: "print",        
         expectedArity: 1,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
@@ -633,6 +654,7 @@ function createVocabulary(): Vocabulary {
         txt: "prin",
         expectedArity: 1,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
@@ -693,6 +715,7 @@ function createVocabulary(): Vocabulary {
         txt: "emit",
         expectedArity: 1,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
@@ -708,6 +731,7 @@ function createVocabulary(): Vocabulary {
         txt: "nl",
         expectedArity: 0,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
@@ -722,6 +746,7 @@ function createVocabulary(): Vocabulary {
         txt: "+",
         expectedArity: 2,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.INFIX,
         priority: 80,
         userFunction: false,
@@ -743,6 +768,7 @@ function createVocabulary(): Vocabulary {
         txt: "-",
         expectedArity: 2,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.INFIX,
         priority: 80,
         userFunction: false,
@@ -764,6 +790,7 @@ function createVocabulary(): Vocabulary {
         txt: "*",
         expectedArity: 2,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.INFIX,
         priority: 90,
         userFunction: false,
@@ -785,6 +812,7 @@ function createVocabulary(): Vocabulary {
         txt: "/",
         expectedArity: 2,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.INFIX,
         priority: 90,
         userFunction: false,
@@ -806,6 +834,7 @@ function createVocabulary(): Vocabulary {
         txt: "%",
         expectedArity: 2,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.INFIX,
         priority: 90,
         userFunction: false,
@@ -827,6 +856,7 @@ function createVocabulary(): Vocabulary {
         txt: "!",
         expectedArity: 1,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.POSTFIX,
         priority: 100,
         userFunction: false,
@@ -890,6 +920,7 @@ function createVocabulary(): Vocabulary {
         txt: "<",
         expectedArity: 2,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.INFIX,
         priority: 70,
         userFunction: false,
@@ -933,6 +964,7 @@ function createVocabulary(): Vocabulary {
         txt: "=",
         expectedArity: 2,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.INFIX,
         priority: 70,
         userFunction: false,
@@ -974,6 +1006,7 @@ function createVocabulary(): Vocabulary {
         txt: ">",
         expectedArity: 2,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.INFIX,
         priority: 70,
         userFunction: false,
@@ -1017,6 +1050,7 @@ function createVocabulary(): Vocabulary {
         txt: "if",
         expectedArity: 2,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
@@ -1043,6 +1077,7 @@ function createVocabulary(): Vocabulary {
         txt: "either",
         expectedArity: 3,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
@@ -1099,6 +1134,7 @@ function createVocabulary(): Vocabulary {
         txt: "[",
         expectedArity: 0,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 150,
         userFunction: false,
@@ -1110,6 +1146,7 @@ function createVocabulary(): Vocabulary {
         txt: ":[",
         expectedArity: 0,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 150,
         userFunction: false,
@@ -1121,6 +1158,7 @@ function createVocabulary(): Vocabulary {
         txt: "]",
         expectedArity: 0,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.POSTFIX,
         priority: 150,
         userFunction: false,
@@ -1132,6 +1170,7 @@ function createVocabulary(): Vocabulary {
         txt: "",
         expectedArity: 0,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 150,
         userFunction: false,
@@ -1170,8 +1209,7 @@ function createVocabulary(): Vocabulary {
                 "TXS"
             ];
         },
-        generateChildPreludeAsm: (token, n) => {
-            if (n > 0) return [];
+        generatePreludeAsm: token => {            
             // at the start we make some space on the stack, for variables
             if (token.context === undefined) {
                 logError(token.loc, `can't find context for ${token.txt}, compiler error`);
@@ -1212,13 +1250,13 @@ function createVocabulary(): Vocabulary {
         txt: "",
         expectedArity: 0,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: true,
         ins: getParametersRequestedByBlock,
         out: getReturnValueByBlock,
-        generateChildPreludeAsm: (token, n) => {
-            if (n > 0) return [];
+        generatePreludeAsm: token => {            
             // at the start we make some space on the stack, for variables
             if (token.context === undefined) {
                 logError(token.loc, `can't find context for ${token.txt}, compiler error`);
@@ -1302,6 +1340,7 @@ function createVocabulary(): Vocabulary {
         txt: "",
         expectedArity: 1,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
@@ -1345,6 +1384,7 @@ function createVocabulary(): Vocabulary {
         txt: "",
         expectedArity: 1,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 5,
         userFunction: false,
@@ -1384,6 +1424,7 @@ function createVocabulary(): Vocabulary {
         txt: "",
         expectedArity: 0,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 10,        
         userFunction: false,
@@ -1448,6 +1489,7 @@ function createVocabulary(): Vocabulary {
         txt: "while",
         expectedArity: 2,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
@@ -1480,6 +1522,7 @@ function createVocabulary(): Vocabulary {
         txt: "poke",
         expectedArity: 2,
         expectedArityOut: 0,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
@@ -1498,6 +1541,7 @@ function createVocabulary(): Vocabulary {
         txt: "peek",
         expectedArity: 1,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 100,
         userFunction: false,
@@ -1516,6 +1560,7 @@ function createVocabulary(): Vocabulary {
         txt: "!<",
         expectedArity: 1,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.POSTFIX,
         priority: 100,
         userFunction: false,
@@ -1531,6 +1576,7 @@ function createVocabulary(): Vocabulary {
         txt: "!n",
         expectedArity: 1,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.POSTFIX,
         priority: 100,
         userFunction: false,
@@ -1542,23 +1588,28 @@ function createVocabulary(): Vocabulary {
         txt: "Number",
         expectedArity: 0,
         expectedArityOut: 1,
+        grabFromStack: true,
         position: InstructionPosition.PREFIX,
         priority: 100,
         userFunction: false,
         ins: () => [],
         out: () => ValueType.NUMBER,
-        generateAsm: () => [
-            // "LDA #0",
-            // "STA STACKACCESS",
-            // "STA STACKACCESS+1",
-            // "JSR PUSH16",
-            "; DO NOTHING"
-        ]
+        generateAsm: token => {
+
+            return [
+                // "LDA #0",
+                // "STA STACKACCESS",
+                // "STA STACKACCESS+1",
+                // "JSR PUSH16",
+                "; DO NOTHING"
+            ]
+        } 
     };
     voc[TokenType.STRING] = {
         txt: "String",
         expectedArity: 0,
         expectedArityOut: 1,
+        grabFromStack: true,
         position: InstructionPosition.PREFIX,
         priority: 100,
         userFunction: false,
@@ -1570,6 +1621,7 @@ function createVocabulary(): Vocabulary {
         txt: "Byte",
         expectedArity: 0,
         expectedArityOut: 1,
+        grabFromStack: true,
         position: InstructionPosition.PREFIX,
         priority: 100,
         userFunction: false,
@@ -1587,6 +1639,7 @@ function createVocabulary(): Vocabulary {
         txt: "Bool",
         expectedArity: 0,
         expectedArityOut: 1,
+        grabFromStack: true,
         position: InstructionPosition.PREFIX,
         priority: 100,
         userFunction: false,
@@ -1604,6 +1657,7 @@ function createVocabulary(): Vocabulary {
         txt: ".",
         expectedArity: 2,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.INFIX,
         priority: 100,
         userFunction: false,
@@ -1692,6 +1746,7 @@ function createVocabulary(): Vocabulary {
         txt: "heap",
         expectedArity: 0,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 100,
         userFunction: false,
@@ -1709,6 +1764,7 @@ function createVocabulary(): Vocabulary {
         txt: "#",
         expectedArity: 1,
         expectedArityOut: 1,
+        grabFromStack: false,
         position: InstructionPosition.POSTFIX,
         priority: 100,
         userFunction: false,
@@ -1863,7 +1919,7 @@ function groupFunctionToken(ast: AST, index: number): Token {
         startPos = index - 1;
     } else {        
         childs = ast.slice(index + 1, index + 1 + arity);
-        if (childs.length !== arity) {
+        if (childs.length !== arity) {            
             logError(functionElement.loc, `the function ${functionElement.txt} expects ${arity} parameters, but got only ${childs.length}!`);
             Deno.exit(1);
         }
@@ -1904,21 +1960,18 @@ function getParametersRequestedByBlock(block: Token) {
         Deno.exit(1);
     }
 
-    // let's search for something like ['x Number 'y Number] where Number accepts a value but does not have child
+
     let ins: ValueType[] = [];
-    for (let i = 0; i < block.childs.length - 1; i++) {
-        const currChild = block.childs[i];
-        if (currChild.childs.length === 1) {
-            const firstChildOfChild = currChild.childs[0];
-            if (firstChildOfChild.ins === undefined) {
-                logError(firstChildOfChild.loc, `can't get the parameter list for the function '${firstChildOfChild.txt}')}`);
-                Deno.exit(1);
-            }
-            if (firstChildOfChild.ins.length! > firstChildOfChild.childs.length) {
-                ins.concat(firstChildOfChild.ins.slice(firstChildOfChild.childs.length));
-            }
-        }
-    }
+
+    // let's search for something like ['x Number 'y Number] where Number accepts a value but does not have child
+    ins = block.childs
+        .filter(
+            child => child.type === TokenType.LIT_WORD &&
+                child.childs.length === 1 &&
+                child.childs[0].grabFromStack &&
+                child.childs[0].out !== undefined
+        ).map(child => child.childs[0].out!);
+
     return ins;
 
 }
@@ -1972,7 +2025,7 @@ function typeCheckBlock(block: Token) {
         }
     }
 
-    block.ins = getParametersRequestedByBlock(block);
+    block.ins = [];
     block.expectedArity = ins.length;
     block.out = getReturnValueByBlock(block);
     block.expectedArityOut = block.out === ValueType.VOID ? 0 : 1;
@@ -2049,9 +2102,10 @@ function setWordDefinition(token: Token) {
 
     const isUserFunction = token.childs[0].type === TokenType.REF_BLOCK;
     //const isUserFunction = false;
+    const ins = isUserFunction ? getParametersRequestedByBlock(token.childs[0]) : child.ins;
 
     token.context.varsDefinition[token.txt] = {
-        ins: child.ins,
+        ins,
         out: child.out,        
         token,
         position: child.position,
@@ -2348,6 +2402,7 @@ function groupSequence(vocabulary: Vocabulary, program: AST): Token {
                         internalValueType: token.internalValueType,
                         expectedArity: instr.expectedArity,
                         expectedArityOut: instr.expectedArityOut,
+                        grabFromStack: instr.grabFromStack,
                         ins: undefined,
                         out: undefined,
                         position: instr.position,
@@ -2478,39 +2533,45 @@ function compileLiteral(ast: Token): Assembly {
 function compile(vocabulary: Vocabulary, ast: Token): Assembly {
 
     let ret: Assembly = [];
-
-
-    // if (ast.type === TokenType.PARAM_BLOCK) {
-    //     for (let i = ast.childs.length - 2; i >= 0; i--) {
-    //         console.log("compiling param " + ast.childs[i].txt);
-    //         const inst = vocabulary[ast.childs[i].type];
-    //         if (inst.generateChildPreludeAsm) {
-    //             ret = ret.concat(inst.generateChildPreludeAsm(ast, i));
-    //         }
-    //         ret = ret.concat(compile(vocabulary, ast.childs[i]))
-    //     }
-    //     const inst = vocabulary[ast.childs[ast.childs.length - 1].type];
-    //     if (inst.generateChildPreludeAsm) ret = ret.concat(inst.generateChildPreludeAsm(ast, ast.childs.length - 1));
-    //     ret = ret.concat(compile(vocabulary, ast.childs[ast.childs.length - 1]));
-    // } else {
     const inst = vocabulary[ast.type];
-        for (let i = 0; i < ast.childs.length; i++) {
-            if (inst.generateChildPreludeAsm) {
-                ret = ret.concat(inst.generateChildPreludeAsm(ast, i));
-            }
-            ret = ret.concat(compile(vocabulary, ast.childs[i]))
+
+    const loc = `${ast.loc.row}: ${ast.loc.col}`;
+    const wordtype = humanReadableFunction(ast);
+    const tokenType = humanReadableToken(ast.type);
+    const instructionLabel = `; ${loc} ${tokenType} ${ast.txt} type: ${wordtype}`;
+
+    // PRELUDE
+    if (ast.type !== TokenType.LITERAL) {
+        if (inst.generatePreludeAsm) {
+            ret.push("; Prelude for:");
+            ret.push(instructionLabel);
+            ret = ret.concat(inst.generatePreludeAsm(ast));
         }
-    // }
+    }
+
+    if (ast.type === TokenType.REF_BLOCK) {
+        // reorder the child: first the params in reverse order, then the other childs
+        const isParam = (token: Token) => token.type === TokenType.LIT_WORD && token.childs.length === 1 && token.childs[0].grabFromStack;
+        const params = ast.childs
+            .filter(isParam)
+            .reverse();
+        const nonParams = ast.childs
+            .filter(t => !isParam(t));
+        ast.childs = params.concat(nonParams);
+    }
+
+    for (let i = 0; i < ast.childs.length; i++) {
+        if (inst.generateChildPreludeAsm) {
+            ret = ret.concat(inst.generateChildPreludeAsm(ast, i));
+        }
+        ret = ret.concat(compile(vocabulary, ast.childs[i]))
+    }
 
     // lets' compile for real        
     if (ast.type === TokenType.LITERAL) {
         ret = ret.concat(compileLiteral(ast));
     } else {
-        const loc = `${ast.loc.row}: ${ast.loc.col}`;
-        const wordtype = humanReadableFunction(ast);
-        const tokenType = humanReadableToken(ast.type);
-        ret.push(`; ${loc} ${tokenType} ${ast.txt} type: ${wordtype}`);
-
+        ret.push(instructionLabel);
         const inst = vocabulary[ast.type];
         ret = ret.concat(inst.generateAsm(ast));
     }
@@ -3013,9 +3074,16 @@ function dumpAst(ast: AST | Token, prefix = "") {
     const astToDump = ast instanceof Array ? ast : [ast];
     astToDump.forEach(element => {
         const tokenType = humanReadableToken(element.type);
-        const ins = element.ins === undefined ? "undefined" : element.ins.map(type => humanReadableType(type)).join(", ");
+        let ins: ValueType[] | undefined;
+        if (element.type === TokenType.WORD) {
+            const varDef = getWordDefinition(element.context, element.txt);
+            ins = varDef?.ins;
+        } else {
+            ins = element.ins;
+        }
+        const strIns = ins === undefined ? "undefined" : ins.map(type => humanReadableType(type)).join(", ")
         const out = humanReadableType(element.out);
-        const strType = "(" + ins + ")=>" + out;
+        const strType = "(" + strIns + ")=>" + out;
         const strFun = element.isUserFunction ? "USER FUN" : "";
         const contextToken = element.context?.element;
         const contextTokenName = contextToken?.txt ?? "";
