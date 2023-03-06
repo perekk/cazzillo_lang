@@ -2034,6 +2034,13 @@ function typeCheckBlock(block: Token) {
 
 function typeCheck(token: Token) {
 
+    // if some of the childs has no childs we shuld typecheck them because 
+    // they could be a function with lower priority not grouped and checked yet    
+    for (let i = 0; i < token.childs.length; i++) {
+        const child = token.childs[i];
+        if (child.childs.length === 0) typeCheck(child);
+    }
+
     if (token.out === undefined || token.ins === undefined) {
         const instr = vocabulary[token.type];
         if (instr === undefined) {
