@@ -1,19 +1,21 @@
-'HEIGHT 10 * 40
-'WIDTH 10
-'SCREEN 1024
-'BUFFER 10000
-'LIFE_CHAR 81 !<
-'DEAD_CHAR 32 !<
+def 'HEIGHT' 10 * 40
+def 'WIDTH' 10
+def 'SCREEN' 1024
+def 'BUFFER' 10000
+def 'LIFE_CHAR' 81 !<
+def 'DEAD_CHAR' 32 !<
+
+'time :[[ 256 * peek 161] + peek 162]
 
 'fill :['base Number 'value Byte 
-    'i 0
-    while i < WIDTH [
-        'j 0
-        while j < HEIGHT [        
+    'j 0
+    while j < HEIGHT [
+        'i 0
+        while i < WIDTH [
             poke base + i + j value
-            j: j + 40
+            inc i
         ]
-        i: i + 1
+        j: j + 40
     ]
 ]
 
@@ -21,10 +23,10 @@
     fill BUFFER DEAD_CHAR
     // put a glider on top left
     poke BUFFER + 2 LIFE_CHAR
-    poke BUFFER + WIDTH LIFE_CHAR
-    poke BUFFER + WIDTH + 2 LIFE_CHAR
-    poke BUFFER + WIDTH + WIDTH + 1 LIFE_CHAR
-    poke BUFFER + WIDTH + WIDTH + 2 LIFE_CHAR
+    poke BUFFER + 40 LIFE_CHAR
+    poke BUFFER + 42 LIFE_CHAR
+    poke BUFFER + 81 LIFE_CHAR
+    poke BUFFER + 82 LIFE_CHAR
 ]
 
 // copy the buffer on the screen
@@ -32,27 +34,28 @@
     'i 0
     while i < WIDTH [
         'j 0
-        while j < HEIGHT [        
-            poke SCREEN + i + j peek BUFFER + i + j
+        while j < HEIGHT [     
+            'k i + j   
+            poke SCREEN + k peek BUFFER + k
             j: j + 40
         ]
-        i: i + 1
+        inc i
     ]
 ]
 
 'get_num_neigh :['base Number 'x Number 'y Number
     'index base + y + x
     'n 0
-    if LIFE_CHAR = peek index - WIDTH - 1 [n: n + 1]
-    if LIFE_CHAR = peek index - WIDTH [n: n + 1]
-    if LIFE_CHAR = peek index - WIDTH + 1 [n: n + 1]
+    if LIFE_CHAR = peek index - 41 [inc n]
+    if LIFE_CHAR = peek index - 40 [inc n]
+    if LIFE_CHAR = peek index - 39 [inc n]
 
-    if LIFE_CHAR = peek index - 1 [n: n + 1]
-    if LIFE_CHAR = peek index + 1 [n: n + 1]
+    if LIFE_CHAR = peek index - 1 [inc n]
+    if LIFE_CHAR = peek index + 1 [inc n]
 
-    if LIFE_CHAR = peek index + WIDTH - 1 [n: n + 1]
-    if LIFE_CHAR = peek index + WIDTH [n: n + 1]
-    if LIFE_CHAR = peek index + WIDTH + 1 [n: n + 1]
+    if LIFE_CHAR = peek index + 39 [inc n]
+    if LIFE_CHAR = peek index + 40 [inc n]
+    if LIFE_CHAR = peek index + 41 [inc n]
     n
 ]
 
@@ -61,7 +64,8 @@
     while i < WIDTH [
         'j 0
         while j < HEIGHT [
-            'cell_state peek SCREEN + i + j
+            'k i + j
+            'cell_state peek SCREEN + k
             'n_neigborough get_num_neigh SCREEN j i
             'new_state cell_state
             either cell_state = LIFE_CHAR [
@@ -70,20 +74,30 @@
             ] [
                 if n_neigborough = 3 [new_state: LIFE_CHAR]
             ]
-            poke BUFFER + i + j new_state
+            poke BUFFER + k new_state
             j: j + 40
         ]
-        i: i + 1
+        inc i
     ]
 ]
 
 
+'start time
 init
 
 'i 0
-while i < 100 [
+while i < 10 [
     show
     step
-    i: i + 1
+    inc i
 ]
+'end time
+print start
+print end
+prin "ELAPSED: " print end - start
+
+// 686 
+// 469 (con inc)
+// 467
+// 567 (con macro)
 

@@ -10,46 +10,148 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
-	; 1:4 NUMBER 0
+	; Prelude for:
+	; 1: 7 REF_BLOCK :[[256 * peek 161] + peek 162] type: ()=>number
+	JMP AFTER_0
+CALL_0:
+	; no stack memory to reserve
+	; Prelude for:
+	; 1: 9 BLOCK [256 * peek 161] type: ()=>number
+	; no stack memory to reserve
+	; 1:11 NUMBER 256
+	LDA #1
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	JSR PUSH16
+	; 1:22 NUMBER 161
+	LDA #0
+	STA STACKACCESS+1
+	LDA #161
+	STA STACKACCESS
+	JSR PUSH16
+	; 1: 17 PEEK peek type: (number)=>byte
+	JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+	; 1: 15 MULT * type: (number,byte)=>number
+	JSR MUL16
+	; 1: 9 BLOCK [256 * peek 161] type: ()=>number
+	; no stack memory to release
+	; 1:34 NUMBER 162
+	LDA #0
+	STA STACKACCESS+1
+	LDA #162
+	STA STACKACCESS
+	JSR PUSH16
+	; 1: 29 PEEK peek type: (number)=>byte
+	JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+	; 1: 27 PLUS + type: (number,byte)=>number
+	JSR ADD16
+	; 1: 7 REF_BLOCK :[[256 * peek 161] + peek 162] type: ()=>number
+	; no stack memory to release
+	RTS
+AFTER_0:
+	LDA #<CALL_0
+	STA STACKACCESS
+	LDA #>CALL_0
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 1: 1 LIT_WORD time type: (addr)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_time
+	LDA STACKACCESS + 1
+	STA V_time + 1
+	; no child generation for 'def'
+	; 2:13 BYTE 100
+	LDA #100
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 2: 1 DEFINE def type: (symbol,byte)=>void
+	; 3:8 BYTE 100
+	LDA #100
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 3: 1 LIT_WORD b type: (byte)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_b
+	; 4:6 BYTE 1
+	LDA #1
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 4: 1 LIT_WORD c type: (byte)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_c
+	; 6: 8 WORD time type: ()=>number
+	LDA V_time
+	STA CALL_FUN_16 + 1
+	LDA V_time + 1
+	STA CALL_FUN_16 + 2
+CALL_FUN_16:
+	JSR $1111 ; will be overwritten
+	; 6: 1 LIT_WORD start type: (number)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_start
+	LDA STACKACCESS + 1
+	STA V_start + 1
+	; 7:4 NUMBER 0
 	LDA #0
 	STA STACKACCESS+1
 	LDA #0
 	STA STACKACCESS
 	JSR PUSH16
-	; 1: 1 LIT_WORD i type: (number)=>void
+	; 7: 1 LIT_WORD i type: (number)=>void
 	JSR POP16
 	LDA STACKACCESS
 	STA V_i
 	LDA STACKACCESS + 1
 	STA V_i + 1
-startloop28:
-	; 2: 7 WORD i type: ()=>number
+startloop29:
+	; 7: 12 WORD i type: ()=>number
 	LDA V_i
 	STA STACKACCESS
 	LDA V_i + 1
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 2:11 NUMBER 1000
-	LDA #3
+	; 7:16 NUMBER 10000
+	LDA #39
 	STA STACKACCESS+1
-	LDA #232
+	LDA #16
 	STA STACKACCESS
 	JSR PUSH16
-	; 2: 9 LT < type: (number,number)=>boolean
+	; 7: 14 LT < type: (number,number)=>boolean
 	LDX SP16
 	LDA STACKBASE + 4,X
 	CMP STACKBASE + 2,X
-	BCC less4
-	BNE greaterorequal4
+	BCC less22
+	BNE greaterorequal22
 	LDA STACKBASE + 3,X
 	CMP STACKBASE + 1,X
-	BCC less4
-greaterorequal4:
+	BCC less22
+greaterorequal22:
 	LDA #00
-	JMP store4
-less4:
+	JMP store22
+less22:
 	LDA #01
-store4:
+store22:
 	INX
 	INX
 	STA STACKBASE + 1,X
@@ -58,136 +160,394 @@ store4:
 	STX SP16
 	JSR POP16
 	LDA STACKACCESS
-	BNE trueblock28
+	BNE trueblock29
 	LDA STACKACCESS + 1
-	BNE trueblock28
-	JMP endblock28 ; if all zero
-trueblock28:
+	BNE trueblock29
+	JMP endblock29 ; if all zero
+trueblock29:
 	; Prelude for:
-	; 2: 16 BLOCK [poke 53281 i !< poke 53280 i !< poke 1024 + i [1 + peek i] !< i i + 1] type: ()=>void
-	; no stack memory to reserve
-	; 3:10 NUMBER 53281
-	LDA #208
+	; 7: 22 BLOCK [d a + c inc i] type: ()=>void
+	; reserve 2 on the stack for: d (number offset 0)
+	TSX
+	TXA
+	SEC
+	SBC #2
+	TAX
+	TXS
+	; 2:13 BYTE 100
+	LDA #100
+	STA STACKACCESS
+	LDA #0
 	STA STACKACCESS+1
-	LDA #33
-	STA STACKACCESS
 	JSR PUSH16
-	; 3: 16 WORD i type: ()=>number
-	LDA V_i
+	; 7: 30 WORD c type: ()=>byte
+	LDA V_c
 	STA STACKACCESS
-	LDA V_i + 1
+	LDA #0
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 3: 18 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 3: 5 POKE poke type: (number,byte)=>void
-	JSR POP16
-	LDY STACKACCESS
-	JSR POP16
-	TYA
-	LDY #0
-	STA (STACKACCESS),Y
-	; 4:10 NUMBER 53280
-	LDA #208
-	STA STACKACCESS+1
-	LDA #32
-	STA STACKACCESS
-	JSR PUSH16
-	; 4: 16 WORD i type: ()=>number
-	LDA V_i
-	STA STACKACCESS
-	LDA V_i + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 4: 18 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 4: 5 POKE poke type: (number,byte)=>void
-	JSR POP16
-	LDY STACKACCESS
-	JSR POP16
-	TYA
-	LDY #0
-	STA (STACKACCESS),Y
-	; 5:10 NUMBER 1024
-	LDA #4
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 17 WORD i type: ()=>number
-	LDA V_i
-	STA STACKACCESS
-	LDA V_i + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 5: 15 PLUS + type: (number,number)=>number
+	; 7: 28 PLUS + type: (byte,byte)=>number
 	JSR ADD16
-	; Prelude for:
-	; 5: 19 BLOCK [1 + peek i] type: ()=>number
-	; no stack memory to reserve
-	; 5:20 NUMBER 1
+	; 7: 23 LIT_WORD d type: (number)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; no child generation for 'inc'
+	; 7: 32 INC inc type: (number)=>void
+	INC V_i
+	BNE not_carry_27
+	INC V_i + 1
+not_carry_27:
+	; 7: 22 BLOCK [d a + c inc i] type: ()=>void
+	; release 2 on the stack
+	TSX
+	TXA
+	CLC
+	ADC #2
+	TAX
+	TXS
+	; 7: 6 WHILE while type: (boolean,void)=>void
+	JMP startloop29
+endblock29:
+	; 8: 6 WORD time type: ()=>number
+	LDA V_time
+	STA CALL_FUN_30 + 1
+	LDA V_time + 1
+	STA CALL_FUN_30 + 2
+CALL_FUN_30:
+	JSR $1111 ; will be overwritten
+	; 8: 1 LIT_WORD end type: (number)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_end
+	LDA STACKACCESS + 1
+	STA V_end + 1
+	; 9:6 STRING "SUM MACRO: "
 	LDA #0
 	STA STACKACCESS+1
-	LDA #1
+	LDA #11
 	STA STACKACCESS
 	JSR PUSH16
-	; 5: 29 WORD i type: ()=>number
-	LDA V_i
+	LDA #>str0
+	STA STACKACCESS+1
+	LDA #<str0
 	STA STACKACCESS
-	LDA V_i + 1
+	JSR PUSH16
+	; 9: 1 PRIN prin type: (string)=>void
+	JSR PRINT_STRING
+	; 9: 26 WORD end type: ()=>number
+	LDA V_end
+	STA STACKACCESS
+	LDA V_end + 1
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 5: 24 PEEK peek type: (number)=>byte
-	JSR POP16
-	LDY #0
-	LDA (STACKACCESS),Y
+	; 9: 32 WORD start type: ()=>number
+	LDA V_start
 	STA STACKACCESS
-	STY STACKACCESS+1
-	JSR PUSH16
-	; 5: 22 PLUS + type: (number,byte)=>number
-	JSR ADD16
-	; 5: 19 BLOCK [1 + peek i] type: ()=>number
-	; no stack memory to release
-	; 5: 32 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 5: 5 POKE poke type: (number,byte)=>void
-	JSR POP16
-	LDY STACKACCESS
-	JSR POP16
-	TYA
-	LDY #0
-	STA (STACKACCESS),Y
-	; 6: 8 WORD i type: ()=>number
-	LDA V_i
-	STA STACKACCESS
-	LDA V_i + 1
+	LDA V_start + 1
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 6:12 NUMBER 1
+	; 9: 30 MINUS - type: (number,number)=>number
+	JSR SUB16
+	; 9: 20 PRINT print type: (number)=>void
+	JSR POP16
+	JSR PRINT_INT
+	LDA #13
+	JSR $FFD2
+	; 11: 8 WORD time type: ()=>number
+	LDA V_time
+	STA CALL_FUN_38 + 1
+	LDA V_time + 1
+	STA CALL_FUN_38 + 2
+CALL_FUN_38:
+	JSR $1111 ; will be overwritten
+	; 11: 1 SET_WORD start type: (number)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_start
+	LDA STACKACCESS + 1
+	STA V_start + 1
+	; 12:4 NUMBER 0
 	LDA #0
 	STA STACKACCESS+1
-	LDA #1
+	LDA #0
 	STA STACKACCESS
 	JSR PUSH16
-	; 6: 10 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 6: 5 SET_WORD i type: (number)=>void
+	; 12: 1 SET_WORD i type: (number)=>void
 	JSR POP16
 	LDA STACKACCESS
 	STA V_i
 	LDA STACKACCESS + 1
 	STA V_i + 1
-	; 2: 16 BLOCK [poke 53281 i !< poke 53280 i !< poke 1024 + i [1 + peek i] !< i i + 1] type: ()=>void
+startloop51:
+	; 12: 12 WORD i type: ()=>number
+	LDA V_i
+	STA STACKACCESS
+	LDA V_i + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 12:16 NUMBER 10000
+	LDA #39
+	STA STACKACCESS+1
+	LDA #16
+	STA STACKACCESS
+	JSR PUSH16
+	; 12: 14 LT < type: (number,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BCC less44
+	BNE greaterorequal44
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BCC less44
+greaterorequal44:
+	LDA #00
+	JMP store44
+less44:
+	LDA #01
+store44:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock51
+	LDA STACKACCESS + 1
+	BNE trueblock51
+	JMP endblock51 ; if all zero
+trueblock51:
+	; Prelude for:
+	; 12: 22 BLOCK [e b + c inc i] type: ()=>void
+	; reserve 2 on the stack for: e (number offset 0)
+	TSX
+	TXA
+	SEC
+	SBC #2
+	TAX
+	TXS
+	; 12: 26 WORD b type: ()=>byte
+	LDA V_b
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 12: 30 WORD c type: ()=>byte
+	LDA V_c
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 12: 28 PLUS + type: (byte,byte)=>number
+	JSR ADD16
+	; 12: 23 LIT_WORD e type: (number)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; no child generation for 'inc'
+	; 12: 32 INC inc type: (number)=>void
+	INC V_i
+	BNE not_carry_49
+	INC V_i + 1
+not_carry_49:
+	; 12: 22 BLOCK [e b + c inc i] type: ()=>void
+	; release 2 on the stack
+	TSX
+	TXA
+	CLC
+	ADC #2
+	TAX
+	TXS
+	; 12: 6 WHILE while type: (boolean,void)=>void
+	JMP startloop51
+endblock51:
+	; 13: 6 WORD time type: ()=>number
+	LDA V_time
+	STA CALL_FUN_52 + 1
+	LDA V_time + 1
+	STA CALL_FUN_52 + 2
+CALL_FUN_52:
+	JSR $1111 ; will be overwritten
+	; 13: 1 SET_WORD end type: (number)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_end
+	LDA STACKACCESS + 1
+	STA V_end + 1
+	; 14:6 STRING "SUM VAR: "
+	LDA #0
+	STA STACKACCESS+1
+	LDA #9
+	STA STACKACCESS
+	JSR PUSH16
+	LDA #>str1
+	STA STACKACCESS+1
+	LDA #<str1
+	STA STACKACCESS
+	JSR PUSH16
+	; 14: 1 PRIN prin type: (string)=>void
+	JSR PRINT_STRING
+	; 14: 24 WORD end type: ()=>number
+	LDA V_end
+	STA STACKACCESS
+	LDA V_end + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 14: 30 WORD start type: ()=>number
+	LDA V_start
+	STA STACKACCESS
+	LDA V_start + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 14: 28 MINUS - type: (number,number)=>number
+	JSR SUB16
+	; 14: 18 PRINT print type: (number)=>void
+	JSR POP16
+	JSR PRINT_INT
+	LDA #13
+	JSR $FFD2
+	; 16: 8 WORD time type: ()=>number
+	LDA V_time
+	STA CALL_FUN_60 + 1
+	LDA V_time + 1
+	STA CALL_FUN_60 + 2
+CALL_FUN_60:
+	JSR $1111 ; will be overwritten
+	; 16: 1 SET_WORD start type: (number)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_start
+	LDA STACKACCESS + 1
+	STA V_start + 1
+	; 17:4 NUMBER 0
+	LDA #0
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	JSR PUSH16
+	; 17: 1 SET_WORD i type: (number)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_i
+	LDA STACKACCESS + 1
+	STA V_i + 1
+startloop69:
+	; 17: 12 WORD i type: ()=>number
+	LDA V_i
+	STA STACKACCESS
+	LDA V_i + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 17:16 NUMBER 10000
+	LDA #39
+	STA STACKACCESS+1
+	LDA #16
+	STA STACKACCESS
+	JSR PUSH16
+	; 17: 14 LT < type: (number,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BCC less66
+	BNE greaterorequal66
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BCC less66
+greaterorequal66:
+	LDA #00
+	JMP store66
+less66:
+	LDA #01
+store66:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock69
+	LDA STACKACCESS + 1
+	BNE trueblock69
+	JMP endblock69 ; if all zero
+trueblock69:
+	; Prelude for:
+	; 17: 22 BLOCK [inc i] type: ()=>void
+	; no stack memory to reserve
+	; no child generation for 'inc'
+	; 17: 23 INC inc type: (number)=>void
+	INC V_i
+	BNE not_carry_67
+	INC V_i + 1
+not_carry_67:
+	; 17: 22 BLOCK [inc i] type: ()=>void
 	; no stack memory to release
-	; 2: 1 WHILE while type: (boolean,void)=>void
-	JMP startloop28
-endblock28:
+	; 17: 6 WHILE while type: (boolean,void)=>void
+	JMP startloop69
+endblock69:
+	; 18: 6 WORD time type: ()=>number
+	LDA V_time
+	STA CALL_FUN_70 + 1
+	LDA V_time + 1
+	STA CALL_FUN_70 + 2
+CALL_FUN_70:
+	JSR $1111 ; will be overwritten
+	; 18: 1 SET_WORD end type: (number)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_end
+	LDA STACKACCESS + 1
+	STA V_end + 1
+	; 19:6 STRING "EMPTY LOOP: "
+	LDA #0
+	STA STACKACCESS+1
+	LDA #12
+	STA STACKACCESS
+	JSR PUSH16
+	LDA #>str2
+	STA STACKACCESS+1
+	LDA #<str2
+	STA STACKACCESS
+	JSR PUSH16
+	; 19: 1 PRIN prin type: (string)=>void
+	JSR PRINT_STRING
+	; 19: 27 WORD end type: ()=>number
+	LDA V_end
+	STA STACKACCESS
+	LDA V_end + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 19: 33 WORD start type: ()=>number
+	LDA V_start
+	STA STACKACCESS
+	LDA V_start + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 19: 31 MINUS - type: (number,number)=>number
+	JSR SUB16
+	; 19: 21 PRINT print type: (number)=>void
+	JSR POP16
+	JSR PRINT_INT
+	LDA #13
+	JSR $FFD2
 	; 1: 1 PROG [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
@@ -564,5 +924,14 @@ NOCARRY:
 	STA STACKACCESS + 1
 	JSR PUSH16
 	RTS
+str0: BYTE 83,85,77,32,77,65,67,82,79,58,32
+str1: BYTE 83,85,77,32,86,65,82,58,32
+str2: BYTE 69,77,80,84,89,32,76,79,79,80,58,32
+V_time DS 2
+V_a DS 1
+V_b DS 1
+V_c DS 1
+V_start DS 2
 V_i DS 2
+V_end DS 2
 HEAPSTART:

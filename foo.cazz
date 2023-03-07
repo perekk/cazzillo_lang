@@ -1,7 +1,19 @@
-'i 0
-while i < 1000 [
-    poke 53281 i !<
-    poke 53280 i !<  
-    poke 1024 + i [1 + peek i] !<
-    i: i + 1
-]
+'time :[[ 256 * peek 161] + peek 162]
+def 'a' 100 !<
+'b 100 !<
+'c 1 !<
+
+'start time
+'i 0 while i < 10000 ['d a + c inc i] // MACRO
+'end time
+prin "SUM MACRO: " print end - start
+
+start: time
+i: 0 while i < 10000 ['e b + c inc i] // VAR
+end: time
+prin "SUM VAR: " print end - start
+
+start: time
+i: 0 while i < 10000 [inc i] // EMPTY
+end: time
+prin "EMPTY LOOP: " print end - start
