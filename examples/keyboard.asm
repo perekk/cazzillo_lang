@@ -8,206 +8,34 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
-	; 1:15 BYTE VAL 197
-	LDA #197
-	STA STACKACCESS
+	; Prelude for:
+	; 1: 1 BLOCK [prog] type: ()=>void
+	; 1:15 NUMBER 197
 	LDA #0
 	STA STACKACCESS+1
+	LDA #197
+	STA STACKACCESS
 	JSR PUSH16
-	; 1:19 CAST_NUMBER !n
-	; 1:1 LIT_WORD keyboard_loc
+	; 1: 1 LIT_WORD keyboard_loc type: (number)=>void
 	JSR POP16
 	LDA STACKACCESS
 	STA V_keyboard_loc
 	LDA STACKACCESS + 1
 	STA V_keyboard_loc + 1
-	; 2:7 BOOL VAL false
+	; 2:7 BOOL false
 	LDA #0
 	STA STACKACCESS
 	LDA #0
 	STA STACKACCESS+1
 	JSR PUSH16
-	; 2:1 LIT_WORD quit
+	; 2: 1 LIT_WORD quit type: (boolean)=>void
 	JSR POP16
 	LDA STACKACCESS
 	STA V_quit
-startloop38:
-	; 4:7 WORD quit
-	LDA V_quit
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 4:12 NOT !
-	LDX SP16
-	LDA STACKBASE + 1,X
-	EOR #$FF
-	STA STACKBASE + 1,X
-	INC STACKBASE + 1,X
-	INC STACKBASE + 1,X
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock38
-	LDA STACKACCESS + 1
-	BNE trueblock38
-	JMP endblock38 ; if all zero
-trueblock38:
-	TSX
-	TXA
-	SEC
-	SBC #1
-	TAX
-	TXS
-	; 5:15 WORD keyboard_loc
-	LDA V_keyboard_loc
-	STA STACKACCESS
-	LDA V_keyboard_loc + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 5:10 PEEK peek
-	JSR POP16
-	LDY #0
-	LDA (STACKACCESS),Y
-	STA STACKACCESS
-	STY STACKACCESS+1
-	JSR PUSH16
-	; 5:5 LIT_WORD key
-	JSR POP16
-	TSX
-	TXA
-	SEC
-	SBC 0
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	; 6:11 WORD key
-	TSX
-	TXA
-	SEC
-	SBC 0
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 6:17 BYTE VAL 64
-	LDA #64
-	STA STACKACCESS
+	; 3:7 STRING "PRESS KEY - Q TO QUIT"
 	LDA #0
 	STA STACKACCESS+1
-	JSR PUSH16
-	; 6:15 PLUS +
-	JSR ADD16
-	; 6:5 BLOCK [...]
-	; 6:21 CAST_BYTE !>
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 6:5 SET_WORD key
-	JSR POP16
-	TSX
-	TXA
-	SEC
-	SBC 0
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	; 7:11 WORD key
-	TSX
-	TXA
-	SEC
-	SBC 0
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 7:17 BYTE VAL 126
-	LDA #126
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS+1
-	JSR PUSH16
-	; 7:15 EQ =
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal18
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BNE notequal18
-	LDA #01
-	JMP store18
-notequal18:
-	LDA #00
-store18:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2
-	STX SP16
-	; 7:5 SET_WORD quit
-	JSR POP16
-	LDA STACKACCESS
-	STA V_quit
-	; 8:9 WORD key
-	TSX
-	TXA
-	SEC
-	SBC 0
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 8:15 BYTE VAL 128
-	LDA #128
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS+1
-	JSR PUSH16
-	; 8:13 EQ =
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal22
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BNE notequal22
-	LDA #01
-	JMP store22
-notequal22:
-	LDA #00
-store22:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2
-	STX SP16
-	; 7:5 BLOCK [...]
-	; 8:20 NOT !
-	LDX SP16
-	LDA STACKBASE + 1,X
-	EOR #$FF
-	STA STACKBASE + 1,X
-	INC STACKBASE + 1,X
-	INC STACKBASE + 1,X
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock36
-	LDA STACKACCESS + 1
-	BNE trueblock36
-	JMP endblock36 ; if all zero
-trueblock36:
-	; 9:14 STRING VAL YOU PRESSED: 
-	LDA #0
-	STA STACKACCESS+1
-	LDA #13
+	LDA #21
 	STA STACKACCESS
 	JSR PUSH16
 	LDA #>str0
@@ -215,27 +43,201 @@ trueblock36:
 	LDA #<str0
 	STA STACKACCESS
 	JSR PUSH16
-	; 9:9 PRIN prin
+	; 3: 1 PRINT print type: (string)=>void
 	JSR PRINT_STRING
-	; 10:14 WORD key
+	LDA #13
+	JSR $FFD2
+startloop39:
+	; 4: 7 WORD quit type: ()=>boolean
+	LDA V_quit
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 4: 12 NOT ! type: (boolean)=>boolean
+	LDX SP16
+	LDA STACKBASE + 1,X
+	EOR #$FF
+	STA STACKBASE + 1,X
+	INC STACKBASE + 1,X
+	INC STACKBASE + 1,X
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock39
+	LDA STACKACCESS + 1
+	BNE trueblock39
+	JMP endblock39 ; if all zero
+trueblock39:
+	; Prelude for:
+; 4: 14 BLOCK [key peek keyboard_loc key [key + 64] !< quit key = 126 if [key = 128] ! [prin YOU PRESSED:  emit key prin  CODE:  prin key print  !]] type: ()=>void
+	; reserve 1 on the stack for: key (byte offset 0)
 	TSX
 	TXA
 	SEC
-	SBC 0
+	SBC #1
+	TAX
+	TXS
+	; 5: 15 WORD keyboard_loc type: ()=>number
+	LDA V_keyboard_loc
+	STA STACKACCESS
+	LDA V_keyboard_loc + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 5: 10 PEEK peek type: (number)=>byte
+	JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+	; 5: 5 LIT_WORD key type: (byte)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	; Prelude for:
+	; 6: 10 BLOCK [key + 64] type: ()=>number
+	; no stack memory to reserve
+	; 6: 11 WORD key type: ()=>byte
+	TSX
+	TXA
+	CLC
+	ADC #1
 	TAX
 	LDA $0100,X
 	STA STACKACCESS
 	LDA #0
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 10:9 EMIT emit
-	JSR POP16
-	LDA STACKACCESS
-	JSR $FFD2
-	; 11:14 STRING VAL  CODE: 
+	; 6:17 NUMBER 64
 	LDA #0
 	STA STACKACCESS+1
-	LDA #7
+	LDA #64
+	STA STACKACCESS
+	JSR PUSH16
+	; 6: 15 PLUS + type: (byte,number)=>number
+	JSR ADD16
+	; 6: 10 BLOCK [key + 64] type: ()=>number
+	; no stack memory to release
+	; 6: 21 CAST_BYTE !< type: (number)=>byte
+	LDX SP16
+	LDA #0
+	STA STACKBASE + 2,X
+	; 6: 5 SET_WORD key type: (byte)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	; 7: 11 WORD key type: ()=>byte
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 7:17 NUMBER 126
+	LDA #0
+	STA STACKACCESS+1
+	LDA #126
+	STA STACKACCESS
+	JSR PUSH16
+; 7: 15 EQ = type: (byte,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BNE notequal19
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal19
+	LDA #01
+	JMP store19
+notequal19:
+	LDA #00
+store19:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	; 7: 5 SET_WORD quit type: (boolean)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_quit
+	; Prelude for:
+; 8: 8 BLOCK [key = 128] type: ()=>boolean
+	; no stack memory to reserve
+	; 8: 9 WORD key type: ()=>byte
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 8:15 NUMBER 128
+	LDA #0
+	STA STACKACCESS+1
+	LDA #128
+	STA STACKACCESS
+	JSR PUSH16
+; 8: 13 EQ = type: (byte,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BNE notequal23
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal23
+	LDA #01
+	JMP store23
+notequal23:
+	LDA #00
+store23:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+; 8: 8 BLOCK [key = 128] type: ()=>boolean
+	; no stack memory to release
+	; 8: 20 NOT ! type: (boolean)=>boolean
+	LDX SP16
+	LDA STACKBASE + 1,X
+	EOR #$FF
+	STA STACKBASE + 1,X
+	INC STACKBASE + 1,X
+	INC STACKBASE + 1,X
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock37
+	LDA STACKACCESS + 1
+	BNE trueblock37
+	JMP endblock37 ; if all zero
+trueblock37:
+	; Prelude for:
+	; 8: 22 BLOCK [prin YOU PRESSED:  emit key prin  CODE:  prin key print  !] type: ()=>void
+	; no stack memory to reserve
+	; 9:14 STRING "YOU PRESSED: "
+	LDA #0
+	STA STACKACCESS+1
+	LDA #13
 	STA STACKACCESS
 	JSR PUSH16
 	LDA #>str1
@@ -243,28 +245,27 @@ trueblock36:
 	LDA #<str1
 	STA STACKACCESS
 	JSR PUSH16
-	; 11:9 PRIN prin
+	; 9: 9 PRIN prin type: (string)=>void
 	JSR PRINT_STRING
-	; 12:14 WORD key
+	; 10: 14 WORD key type: ()=>byte
 	TSX
 	TXA
-	SEC
-	SBC 0
+	CLC
+	ADC #1
 	TAX
 	LDA $0100,X
 	STA STACKACCESS
 	LDA #0
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 12:9 PRIN prin
+	; 10: 9 EMIT emit type: (byte)=>void
 	JSR POP16
-	LDA #0
-	STA STACKACCESS + 1
-	JSR PRINT_INT
-	; 13:15 STRING VAL  !
+	LDA STACKACCESS
+	JSR $FFD2
+	; 11:14 STRING " CODE: "
 	LDA #0
 	STA STACKACCESS+1
-	LDA #2
+	LDA #7
 	STA STACKACCESS
 	JSR PUSH16
 	LDA #>str2
@@ -272,24 +273,55 @@ trueblock36:
 	LDA #<str2
 	STA STACKACCESS
 	JSR PUSH16
-	; 13:9 PRINT print
+	; 11: 9 PRIN prin type: (string)=>void
+	JSR PRINT_STRING
+	; 12: 14 WORD key type: ()=>byte
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 12: 9 PRIN prin type: (byte)=>void
+	JSR POP16
+	LDA #0
+	STA STACKACCESS + 1
+	JSR PRINT_INT
+	; 13:15 STRING " !"
+	LDA #0
+	STA STACKACCESS+1
+	LDA #2
+	STA STACKACCESS
+	JSR PUSH16
+	LDA #>str3
+	STA STACKACCESS+1
+	LDA #<str3
+	STA STACKACCESS
+	JSR PUSH16
+	; 13: 9 PRINT print type: (string)=>void
 	JSR PRINT_STRING
 	LDA #13
 	JSR $FFD2
-	; 7:15 BLOCK [...]
-	; 8:5 IF if
-endblock36:
-	; 4:14 BLOCK [...]
+	; 8: 22 BLOCK [prin YOU PRESSED:  emit key prin  CODE:  prin key print  !] type: ()=>void
+	; no stack memory to release
+	; 8: 5 IF if type: (boolean,void)=>void
+endblock37:
+; 4: 14 BLOCK [key peek keyboard_loc key [key + 64] !< quit key = 126 if [key = 128] ! [prin YOU PRESSED:  emit key prin  CODE:  prin key print  !]] type: ()=>void
+	; release 1 on the stack
 	TSX
 	TXA
 	CLC
 	ADC #1
 	TAX
 	TXS
-	; 4:1 WHILE while
-	JMP startloop38
-endblock38:
-	; 1:1 BLOCK [prog]
+	; 4: 1 WHILE while type: (boolean,void)=>void
+	JMP startloop39
+endblock39:
+	; 1: 1 BLOCK [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
 HEAPSAVE DS 3 ; USED IN COPYSTRING
@@ -307,11 +339,11 @@ FROMADD:
 TOADD:
 	STA $1111
 	INC FROMADD + 1
-	BCC COPY_NO_CARRY1
+	BNE COPY_NO_CARRY1
 	INC FROMADD + 2
 COPY_NO_CARRY1:
 	INC TOADD + 1
-	BCC COPY_NO_CARRY2
+	BNE COPY_NO_CARRY2
 	INC TOADD + 2
 COPY_NO_CARRY2:
 	DEY
@@ -665,9 +697,10 @@ NOCARRY:
 	STA STACKACCESS + 1
 	JSR PUSH16
 	RTS
-str0: BYTE 89,79,85,32,80,82,69,83,83,69,68,58,32
-str1: BYTE 32,67,79,68,69,58,32
-str2: BYTE 32,33
+str0: BYTE 80,82,69,83,83,32,75,69,89,32,45,32,81,32,84,79,32,81,85,73,84
+str1: BYTE 89,79,85,32,80,82,69,83,83,69,68,58,32
+str2: BYTE 32,67,79,68,69,58,32
+str3: BYTE 32,33
 V_keyboard_loc DS 2
 V_quit DS 1
 HEAPSTART:

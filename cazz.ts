@@ -35,20 +35,9 @@ enum TokenType {
     STR_JOIN,
     STR_LEN,
     HEAP,
+    PROG,
     TOKEN_COUNT,
 }
-
-// todo: change valuetype as an algebraic type with 
-// type NewValueType = "number" | "byte" | "string" | "bool" | "void" | { in: NewValueType[], out: NewValueType };
-
-// const t: NewValueType = "number";
-// const u: NewValueType = { in: ["number", "byte"], out: "bool" };
-
-// if (typeof u === "string") {
-//     console.log(u);
-// } else {
-//     console.log(u);
-// }
 
 enum ValueType {
     NUMBER,
@@ -72,7 +61,7 @@ const sizeForValueType: { [key in ValueType]: number } = {
 
 function humanReadableToken(t: TokenType | undefined): string {
     if (t === undefined) return "undefined";
-    console.assert(TokenType.TOKEN_COUNT === 36, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 37, "Exaustive token types count");
     switch (t) {
         case TokenType.LITERAL: return "LITERAL";
         case TokenType.PLUS: return "PLUS";
@@ -110,6 +99,7 @@ function humanReadableToken(t: TokenType | undefined): string {
         case TokenType.STR_JOIN: return "STR_JOIN";
         case TokenType.HEAP: return "HEAP";
         case TokenType.STR_LEN: return "STR_LEN";
+        case TokenType.PROG: return "PROG";
         default:
             throw new Error(`Token Type ${t} not defined`);
     }
@@ -571,12 +561,13 @@ function getReturnTypeOfAWord(token: Token): ValueType {
 function assertChildNumber(token: Token, num: number) {
     if (token.childs.length !== num) {
         logError(token.loc, `'${token.txt}' is supposed to have ${num} parameters, got ${token.childs.length}`);
+        dumpAst(token);
         Deno.exit(1);
     }
 }
 
 function createVocabulary(): Vocabulary {
-    console.assert(TokenType.TOKEN_COUNT === 36, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 37, "Exaustive token types count");
     const voc: Vocabulary = {};
     voc[TokenType.PRINT] = {
         txt: "print",        
@@ -1344,8 +1335,8 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: token => {
-            console.assert(token.childs.length === 1, "'set word' should have one child");
+        ins: token => {            
+            assertChildNumber(token, 1);
             const child = token.childs[0];
             const valueType = getReturnTypeOfAWord(child);
             if (valueType === undefined) {
@@ -1356,7 +1347,7 @@ function createVocabulary(): Vocabulary {
                 logError(token.loc, `can't store 'void' values in variables`);
                 Deno.exit(1);
             }
-                const varDef = getWordDefinition(token.context, token.txt);
+            const varDef = getWordDefinition(token.context, token.txt);
             if (varDef === undefined) {
                 logError(token.loc, `can't find variable definition for '${token.txt}', compiler error`);
                 Deno.exit(1);
@@ -1389,7 +1380,7 @@ function createVocabulary(): Vocabulary {
         priority: 5,
         userFunction: false,
         ins: token => {
-            console.assert(token.childs.length === 1, "'lit word' should have one child");
+            assertChildNumber(token, 1);            
             const child = token.childs[0];
             const valueType = getReturnTypeOfAWord(child);
             if (valueType === undefined) {
@@ -1397,8 +1388,7 @@ function createVocabulary(): Vocabulary {
                 Deno.exit(1);
             }
             if (valueType === ValueType.VOID) {
-                logError(token.loc, `can't store 'void' values in variables`);
-                dumpAst(token);
+                logError(token.loc, `can't store 'void' values in variables`);                
                 Deno.exit(1);
             }
             return [valueType];
@@ -1543,7 +1533,7 @@ function createVocabulary(): Vocabulary {
         expectedArityOut: 1,
         grabFromStack: false,
         position: InstructionPosition.PREFIX,
-        priority: 100,
+        priority: 10,
         userFunction: false,
         ins: () => [ValueType.NUMBER],
         out: () => ValueType.BYTE,
@@ -1774,6 +1764,487 @@ function createVocabulary(): Vocabulary {
             "JSR POP16",
         ]
     };
+    voc[TokenType.PROG] = {
+        txt: "",
+        expectedArity: 0,
+        expectedArityOut: 0,
+        grabFromStack: false,
+        position: InstructionPosition.PREFIX,
+        priority: 150,
+        userFunction: false,
+        ins: () => [],
+        out: token => {
+            if (token.childs.length === 0) return ValueType.VOID;
+            const lastChild = token.childs[token.childs.length - 1];
+            const valueType = getReturnTypeOfAWord(lastChild);
+            if (valueType === undefined) {
+                logError(lastChild.loc, `cannot determine the type of '${lastChild.txt}'`);
+                Deno.exit(1);
+            }
+            return valueType;
+        },
+        generateAsm: token => {
+            const lib = [
+                "RTS",
+                "BCD DS 3 ; USED IN BIN TO BCD",
+                "HEAPSAVE DS 3 ; USED IN COPYSTRING",
+                "AUXMUL DS 2",
+                "HEAPTOP DS 2",
+                "TEST_UPPER_BIT: BYTE $80",
+                "SP16 = $7F",
+                "STACKACCESS = $0080",
+                "STACKBASE = $0000",
+
+                // FROMADD, TOADD, Y LENGHT
+                "COPYMEM:",
+                "TYA",
+                "BEQ ENDCOPY",
+                "FROMADD:",
+                "LDA $1111",
+                "TOADD:",
+                "STA $1111",
+                "INC FROMADD + 1",
+                "BNE COPY_NO_CARRY1",
+                "INC FROMADD + 2",
+                "COPY_NO_CARRY1:",
+                "INC TOADD + 1",
+                "BNE COPY_NO_CARRY2",
+                "INC TOADD + 2",
+                "COPY_NO_CARRY2:",
+                "DEY",
+                "BNE COPYMEM",
+                "ENDCOPY:",
+                "RTS",
+
+                "PRINT_STRING:",
+                "JSR POP16",
+                "LDX SP16",
+                "LDA STACKBASE + 1,X; LEN",
+                "INX",
+                "INX",
+                "STX SP16",
+                "TAX; NOW IN X WE HAVE THE LEN",
+                "BEQ EXIT_PRINT_STR",
+                "LDY #0",
+                "LOOP_PRINT_STRING:",
+                "LDA (STACKACCESS),Y",
+                "JSR $FFD2",
+                "INY",
+                "DEX",
+                "BNE LOOP_PRINT_STRING",
+                "EXIT_PRINT_STR:",
+                "RTS",
+
+                "; stack.a65 from https://github.com/dourish/mitemon/blob/master/stack.a65",
+                "INITSTACK:",
+                "LDX #$FF",
+                "STX SP16",
+                "RTS",
+
+                "PUSH16:",
+                "LDX SP16",
+                "LDA STACKACCESS + 1",
+                "STA STACKBASE,X",
+                "DEX",
+                "LDA STACKACCESS",
+                "STA STACKBASE,X",
+                "DEX",
+                "STX SP16",
+                "RTS",
+
+                "POP16:",
+                "LDX SP16",
+                "LDA STACKBASE + 1,X",
+                "STA STACKACCESS",
+                "INX",
+                "LDA STACKBASE + 1,X",
+                "STA STACKACCESS + 1",
+                "INX",
+                "STX SP16",
+                "RTS",
+
+                "DUP16:",
+                "LDX SP16",
+                "LDA STACKBASE + 2,X",
+                "STA STACKBASE,X",
+                "DEX",
+                "LDA STACKBASE + 2,X",
+                "STA STACKBASE,X",
+                "DEX",
+                "STX SP16",
+                "RTS",
+
+                "SWAP16:",
+                "LDX SP16",
+                "LDA STACKBASE + 2,X",
+                "STA STACKBASE,X",
+                "DEX",
+                "LDA STACKBASE + 2,X",
+                "STA STACKBASE,X",
+                "DEX",
+                "LDA STACKBASE + 5,X",
+                "STA STACKBASE + 3,X",
+                "LDA STACKBASE + 6,X",
+                "STA STACKBASE + 4,X",
+                "LDA STACKBASE + 1,X",
+                "STA STACKBASE + 5,X",
+                "LDA STACKBASE + 2,X",
+                "STA STACKBASE + 6,X",
+                "INX",
+                "INX",
+                "STX SP16",
+                "RTS",
+
+                "ADD16:",
+                "LDX SP16",
+                "CLC",
+                "LDA STACKBASE + 1,X;",
+                "ADC STACKBASE + 3,X",
+                "STA STACKBASE + 3,X",
+                "LDA STACKBASE + 2,X",
+                "ADC STACKBASE + 4,X",
+                "STA STACKBASE + 4,X",
+                "INX",
+                "INX",
+                "STX SP16",
+                "RTS",
+
+                "SUB16:",
+                "LDX SP16",
+                "SEC",
+                "LDA STACKBASE + 3,X",
+                "SBC STACKBASE + 1,X",
+                "STA STACKBASE + 3,X",
+                "LDA STACKBASE + 4,X",
+                "SBC STACKBASE + 2,X",
+                "STA STACKBASE + 4,X",
+                "INX",
+                "INX",
+                "STX SP16",
+                "RTS",
+
+                "BINBCD16: SED",
+                "LDA #0",
+                "STA BCD + 0",
+                "STA BCD + 1",
+                "STA BCD + 2",
+                "LDX #16",
+                "CNVBIT: ASL STACKACCESS + 0",
+                "ROL STACKACCESS + 1",
+                "LDA BCD + 0",
+                "ADC BCD + 0",
+                "STA BCD + 0",
+                "LDA BCD + 1",
+                "ADC BCD + 1",
+                "STA BCD + 1",
+                "LDA BCD + 2",
+                "ADC BCD + 2",
+                "STA BCD + 2",
+                "DEX",
+                "BNE CNVBIT",
+                "CLD",
+                "RTS",
+
+                "PRINT_INT:",
+                "JSR BINBCD16",
+                "LDA BCD+2",
+                "TAY",
+                "BEQ DIGIT2",
+                "AND #$0F",
+                "CLC",
+                "ADC #$30",
+                "JSR $FFD2",
+
+                "DIGIT2:",
+                "LDA BCD+1",
+                "LSR",
+                "LSR",
+                "LSR",
+                "LSR",
+                "BNE PRINT_DIGIT_2",
+                "CPY #00",
+                "BEQ DIGIT_3",
+                "PRINT_DIGIT_2:",
+                "TAY",
+                "CLC",
+                "ADC #$30",
+                "JSR $FFD2",
+
+                "DIGIT_3:",
+                "LDA BCD+1",
+                "AND #$0F",
+                "BNE PRINT_DIGIT_3",
+                "CPY #00",
+                "BEQ DIGIT_4",
+                "PRINT_DIGIT_3:",
+                "TAY",
+                "CLC",
+                "ADC #$30",
+                "JSR $FFD2",
+
+                "DIGIT_4:",
+                "LDA BCD+0",
+                "LSR",
+                "LSR",
+                "LSR",
+                "LSR",
+                "BNE PRINT_DIGIT_4",
+                "CPY #00",
+                "BEQ DIGIT_5",
+                "PRINT_DIGIT_4:",
+                "TAY",
+                "CLC",
+                "ADC #$30",
+                "JSR $FFD2",
+
+                "DIGIT_5:",
+                "LDA BCD+0",
+                "AND #$0F",
+                "CLC",
+                "ADC #$30",
+                "JSR $FFD2",
+                "RTS",
+
+                "MUL16:",
+                "LDX SP16",
+                "LDA STACKBASE + 3,X    ; Get the multiplicand and",
+                "STA AUXMUL             ; put it in the scratchpad.",
+                "LDA STACKBASE + 4,X",
+                "STA AUXMUL + 1",
+                "PHA",
+                "LDA #0",
+                "STA STACKBASE + 3       ; Zero - out the original multiplicand area",
+                "STA STACKBASE + 4",
+                "PLA",
+                "LDY #$10                ; We'll loop 16 times.",
+                "shift_loop:",
+                "ASL STACKBASE + 3,X     ; Shift the entire 32 bits over one bit position.",
+                "ROL STACKBASE + 4,X",
+                "ROL STACKBASE + 1,X",
+                "ROL STACKBASE + 2,X",
+                "BCC skip_add            ; Skip the adding -in to the result if the high bit shifted out was 0",
+                "CLC                     ; Else, add multiplier to intermediate result.",
+                "LDA AUXMUL",
+                "ADC STACKBASE + 3,X",
+                "STA STACKBASE + 3,X",
+                "LDA AUXMUL + 1",
+                "ADC STACKBASE + 4,X",
+                "STA STACKBASE + 4,X",
+                "LDA #0",
+                "ADC STACKBASE + 1,X",
+                "STA STACKBASE + 1,X",
+                "skip_add:",
+                "DEY                      ; If we haven't done 16 iterations yet,",
+                "BNE  shift_loop          ; then go around again.",
+                "INX",
+                "INX",
+                "STX SP16",
+                "RTS",
+
+                "; https://www.ahl27.com/posts/2022/12/SIXTH-div/",
+                "DIV16WITHMOD:",
+                ";; MAX ITERATIONS IS 16 = 0X10, SINCE WE HAVE 16 BIT NUMBERS",
+                "LDX SP16",
+                "LDY #$10",
+
+                ";; ADD TWO SPACES ON STACK",
+                "DEX",
+                "DEX",
+                "DEX",
+                "DEX",
+
+                "LDA #0",
+                "STA STACKBASE + 1,X; REMAINDER",
+                "STA STACKBASE + 2,X",
+                "STA STACKBASE + 3,X; QUOTIENT",
+                "STA STACKBASE + 4,X",
+                "; +5 - 6 IS DENOMINATOR",
+                "; +7 - 8 IS NUMERATOR",
+
+                ";; SET UP THE NUMERATOR",
+                "LDA #0",
+                "ORA STACKBASE + 8,X",
+                "ORA STACKBASE + 7,X",
+                "BEQ EARLYEXIT",
+
+                ";; CHECKING IS DENOMINATOR IS ZERO(IF SO WE'LL JUST STORE ZEROS)",
+                "LDA #0",
+                "ORA STACKBASE + 6,X",
+                "ORA STACKBASE + 5,X",
+                "BNE DIVMODLOOP1",
+
+                "EARLYEXIT:",
+                ";; NUMERATOR OR DENOMINATOR ARE ZERO, JUST RETURN",
+                "LDA #0",
+                "STA STACKBASE + 6,X",
+                "STA STACKBASE + 5,X",
+                "INX",
+                "INX",
+                "INX",
+                "INX",
+                "RTS",
+
+                ";; TRIM DOWN TO LEADING BIT",
+                "DIVMODLOOP1:",
+                "LDA STACKBASE + 8,X",
+                "BIT TEST_UPPER_BIT",
+                "BNE END",
+                "CLC",
+                "ASL STACKBASE + 7,X",
+                "ROL STACKBASE + 8,X",
+                "DEY",
+                "JMP DIVMODLOOP1",
+                "END:",
+
+                ";; MAIN DIVISION LOOP",
+                "DIVMODLOOP2:",
+                ";; LEFT - SHIFT THE REMAINDER",
+                "CLC",
+                "ASL STACKBASE + 1,X         ",
+                "ROL STACKBASE + 2,X",
+
+                ";; LEFT - SHIFT THE QUOTIENT",
+                "CLC",
+                "ASL STACKBASE + 3,X",
+                "ROL STACKBASE + 4,X",
+
+                ";; SET LEAST SIGNIFICANT BIT TO BIT I OF NUMERATOR",
+                "CLC",
+                "ASL STACKBASE + 7,X",
+                "ROL STACKBASE + 8,X",
+
+                "LDA STACKBASE + 1,X",
+                "ADC #0",
+                "STA STACKBASE + 1,X",
+                "LDA STACKBASE + 2,X",
+                "ADC #0",
+                "STA STACKBASE + 2,X",
+
+                ";; COMPARE REMAINDER TO DENOMINATOR",
+                "; UPPER BYTE(STACKBASE + 2 IS ALREADY IN A)",
+                "CMP STACKBASE + 6,X",
+                "BMI SKIP; IF R < D, SKIP TO NEXT ITERATION ",
+                "BNE SUBTRACT; IF R > D, WE CAN SKIP COMPARING LOWER BYTE",
+                "; IF R = D, WE HAVE TO CHECK THE LOWER BYTE",
+
+                "; LOWER BYTE",
+                "LDA STACKBASE + 1,X",
+                "CMP STACKBASE + 5,X",
+                "BMI SKIP",
+
+                "SUBTRACT:",
+                ";; SUBTRACT DENOMINATOR FROM REMAINDER",
+                "SEC",
+                "; SUBTRACT LOWER BYTE",
+                "LDA STACKBASE + 1,X",
+                "SBC STACKBASE + 5,X",
+                "STA STACKBASE + 1,X",
+
+                "; SUBTRACT UPPER BYTE",
+                "LDA STACKBASE + 2,X",
+                "SBC STACKBASE + 6,X",
+                "STA STACKBASE + 2,X",
+
+                ";; ADD ONE TO QUOTIENT",
+                "INC STACKBASE + 3,X",
+
+                "SKIP:",
+                "DEY",
+                "BEQ EXIT",
+                "JMP DIVMODLOOP2",
+
+                "EXIT:  ",
+                ";; CLEANUP",
+                "LDA STACKBASE + 1,X",
+                "STA STACKBASE + 5,X",
+                "LDA STACKBASE + 2,X",
+                "STA STACKBASE + 6,X",
+                "LDA STACKBASE + 3,X",
+                "STA STACKBASE + 7,X",
+                "LDA STACKBASE + 4,X",
+                "STA STACKBASE + 8,X",
+
+                "INX",
+                "INX",
+                "INX",
+                "INX",
+                "RTS",
+
+                "DIV16:",
+                "JSR DIV16WITHMOD",
+                "INX",
+                "INX",
+                "RTS",
+
+                "MOD16:",
+                "JSR DIV16WITHMOD",
+                "LDA STACKBASE + 1,X",
+                "STA STACKBASE + 3,X",
+                "LDA STACKBASE + 2,X",
+                "STA STACKBASE + 4,X",
+                "INX",
+                "INX",
+                "RTS",
+
+                "MALLOC:",
+                "CLC",
+                "ADC HEAPTOP",
+                "STA HEAPTOP",
+                "BCC NOCARRY",
+                "INC HEAPTOP+1",
+                "NOCARRY:",
+                "LDA HEAPTOP",
+                "STA STACKACCESS",
+                "LDA HEAPTOP + 1",
+                "STA STACKACCESS + 1",
+                "JSR PUSH16",
+
+                "RTS",
+
+            ];
+
+            const literalStrings = stringTable.map((str, index) => {
+                const bytes: string[] = [];
+                for (let i = 0; i < str.length; i++) {
+                    bytes.push(String(str[i].charCodeAt(0) & 255));
+                }
+                const strBytes = bytes.join(",");
+                return `str${index}: BYTE ${strBytes}`;
+            });
+            const vars: string[] = [];
+            if (token.context !== undefined) {
+                Object.entries(token.context.varsDefinition).forEach(([name, varDef]) => {
+                    const variableName = "V_" + name;
+                    if (!(varDef.internalType in sizeForValueType)) {
+                        logError(varDef.token.loc, `cannot find the size of '${varDef.token.txt}' to allocate on the heap`);
+                        Deno.exit(1);
+                    }
+                    const size = sizeForValueType[varDef.internalType];
+                    vars.push(`${variableName} DS ${size}`);
+                });
+            }
+
+            const heap = [
+                "HEAPSTART:",
+            ]
+
+            return lib.concat(literalStrings).concat(vars).concat(heap);
+        },
+        generatePreludeAsm: () => [
+            "processor 6502 ; TEH BEAST",
+            "ORG $0801 ; BASIC STARTS HERE",
+            "HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00",
+            "ORG $0810 ; MY PROGRAM STARTS HERE",
+            "; INIT HEAP",
+            "LDA #<HEAPSTART",
+            "STA HEAPTOP",
+            "LDA #>HEAPSTART",
+            "STA HEAPTOP+1",
+            "JSR INITSTACK",
+        ],
+
+
+    };
 
     return voc;
 }
@@ -1921,6 +2392,7 @@ function groupFunctionToken(ast: AST, index: number): Token {
         childs = ast.slice(index + 1, index + 1 + arity);
         if (childs.length !== arity) {            
             logError(functionElement.loc, `the function ${functionElement.txt} expects ${arity} parameters, but got only ${childs.length}!`);
+            dumpAst(functionElement);
             Deno.exit(1);
         }
         startPos = index;
@@ -1978,8 +2450,8 @@ function getParametersRequestedByBlock(block: Token) {
 
 function getReturnValueByBlock(block: Token) {
 
-    if (block.type !== TokenType.BLOCK && block.type !== TokenType.REF_BLOCK) {
-        logError(block.loc, `the token '${block.txt}' is not a block or ref block!`);
+    if (block.type !== TokenType.BLOCK && block.type !== TokenType.REF_BLOCK && block.type !== TokenType.PROG) {
+        logError(block.loc, `the token '${block.txt}' is not a BLOCK or REF_BLOCK or PROG!`);
         Deno.exit(1);
     }
     const lastChild = block.childs.at(-1);
@@ -1995,8 +2467,8 @@ function getReturnValueByBlock(block: Token) {
 
 function typeCheckBlock(block: Token) {
 
-    if (block.type !== TokenType.BLOCK && block.type !== TokenType.REF_BLOCK) {
-        logError(block.loc, `the token '${block.txt}' is not a block or ref block!`);
+    if (block.type !== TokenType.BLOCK && block.type !== TokenType.REF_BLOCK && block.type !== TokenType.PROG) {
+        logError(block.loc, `the token '${block.txt}' is not a BLOCK or REF_BLOCK or PROG!`);
         Deno.exit(1);
     }
 
@@ -2109,7 +2581,7 @@ function setWordDefinition(token: Token) {
 
     const isUserFunction = token.childs[0].type === TokenType.REF_BLOCK;
     //const isUserFunction = false;
-    const ins = isUserFunction ? getParametersRequestedByBlock(token.childs[0]) : child.ins;
+    const ins = isUserFunction ? getParametersRequestedByBlock(token.childs[0]) : [];
 
     token.context.varsDefinition[token.txt] = {
         ins,
@@ -2433,10 +2905,10 @@ function groupSequence(vocabulary: Vocabulary, program: AST): Token {
     const prog = {
         loc: { col: 1, row: 1, filename },
         txt: "[prog]",
-        type: TokenType.BLOCK,
+        type: TokenType.PROG,
         internalValueType: ValueType.VOID,
         ins: [],
-        out: ValueType.VOID,
+        out: undefined,
         isUserFunction: false,
         priority: 0,
         position: InstructionPosition.PREFIX,
@@ -2604,470 +3076,6 @@ function addIndent(code: Assembly) {
     }
 }
 
-function asmHeader(): Assembly {
-    return [
-        "processor 6502 ; TEH BEAST",
-        "ORG $0801 ; BASIC STARTS HERE",
-        "HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00",
-        "ORG $0810 ; MY PROGRAM STARTS HERE",
-        "; INIT HEAP",
-        "LDA #<HEAPSTART",
-        "STA HEAPTOP",
-        "LDA #>HEAPSTART",
-        "STA HEAPTOP+1",
-        "JSR INITSTACK",
-    ]
-}
-
-function asmFooter(ast: Token): Assembly {
-    const lib = [
-        "RTS",
-        "BCD DS 3 ; USED IN BIN TO BCD",
-        "HEAPSAVE DS 3 ; USED IN COPYSTRING",
-        "AUXMUL DS 2",
-        "HEAPTOP DS 2",
-        "TEST_UPPER_BIT: BYTE $80",
-        "SP16 = $7F",
-        "STACKACCESS = $0080",
-        "STACKBASE = $0000",
-
-        // FROMADD, TOADD, Y LENGHT
-        "COPYMEM:",
-        "TYA",
-        "BEQ ENDCOPY",
-        "FROMADD:",
-        "LDA $1111",
-        "TOADD:",
-        "STA $1111",
-        "INC FROMADD + 1",
-        "BNE COPY_NO_CARRY1",
-        "INC FROMADD + 2",
-        "COPY_NO_CARRY1:",
-        "INC TOADD + 1",
-        "BNE COPY_NO_CARRY2",
-        "INC TOADD + 2",
-        "COPY_NO_CARRY2:",
-        "DEY",
-        "BNE COPYMEM",
-        "ENDCOPY:",
-        "RTS",
-
-        "PRINT_STRING:",
-        "JSR POP16",
-        "LDX SP16",
-        "LDA STACKBASE + 1,X; LEN",
-        "INX",
-        "INX",
-        "STX SP16",
-        "TAX; NOW IN X WE HAVE THE LEN",
-        "BEQ EXIT_PRINT_STR",
-        "LDY #0",
-        "LOOP_PRINT_STRING:",
-        "LDA (STACKACCESS),Y",
-        "JSR $FFD2",
-        "INY",
-        "DEX",
-        "BNE LOOP_PRINT_STRING",
-        "EXIT_PRINT_STR:",
-        "RTS",
-
-        "; stack.a65 from https://github.com/dourish/mitemon/blob/master/stack.a65",
-        "INITSTACK:",
-        "LDX #$FF",
-        "STX SP16",
-        "RTS",
-
-        "PUSH16:",
-        "LDX SP16",
-        "LDA STACKACCESS + 1",
-        "STA STACKBASE,X",
-        "DEX",
-        "LDA STACKACCESS",
-        "STA STACKBASE,X",
-        "DEX",
-        "STX SP16",
-        "RTS",
-
-        "POP16:",
-        "LDX SP16",
-        "LDA STACKBASE + 1,X",
-        "STA STACKACCESS",
-        "INX",
-        "LDA STACKBASE + 1,X",
-        "STA STACKACCESS + 1",
-        "INX",
-        "STX SP16",
-        "RTS",
-
-        "DUP16:",
-        "LDX SP16",
-        "LDA STACKBASE + 2,X",
-        "STA STACKBASE,X",
-        "DEX",
-        "LDA STACKBASE + 2,X",
-        "STA STACKBASE,X",
-        "DEX",
-        "STX SP16",
-        "RTS",
-
-        "SWAP16:",
-        "LDX SP16",
-        "LDA STACKBASE + 2,X",
-        "STA STACKBASE,X",
-        "DEX",
-        "LDA STACKBASE + 2,X",
-        "STA STACKBASE,X",
-        "DEX",
-        "LDA STACKBASE + 5,X",
-        "STA STACKBASE + 3,X",
-        "LDA STACKBASE + 6,X",
-        "STA STACKBASE + 4,X",
-        "LDA STACKBASE + 1,X",
-        "STA STACKBASE + 5,X",
-        "LDA STACKBASE + 2,X",
-        "STA STACKBASE + 6,X",
-        "INX",
-        "INX",
-        "STX SP16",
-        "RTS",
-
-        "ADD16:",
-        "LDX SP16",
-        "CLC",
-        "LDA STACKBASE + 1,X;",
-        "ADC STACKBASE + 3,X",
-        "STA STACKBASE + 3,X",
-        "LDA STACKBASE + 2,X",
-        "ADC STACKBASE + 4,X",
-        "STA STACKBASE + 4,X",
-        "INX",
-        "INX",
-        "STX SP16",
-        "RTS",
-
-        "SUB16:",
-        "LDX SP16",
-        "SEC",
-        "LDA STACKBASE + 3,X",
-        "SBC STACKBASE + 1,X",
-        "STA STACKBASE + 3,X",
-        "LDA STACKBASE + 4,X",
-        "SBC STACKBASE + 2,X",
-        "STA STACKBASE + 4,X",
-        "INX",
-        "INX",
-        "STX SP16",
-        "RTS",
-
-        "BINBCD16: SED",
-        "LDA #0",
-        "STA BCD + 0",
-        "STA BCD + 1",
-        "STA BCD + 2",
-        "LDX #16",
-        "CNVBIT: ASL STACKACCESS + 0",
-        "ROL STACKACCESS + 1",
-        "LDA BCD + 0",
-        "ADC BCD + 0",
-        "STA BCD + 0",
-        "LDA BCD + 1",
-        "ADC BCD + 1",
-        "STA BCD + 1",
-        "LDA BCD + 2",
-        "ADC BCD + 2",
-        "STA BCD + 2",
-        "DEX",
-        "BNE CNVBIT",
-        "CLD",
-        "RTS",
-
-        "PRINT_INT:",
-        "JSR BINBCD16",
-        "LDA BCD+2",
-        "TAY",
-        "BEQ DIGIT2",
-        "AND #$0F",
-        "CLC",
-        "ADC #$30",
-        "JSR $FFD2",
-
-        "DIGIT2:",
-        "LDA BCD+1",
-        "LSR",
-        "LSR",
-        "LSR",
-        "LSR",
-        "BNE PRINT_DIGIT_2",
-        "CPY #00",
-        "BEQ DIGIT_3",
-        "PRINT_DIGIT_2:",
-        "TAY",
-        "CLC",
-        "ADC #$30",
-        "JSR $FFD2",
-
-        "DIGIT_3:",
-        "LDA BCD+1",
-        "AND #$0F",
-        "BNE PRINT_DIGIT_3",
-        "CPY #00",
-        "BEQ DIGIT_4",
-        "PRINT_DIGIT_3:",
-        "TAY",
-        "CLC",
-        "ADC #$30",
-        "JSR $FFD2",
-
-        "DIGIT_4:",
-        "LDA BCD+0",
-        "LSR",
-        "LSR",
-        "LSR",
-        "LSR",
-        "BNE PRINT_DIGIT_4",
-        "CPY #00",
-        "BEQ DIGIT_5",
-        "PRINT_DIGIT_4:",
-        "TAY",
-        "CLC",
-        "ADC #$30",
-        "JSR $FFD2",
-
-        "DIGIT_5:",
-        "LDA BCD+0",
-        "AND #$0F",
-        "CLC",
-        "ADC #$30",
-        "JSR $FFD2",
-        "RTS",
-
-        "MUL16:",
-        "LDX SP16",
-        "LDA STACKBASE + 3,X    ; Get the multiplicand and",
-        "STA AUXMUL             ; put it in the scratchpad.",
-        "LDA STACKBASE + 4,X",
-        "STA AUXMUL + 1",
-        "PHA",
-        "LDA #0",
-        "STA STACKBASE + 3       ; Zero - out the original multiplicand area",
-        "STA STACKBASE + 4",
-        "PLA",
-        "LDY #$10                ; We'll loop 16 times.",
-        "shift_loop:",
-        "ASL STACKBASE + 3,X     ; Shift the entire 32 bits over one bit position.",
-        "ROL STACKBASE + 4,X",
-        "ROL STACKBASE + 1,X",
-        "ROL STACKBASE + 2,X",
-        "BCC skip_add            ; Skip the adding -in to the result if the high bit shifted out was 0",
-        "CLC                     ; Else, add multiplier to intermediate result.",
-        "LDA AUXMUL",
-        "ADC STACKBASE + 3,X",
-        "STA STACKBASE + 3,X",
-        "LDA AUXMUL + 1",
-        "ADC STACKBASE + 4,X",
-        "STA STACKBASE + 4,X",
-        "LDA #0",
-        "ADC STACKBASE + 1,X",
-        "STA STACKBASE + 1,X",
-        "skip_add:",
-        "DEY                      ; If we haven't done 16 iterations yet,",
-        "BNE  shift_loop          ; then go around again.",
-        "INX",
-        "INX",
-        "STX SP16",
-        "RTS",
-
-        "; https://www.ahl27.com/posts/2022/12/SIXTH-div/",
-        "DIV16WITHMOD:",
-        ";; MAX ITERATIONS IS 16 = 0X10, SINCE WE HAVE 16 BIT NUMBERS",
-        "LDX SP16",
-        "LDY #$10",
-
-        ";; ADD TWO SPACES ON STACK",
-        "DEX",
-        "DEX",
-        "DEX",
-        "DEX",
-
-        "LDA #0",
-        "STA STACKBASE + 1,X; REMAINDER",
-        "STA STACKBASE + 2,X",
-        "STA STACKBASE + 3,X; QUOTIENT",
-        "STA STACKBASE + 4,X",
-        "; +5 - 6 IS DENOMINATOR",
-        "; +7 - 8 IS NUMERATOR",
-
-        ";; SET UP THE NUMERATOR",
-        "LDA #0",
-        "ORA STACKBASE + 8,X",
-        "ORA STACKBASE + 7,X",
-        "BEQ EARLYEXIT",
-
-        ";; CHECKING IS DENOMINATOR IS ZERO(IF SO WE'LL JUST STORE ZEROS)",
-        "LDA #0",
-        "ORA STACKBASE + 6,X",
-        "ORA STACKBASE + 5,X",
-        "BNE DIVMODLOOP1",
-
-        "EARLYEXIT:",
-        ";; NUMERATOR OR DENOMINATOR ARE ZERO, JUST RETURN",
-        "LDA #0",
-        "STA STACKBASE + 6,X",
-        "STA STACKBASE + 5,X",
-        "INX",
-        "INX",
-        "INX",
-        "INX",
-        "RTS",
-
-        ";; TRIM DOWN TO LEADING BIT",
-        "DIVMODLOOP1:",
-        "LDA STACKBASE + 8,X",
-        "BIT TEST_UPPER_BIT",
-        "BNE END",
-        "CLC",
-        "ASL STACKBASE + 7,X",
-        "ROL STACKBASE + 8,X",
-        "DEY",
-        "JMP DIVMODLOOP1",
-        "END:",
-
-        ";; MAIN DIVISION LOOP",
-        "DIVMODLOOP2:",
-        ";; LEFT - SHIFT THE REMAINDER",
-        "CLC",
-        "ASL STACKBASE + 1,X         ",
-        "ROL STACKBASE + 2,X",
-
-        ";; LEFT - SHIFT THE QUOTIENT",
-        "CLC",
-        "ASL STACKBASE + 3,X",
-        "ROL STACKBASE + 4,X",
-
-        ";; SET LEAST SIGNIFICANT BIT TO BIT I OF NUMERATOR",
-        "CLC",
-        "ASL STACKBASE + 7,X",
-        "ROL STACKBASE + 8,X",
-
-        "LDA STACKBASE + 1,X",
-        "ADC #0",
-        "STA STACKBASE + 1,X",
-        "LDA STACKBASE + 2,X",
-        "ADC #0",
-        "STA STACKBASE + 2,X",
-
-        ";; COMPARE REMAINDER TO DENOMINATOR",
-        "; UPPER BYTE(STACKBASE + 2 IS ALREADY IN A)",
-        "CMP STACKBASE + 6,X",
-        "BMI SKIP; IF R < D, SKIP TO NEXT ITERATION ",
-        "BNE SUBTRACT; IF R > D, WE CAN SKIP COMPARING LOWER BYTE",
-        "; IF R = D, WE HAVE TO CHECK THE LOWER BYTE",
-
-        "; LOWER BYTE",
-        "LDA STACKBASE + 1,X",
-        "CMP STACKBASE + 5,X",
-        "BMI SKIP",
-
-        "SUBTRACT:",
-        ";; SUBTRACT DENOMINATOR FROM REMAINDER",
-        "SEC",
-        "; SUBTRACT LOWER BYTE",
-        "LDA STACKBASE + 1,X",
-        "SBC STACKBASE + 5,X",
-        "STA STACKBASE + 1,X",
-
-        "; SUBTRACT UPPER BYTE",
-        "LDA STACKBASE + 2,X",
-        "SBC STACKBASE + 6,X",
-        "STA STACKBASE + 2,X",
-
-        ";; ADD ONE TO QUOTIENT",
-        "INC STACKBASE + 3,X",
-
-        "SKIP:",
-        "DEY",
-        "BEQ EXIT",
-        "JMP DIVMODLOOP2",
-
-        "EXIT:  ",
-        ";; CLEANUP",
-        "LDA STACKBASE + 1,X",
-        "STA STACKBASE + 5,X",
-        "LDA STACKBASE + 2,X",
-        "STA STACKBASE + 6,X",
-        "LDA STACKBASE + 3,X",
-        "STA STACKBASE + 7,X",
-        "LDA STACKBASE + 4,X",
-        "STA STACKBASE + 8,X",
-
-        "INX",
-        "INX",
-        "INX",
-        "INX",
-        "RTS",
-
-        "DIV16:",
-        "JSR DIV16WITHMOD",
-        "INX",
-        "INX",
-        "RTS",
-
-        "MOD16:",
-        "JSR DIV16WITHMOD",
-        "LDA STACKBASE + 1,X",
-        "STA STACKBASE + 3,X",
-        "LDA STACKBASE + 2,X",
-        "STA STACKBASE + 4,X",
-        "INX",
-        "INX",
-        "RTS",
-
-        "MALLOC:",
-        "CLC",
-        "ADC HEAPTOP",
-        "STA HEAPTOP",
-        "BCC NOCARRY",
-        "INC HEAPTOP+1",
-        "NOCARRY:",
-        "LDA HEAPTOP",
-        "STA STACKACCESS",
-        "LDA HEAPTOP + 1",
-        "STA STACKACCESS + 1",
-        "JSR PUSH16",
-
-        "RTS",
-
-    ];
-
-    const literalStrings = stringTable.map((str, index) => {
-        const bytes: string[] = [];
-        for (let i = 0; i < str.length; i++) {
-            bytes.push(String(str[i].charCodeAt(0) & 255));
-        }
-        const strBytes = bytes.join(",");
-        return `str${index}: BYTE ${strBytes}`;
-    });
-
-    const vars: string[] = [];
-    if (ast.context !== undefined) {
-        Object.entries(ast.context.varsDefinition).forEach(([name, varDef]) => {
-            const variableName = "V_" + name;
-            if (!(varDef.internalType in sizeForValueType)) {
-                logError(varDef.token.loc, `cannot find the size of '${varDef.token.txt}' to allocate on the heap`);
-                Deno.exit(1);
-            }
-            const size = sizeForValueType[varDef.internalType];
-            vars.push(`${variableName} DS ${size}`);
-        });
-    }
-
-    const heap = [        
-        "HEAPSTART:",
-    ]
-
-    return lib.concat(literalStrings).concat(vars).concat(heap);
-}
-
 function dumpProgram(program: AST) {
     console.log(`Token listing:`);
     for (let i = 0; i < program.length; i++) {
@@ -3144,7 +3152,7 @@ const program = await tokenizer(filename, vocabulary);
 const astProgram = parse(vocabulary, program);
 dumpAst(astProgram);
 
-const asm = asmHeader().concat(compile(vocabulary, astProgram)).concat(asmFooter(astProgram));
+const asm = compile(vocabulary, astProgram);
 addIndent(asm);
 await Deno.writeTextFile(basename + ".asm", asm.join("\n"));
 
