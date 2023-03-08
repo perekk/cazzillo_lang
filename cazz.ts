@@ -170,7 +170,7 @@ enum InstructionPosition {
     POSTFIX,
 }
 
-type varDefinitionType = "value" | "function" | "macro";
+type varDefinitionType = "value" | "function"; // | "macro";
 
 type VarDefinitionSpec = {
     token: Token,    
@@ -2290,7 +2290,7 @@ function createVocabulary(): Vocabulary {
         expectedArityOut: 0,
         grabFromStack: false,
         position: InstructionPosition.PREFIX,
-        priority: 5,
+        priority: 80,
         userFunction: false,
         ins: token => {
             assertChildNumber(token, 1);
@@ -2471,6 +2471,10 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<AST>
                 while (index < sourceCode.length && sourceCode[index] !== "\n") index++;
                 col = 0;
                 row++;
+            } else if (char === ";") {
+                while (index < sourceCode.length && sourceCode[index] !== "\n") index++;
+                col = 0;
+                row++;                
             } else if (char === ":" && index + 1 < sourceCode.length && sourceCode[index + 1] === "[") {
                 const loc = { row, col, filename };
                 ret.push({ type: TokenType.OPEN_REF_BRACKETS, txt: ":[", loc, childs: [] });
@@ -2519,6 +2523,70 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<AST>
     if (tokenStart > -1) pushToken(sourceCode.substring(tokenStart));
 
     return ret;
+}
+
+function preprocess(program: AST): AST {
+
+    const defines: Record<string, AST> = {};
+
+    for (let i = 0; i < program.length; i++) {
+        const token = program[i];
+        if (token.type === TokenType.DEFINE) {
+            if (i + 2 >= program.length) {
+                logError(token.loc, `Definition not complete`);
+                Deno.exit(1);
+            }
+
+            const name = program[i + 1];
+            if (name.type !== TokenType.WORD) {
+                logError(name.loc, `definition started, but '${name.txt}' is not a word!`);
+                Deno.exit(1);
+            }
+
+            const value = program[i + 2];
+            if (value.type !== TokenType.OPEN_BRACKETS && value.type !== TokenType.OPEN_REF_BRACKETS) {
+                defines[name.txt] = [value];
+                program.splice(i, 3);
+                console.log("DEFINE", name.txt, "=", defines[name.txt].map(t => t.txt).join(" "));
+                i = i - 1;
+            } else {
+                let parens = 1;
+                let index = i + 3;
+                while (parens > 0 && index < program.length) {
+                    if (program[index].type === TokenType.CLOSE_BRACKETS) {
+                        parens--;
+                        if (parens === 0) break;
+                    } else if (program[index].type === TokenType.OPEN_BRACKETS || program[index].type === TokenType.OPEN_REF_BRACKETS) {
+                        parens++;
+                    } else {
+                        if (program[index].type === TokenType.WORD && program[index].txt in defines) {
+                            program.splice(index, 1, ...defines[program[index].txt]);
+                        }
+                    }
+                    index++;
+                }
+
+                if (parens > 0) {
+                    logError(program[i + 2].loc, `paren not closed`);
+                    Deno.exit(1);
+                }
+                defines[name.txt] = program.slice(i + 3, index);
+
+                console.log("DEFINE", name.txt, "=", defines[name.txt].map(t => t.txt).join(" "));
+
+                program.splice(i, defines[name.txt].length + 4);
+                i = i - 1;
+            }
+
+        } else {
+            if (token.type === TokenType.WORD && token.txt in defines) {
+                program.splice(i, 1, ...defines[token.txt]);
+            }
+        }
+    }
+
+    return program;
+
 }
 
 function groupFunctionToken(ast: AST, index: number): Token {
@@ -2753,16 +2821,17 @@ function typeCheck(token: Token) {
 
 function setWordDefinition(token: Token) {
 
-    if (token.type !== TokenType.LIT_WORD && token.type !== TokenType.DEFINE) {
-        logError(token.loc, `'${token.txt}' is not a 'LIT WORD' neither a 'DEFINE'`);
+    if (token.type !== TokenType.LIT_WORD) {
+        logError(token.loc, `'${token.txt}' is not a 'LIT WORD'`);
         Deno.exit(1);
     }
+
     if (token.context === undefined) {
         logError(token.loc, `The token '${token.txt}' does not have a context`);
         Deno.exit(1);
     }
 
-    if (token.type === TokenType.LIT_WORD) {
+    //if (token.type === TokenType.LIT_WORD) {
 
         assertChildNumber(token, 1);
 
@@ -2802,40 +2871,40 @@ function setWordDefinition(token: Token) {
             offset: undefined
         };
 
-    } else {
-        // define
-        assertChildNumber(token, [ValueType.SYMBOL, "any"]);
+    // } else {
+    //     // define
+    //     assertChildNumber(token, [ValueType.SYMBOL, "any"]);
 
-        const macroName = token.childs[0].txt;
-        const child = token.childs[1];
+    //     const macroName = token.childs[0].txt;
+    //     const child = token.childs[1];
 
-        const varDef = getWordDefinition(token.context, macroName);
-        if (varDef !== undefined) {
-            if (varDef.token.context === token.context) {
-                logError(token.loc, `Can't redefine the word '${token.txt}'`);
-            } else {
-                logError(token.loc, `Can't overshadow the word '${token.txt}'`);
-            }
-            Deno.exit(1);
-        }
+    //     const varDef = getWordDefinition(token.context, macroName);
+    //     if (varDef !== undefined) {
+    //         if (varDef.token.context === token.context) {
+    //             logError(token.loc, `Can't redefine the word '${token.txt}'`);
+    //         } else {
+    //             logError(token.loc, `Can't overshadow the word '${token.txt}'`);
+    //         }
+    //         Deno.exit(1);
+    //     }
 
-        if (child.out === undefined) {
-            logError(child.loc, `The word '${child.txt}' does not have a return value`);
-            Deno.exit(1);
-        }
+    //     if (child.out === undefined) {
+    //         logError(child.loc, `The word '${child.txt}' does not have a return value`);
+    //         Deno.exit(1);
+    //     }
 
-        token.context.varsDefinition[macroName] = {
-            ins: [],
-            out: child.out,
-            token: child,
-            position: child.position,
-            priority: child.priority,
-            definitionType: "macro",
-            internalType: child.out,
-            offset: undefined
-        };
+    //     token.context.varsDefinition[macroName] = {
+    //         ins: [],
+    //         out: child.out,
+    //         token: child,
+    //         position: child.position,
+    //         priority: child.priority,
+    //         definitionType: "macro",
+    //         internalType: child.out,
+    //         offset: undefined
+    //     };
 
-    }
+    // }
 }
 
 function parseBlock(ast: AST): AST {
@@ -2846,15 +2915,15 @@ function parseBlock(ast: AST): AST {
         .sort((a, b) => (b ?? 0) - (a ?? 0))
     )];
 
-    for (let j = ast.length - 1; j >= 0; j--) {
-        const token = ast[j];
-        if (token.type === TokenType.WORD) {
-            const varDef = getWordDefinition(token.context, token.txt);
-            if (varDef !== undefined && varDef.definitionType === "macro") {
-                ast[j] = varDef.token;
-            }
-        }
-    }
+    // for (let j = ast.length - 1; j >= 0; j--) {
+    //     const token = ast[j];
+    //     if (token.type === TokenType.WORD) {
+    //         const varDef = getWordDefinition(token.context, token.txt);
+    //         if (varDef !== undefined && varDef.definitionType === "macro") {
+    //             ast[j] = varDef.token;
+    //         }
+    //     }
+    // }
 
     for (let i = 0; i < priorityList.length; i++) {
         const priority = priorityList[i];
@@ -3431,6 +3500,10 @@ console.log("Cazzillo Lang: ", target);
 
 const vocabulary = createVocabulary();
 const program = await tokenizer(filename, vocabulary);
+preprocess(program);
+dumpProgram(program);
+//Deno.exit(1);
+
 const astProgram = parse(vocabulary, program);
 dumpAst(astProgram);
 

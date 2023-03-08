@@ -1,0 +1,32 @@
+'time :[[ 256 * peek 161] + peek 162]
+def 'a' 100 !<
+'b 100 !<
+'c 1 !<
+
+'sum :['x Byte 'y Byte x + y]
+
+'start time
+'i 0 while i < 10000 ['d sum b c inc i] // MACRO
+'end time
+prin "SUM VAR IN FUNCTION: " print end - start
+
+start: time
+i: 0 while i < 10000 ['d sum a c inc i] // MACRO
+end: time
+prin "SUM MACRO IN FUNCTION: " print end - start
+
+
+start: time
+i: 0 while i < 10000 ['d a + c inc i] // MACRO
+end: time
+prin "SUM MACRO: " print end - start
+
+start: time
+i: 0 while i < 10000 ['e b + c inc i] // VAR
+end: time
+prin "SUM VAR: " print end - start
+
+start: time
+i: 0 while i < 10000 [inc i] // EMPTY
+end: time
+prin "EMPTY LOOP: " print end - start

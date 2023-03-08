@@ -35,7 +35,7 @@ def 'DEAD_CHAR' 32 !<
     while i < WIDTH [
         'j 0
         while j < HEIGHT [     
-            'k i + j   
+            'k i + j
             poke SCREEN + k peek BUFFER + k
             j: j + 40
         ]
@@ -96,8 +96,10 @@ print start
 print end
 prin "ELAPSED: " print end - start
 
-// 686 
-// 469 (con inc)
-// 467
-// 567 (con macro)
+; timing: 
+; 686 
+; 469 (con inc)
+; 467
+; 567 (con macro)
+
 
