@@ -1,19 +1,5 @@
-'time :[[ 256 * peek 161] + peek 162]
-def 'a' 100 !<
-'b 100 !<
-'c 1 !<
+def a 10
+def b [a + 1]
+def c [a + b + 2]
 
-'start time
-'i 0 while i < 10000 ['d a + c inc i] // MACRO
-'end time
-prin "SUM MACRO: " print end - start
-
-start: time
-i: 0 while i < 10000 ['e b + c inc i] // VAR
-end: time
-prin "SUM VAR: " print end - start
-
-start: time
-i: 0 while i < 10000 [inc i] // EMPTY
-end: time
-prin "EMPTY LOOP: " print end - start
+print c
