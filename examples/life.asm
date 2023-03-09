@@ -10,117 +10,53 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
-	; no child generation for 'def'
-	; 1:14 NUMBER 10
-	LDA #0
-	STA STACKACCESS+1
-	LDA #10
-	STA STACKACCESS
-	JSR PUSH16
-	; 1:19 NUMBER 40
-	LDA #0
-	STA STACKACCESS+1
-	LDA #40
-	STA STACKACCESS
-	JSR PUSH16
-	; 1: 17 MULT * type: (number,number)=>number
-	JSR MUL16
-	; 1: 1 DEFINE def type: (symbol,number)=>void
-	; no child generation for 'def'
-	; 2:13 NUMBER 10
-	LDA #0
-	STA STACKACCESS+1
-	LDA #10
-	STA STACKACCESS
-	JSR PUSH16
-	; 2: 1 DEFINE def type: (symbol,number)=>void
-	; no child generation for 'def'
-	; 3:14 NUMBER 1024
-	LDA #4
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 3: 1 DEFINE def type: (symbol,number)=>void
-	; no child generation for 'def'
-	; 4:14 NUMBER 10000
-	LDA #39
-	STA STACKACCESS+1
-	LDA #16
-	STA STACKACCESS
-	JSR PUSH16
-	; 4: 1 DEFINE def type: (symbol,number)=>void
-	; no child generation for 'def'
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
-	LDA #81
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 5: 1 DEFINE def type: (symbol,byte)=>void
-	; no child generation for 'def'
-	; 6:17 NUMBER 32
-	LDA #0
-	STA STACKACCESS+1
-	LDA #32
-	STA STACKACCESS
-	JSR PUSH16
-	; 6: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 6: 1 DEFINE def type: (symbol,byte)=>void
 	; Prelude for:
-	; 8: 7 REF_BLOCK :[[256 * peek 161] + peek 162] type: ()=>number
+	; 9: 7 REF_BLOCK :[[256 * peek 161] + peek 162] type: ()=>number
 	JMP AFTER_0
 CALL_0:
 	; no stack memory to reserve
 	; Prelude for:
-	; 8: 9 BLOCK [256 * peek 161] type: ()=>number
+	; 9: 9 BLOCK [256 * peek 161] type: ()=>number
 	; no stack memory to reserve
-	; 8:11 NUMBER 256
+	; 9:11 NUMBER 256
 	LDA #1
 	STA STACKACCESS+1
 	LDA #0
 	STA STACKACCESS
 	JSR PUSH16
-	; 8:22 NUMBER 161
+	; 9:22 NUMBER 161
 	LDA #0
 	STA STACKACCESS+1
 	LDA #161
 	STA STACKACCESS
-	JSR PUSH16
-	; 8: 17 PEEK peek type: (number)=>byte
-	JSR POP16
+	; JSR PUSH16
+	; 9: 17 PEEK peek type: (number)=>byte
+	; JSR POP16
 	LDY #0
 	LDA (STACKACCESS),Y
 	STA STACKACCESS
 	STY STACKACCESS+1
 	JSR PUSH16
-	; 8: 15 MULT * type: (number,byte)=>number
+	; 9: 15 MULT * type: (number,byte)=>number
 	JSR MUL16
-	; 8: 9 BLOCK [256 * peek 161] type: ()=>number
+	; 9: 9 BLOCK [256 * peek 161] type: ()=>number
 	; no stack memory to release
-	; 8:34 NUMBER 162
+	; 9:34 NUMBER 162
 	LDA #0
 	STA STACKACCESS+1
 	LDA #162
 	STA STACKACCESS
-	JSR PUSH16
-	; 8: 29 PEEK peek type: (number)=>byte
-	JSR POP16
+	; JSR PUSH16
+	; 9: 29 PEEK peek type: (number)=>byte
+	; JSR POP16
 	LDY #0
 	LDA (STACKACCESS),Y
 	STA STACKACCESS
 	STY STACKACCESS+1
 	JSR PUSH16
-	; 8: 27 PLUS + type: (number,byte)=>number
+	; 9: 27 PLUS + type: (number,byte)=>number
 	JSR ADD16
-	; 8: 7 REF_BLOCK :[[256 * peek 161] + peek 162] type: ()=>number
+	; 9: 7 REF_BLOCK :[[256 * peek 161] + peek 162] type: ()=>number
 	; no stack memory to release
 	RTS
 AFTER_0:
@@ -128,38 +64,27 @@ AFTER_0:
 	STA STACKACCESS
 	LDA #>CALL_0
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 8: 1 LIT_WORD time type: (addr)=>void
-	JSR POP16
+	; JSR PUSH16
+	; 9: 1 LIT_WORD time type: (addr)=>void
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_time
 	LDA STACKACCESS + 1
 	STA V_time + 1
 	; Prelude for:
-	; 10: 7 REF_BLOCK :[base Number value Byte j 0 while j < HEIGHT [i 0 while i < WIDTH [poke base + i + j value inc i] j j + 40]] type: ()=>void
+	; 11: 7 REF_BLOCK :[value Byte j 10000 while j < 10000 + 10 * 10 [poke j value inc j]] type: ()=>void
 	JMP AFTER_1
 CALL_1:
-	; reserve 5 on the stack for: base (number offset 0), value (byte offset 2), j (number offset 3)
+	; reserve 3 on the stack for: value (byte offset 0), j (number offset 1)
 	TSX
 	TXA
 	SEC
-	SBC #5
+	SBC #3
 	TAX
 	TXS
-	; 10: 29 BYTE Byte type: ()=>byte
+	; 11: 16 BYTE Byte type: ()=>byte
 	; DO NOTHING
-	; 10: 22 LIT_WORD value type: (byte)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #3
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	; 10: 15 NUMBER Number type: ()=>number
-	; DO NOTHING
-	; 10: 9 LIT_WORD base type: (number)=>void
+	; 11: 9 LIT_WORD value type: (byte)=>void
 	JSR POP16
 	TSX
 	TXA
@@ -168,66 +93,56 @@ CALL_1:
 	TAX
 	LDA STACKACCESS
 	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 11:8 NUMBER 0
-	LDA #0
+	; 5:18 NUMBER 10000
+	LDA #39
 	STA STACKACCESS+1
-	LDA #0
+	LDA #16
 	STA STACKACCESS
-	JSR PUSH16
-	; 11: 5 LIT_WORD j type: (number)=>void
-	JSR POP16
+	; JSR PUSH16
+	; 12: 5 LIT_WORD j type: (number)=>void
+	; JSR POP16
 	TSX
 	TXA
 	CLC
-	ADC #4
+	ADC #2
 	TAX
 	LDA STACKACCESS
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-startloop57:
-	; 12: 11 WORD j type: ()=>number
+startloop22:
+	; 13: 11 WORD j type: ()=>number
 	TSX
 	TXA
 	CLC
-	ADC #4
+	ADC #2
 	TAX
 	LDA $0100,X
 	STA STACKACCESS
 	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 1:14 NUMBER 10
-	LDA #0
+	; 13:28 NUMBER 10100
+	LDA #39
 	STA STACKACCESS+1
-	LDA #10
+	LDA #116
 	STA STACKACCESS
 	JSR PUSH16
-	; 1:19 NUMBER 40
-	LDA #0
-	STA STACKACCESS+1
-	LDA #40
-	STA STACKACCESS
-	JSR PUSH16
-	; 1: 17 MULT * type: (number,number)=>number
-	JSR MUL16
-	; 12: 13 LT < type: (number,number)=>boolean
+	; 13: 13 LT < type: (number,number)=>boolean
 	LDX SP16
 	LDA STACKBASE + 4,X
 	CMP STACKBASE + 2,X
-	BCC less36
-	BNE greaterorequal36
+	BCC less16
+	BNE greaterorequal16
 	LDA STACKBASE + 3,X
 	CMP STACKBASE + 1,X
-	BCC less36
-greaterorequal36:
+	BCC less16
+greaterorequal16:
 	LDA #00
-	JMP store36
-less36:
+	JMP store16
+less16:
 	LDA #01
-store36:
+store16:
 	INX
 	INX
 	STA STACKBASE + 1,X
@@ -236,98 +151,26 @@ store36:
 	STX SP16
 	JSR POP16
 	LDA STACKACCESS
-	BNE trueblock57
+	BNE trueblock22
 	LDA STACKACCESS + 1
-	BNE trueblock57
-	JMP endblock57 ; if all zero
-trueblock57:
+	BNE trueblock22
+	JMP endblock22 ; if all zero
+trueblock22:
 	; Prelude for:
-	; 12: 22 BLOCK [i 0 while i < WIDTH [poke base + i + j value inc i] j j + 40] type: ()=>void
-	; reserve 2 on the stack for: i (number offset 0)
-	TSX
-	TXA
-	SEC
-	SBC #2
-	TAX
-	TXS
-	; 13:12 NUMBER 0
-	LDA #0
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 13: 9 LIT_WORD i type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-startloop51:
-	; 14: 15 WORD i type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 2:13 NUMBER 10
-	LDA #0
-	STA STACKACCESS+1
-	LDA #10
-	STA STACKACCESS
-	JSR PUSH16
-	; 14: 17 LT < type: (number,number)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BCC less41
-	BNE greaterorequal41
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BCC less41
-greaterorequal41:
-	LDA #00
-	JMP store41
-less41:
-	LDA #01
-store41:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock51
-	LDA STACKACCESS + 1
-	BNE trueblock51
-	JMP endblock51 ; if all zero
-trueblock51:
-	; Prelude for:
-	; 14: 25 BLOCK [poke base + i + j value inc i] type: ()=>void
+	; 13: 41 BLOCK [poke j value inc j] type: ()=>void
 	; no stack memory to reserve
-	; 15: 18 WORD base type: ()=>number
+	; 14: 12 WORD j type: ()=>number
 	TSX
 	TXA
 	CLC
-	ADC #3
+	ADC #2
 	TAX
 	LDA $0100,X
 	STA STACKACCESS
 	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 15: 25 WORD i type: ()=>number
+	; 14: 14 WORD value type: ()=>byte
 	TSX
 	TXA
 	CLC
@@ -335,105 +178,38 @@ trueblock51:
 	TAX
 	LDA $0100,X
 	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 15: 29 WORD j type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #6
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 15: 27 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 15: 23 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 15: 31 WORD value type: ()=>byte
-	TSX
-	TXA
-	CLC
-	ADC #5
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
 	LDA #0
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 15: 13 POKE poke type: (number,byte)=>void
-	JSR POP16
+	; JSR PUSH16
+	; 14: 7 POKE poke type: (number,byte)=>void
+	; JSR POP16
 	LDY STACKACCESS
 	JSR POP16
 	TYA
 	LDY #0
 	STA (STACKACCESS),Y
 	; no child generation for 'inc'
-	; 16: 13 INC inc type: (number)=>void
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	INC $0100,X
-	BNE not_carry_49
-	INC $0101,X
-not_carry_49:
-	; 14: 25 BLOCK [poke base + i + j value inc i] type: ()=>void
-	; no stack memory to release
-	; 14: 9 WHILE while type: (boolean,void)=>void
-	JMP startloop51
-endblock51:
-	; 18: 12 WORD j type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #6
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 18:16 NUMBER 40
-	LDA #0
-	STA STACKACCESS+1
-	LDA #40
-	STA STACKACCESS
-	JSR PUSH16
-	; 18: 14 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 18: 9 SET_WORD j type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #6
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 12: 22 BLOCK [i 0 while i < WIDTH [poke base + i + j value inc i] j j + 40] type: ()=>void
-	; release 2 on the stack
+	; 15: 7 INC inc type: (number)=>void
 	TSX
 	TXA
 	CLC
 	ADC #2
 	TAX
-	TXS
-	; 12: 5 WHILE while type: (boolean,void)=>void
-	JMP startloop57
-endblock57:
-	; 10: 7 REF_BLOCK :[base Number value Byte j 0 while j < HEIGHT [i 0 while i < WIDTH [poke base + i + j value inc i] j j + 40]] type: ()=>void
-	; release 5 on the stack
+	INC $0100,X
+	BNE not_carry_20
+	INC $0101,X
+not_carry_20:
+	; 13: 41 BLOCK [poke j value inc j] type: ()=>void
+	; no stack memory to release
+	; 13: 5 WHILE while type: (boolean,void)=>void
+	JMP startloop22
+endblock22:
+	; 11: 7 REF_BLOCK :[value Byte j 10000 while j < 10000 + 10 * 10 [poke j value inc j]] type: ()=>void
+	; release 3 on the stack
 	TSX
 	TXA
 	CLC
-	ADC #5
+	ADC #3
 	TAX
 	TXS
 	RTS
@@ -442,157 +218,127 @@ AFTER_1:
 	STA STACKACCESS
 	LDA #>CALL_1
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 10: 1 LIT_WORD fill type: (addr)=>void
-	JSR POP16
+	; JSR PUSH16
+	; 11: 1 LIT_WORD fill type: (addr)=>void
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_fill
 	LDA STACKACCESS + 1
 	STA V_fill + 1
 	; Prelude for:
-	; 22: 7 REF_BLOCK :[fill BUFFER DEAD_CHAR poke BUFFER + 2 LIFE_CHAR poke BUFFER + 40 LIFE_CHAR poke BUFFER + 42 LIFE_CHAR poke BUFFER + 81 LIFE_CHAR poke BUFFER + 82 LIFE_CHAR] type: ()=>void
+	; 19: 7 REF_BLOCK :[fill 32 !< poke 10000 + 2 81 !< poke 10000 + 10 81 !< poke 10000 + 10 + 2 81 !< poke 10000 + 10 + 10 + 1 81 !< poke 10000 + 10 + 10 + 2 81 !<] type: ()=>void
 	JMP AFTER_2
 CALL_2:
 	; no stack memory to reserve
-	; 4:14 NUMBER 10000
-	LDA #39
-	STA STACKACCESS+1
-	LDA #16
-	STA STACKACCESS
-	JSR PUSH16
-	; 6:17 NUMBER 32
-	LDA #0
-	STA STACKACCESS+1
+	; 7:19 BYTE 32
 	LDA #32
 	STA STACKACCESS
-	JSR PUSH16
-	; 6: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
 	LDA #0
-	STA STACKBASE + 2,X
-	; 23: 5 WORD fill type: ()=>void
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 20: 5 WORD fill type: ()=>void
 	LDA V_fill
-	STA CALL_FUN_63 + 1
+	STA CALL_FUN_26 + 1
 	LDA V_fill + 1
-	STA CALL_FUN_63 + 2
-CALL_FUN_63:
+	STA CALL_FUN_26 + 2
+CALL_FUN_26:
 	JSR $1111 ; will be overwritten
-	; 25:17 NUMBER 10002
+	; 22:23 NUMBER 10002
 	LDA #39
 	STA STACKACCESS+1
 	LDA #18
 	STA STACKACCESS
 	JSR PUSH16
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
+	; 6:19 BYTE 81
 	LDA #81
 	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
 	LDA #0
-	STA STACKBASE + 2,X
+	STA STACKACCESS+1
+	; JSR PUSH16
+	; 22: 5 POKE poke type: (number,byte)=>void
+	; JSR POP16
+	LDY STACKACCESS
+	JSR POP16
+	TYA
+	LDY #0
+	STA (STACKACCESS),Y
+	; 23:23 NUMBER 10010
+	LDA #39
+	STA STACKACCESS+1
+	LDA #26
+	STA STACKACCESS
+	JSR PUSH16
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	; JSR PUSH16
+	; 23: 5 POKE poke type: (number,byte)=>void
+	; JSR POP16
+	LDY STACKACCESS
+	JSR POP16
+	TYA
+	LDY #0
+	STA (STACKACCESS),Y
+	; 24:23 NUMBER 10012
+	LDA #39
+	STA STACKACCESS+1
+	LDA #28
+	STA STACKACCESS
+	JSR PUSH16
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	; JSR PUSH16
+	; 24: 5 POKE poke type: (number,byte)=>void
+	; JSR POP16
+	LDY STACKACCESS
+	JSR POP16
+	TYA
+	LDY #0
+	STA (STACKACCESS),Y
+	; 25:23 NUMBER 10021
+	LDA #39
+	STA STACKACCESS+1
+	LDA #37
+	STA STACKACCESS
+	JSR PUSH16
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	; JSR PUSH16
 	; 25: 5 POKE poke type: (number,byte)=>void
-	JSR POP16
+	; JSR POP16
 	LDY STACKACCESS
 	JSR POP16
 	TYA
 	LDY #0
 	STA (STACKACCESS),Y
-	; 26:17 NUMBER 10040
+	; 26:23 NUMBER 10022
 	LDA #39
 	STA STACKACCESS+1
-	LDA #56
+	LDA #38
 	STA STACKACCESS
 	JSR PUSH16
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
+	; 6:19 BYTE 81
 	LDA #81
 	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
 	LDA #0
-	STA STACKBASE + 2,X
+	STA STACKACCESS+1
+	; JSR PUSH16
 	; 26: 5 POKE poke type: (number,byte)=>void
-	JSR POP16
+	; JSR POP16
 	LDY STACKACCESS
 	JSR POP16
 	TYA
 	LDY #0
 	STA (STACKACCESS),Y
-	; 27:17 NUMBER 10042
-	LDA #39
-	STA STACKACCESS+1
-	LDA #58
-	STA STACKACCESS
-	JSR PUSH16
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
-	LDA #81
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 27: 5 POKE poke type: (number,byte)=>void
-	JSR POP16
-	LDY STACKACCESS
-	JSR POP16
-	TYA
-	LDY #0
-	STA (STACKACCESS),Y
-	; 28:17 NUMBER 10081
-	LDA #39
-	STA STACKACCESS+1
-	LDA #97
-	STA STACKACCESS
-	JSR PUSH16
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
-	LDA #81
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 28: 5 POKE poke type: (number,byte)=>void
-	JSR POP16
-	LDY STACKACCESS
-	JSR POP16
-	TYA
-	LDY #0
-	STA (STACKACCESS),Y
-	; 29:17 NUMBER 10082
-	LDA #39
-	STA STACKACCESS+1
-	LDA #98
-	STA STACKACCESS
-	JSR PUSH16
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
-	LDA #81
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 29: 5 POKE poke type: (number,byte)=>void
-	JSR POP16
-	LDY STACKACCESS
-	JSR POP16
-	TYA
-	LDY #0
-	STA (STACKACCESS),Y
-	; 22: 7 REF_BLOCK :[fill BUFFER DEAD_CHAR poke BUFFER + 2 LIFE_CHAR poke BUFFER + 40 LIFE_CHAR poke BUFFER + 42 LIFE_CHAR poke BUFFER + 81 LIFE_CHAR poke BUFFER + 82 LIFE_CHAR] type: ()=>void
+	; 19: 7 REF_BLOCK :[fill 32 !< poke 10000 + 2 81 !< poke 10000 + 10 81 !< poke 10000 + 10 + 2 81 !< poke 10000 + 10 + 10 + 1 81 !< poke 10000 + 10 + 10 + 2 81 !<] type: ()=>void
 	; no stack memory to release
 	RTS
 AFTER_2:
@@ -600,32 +346,32 @@ AFTER_2:
 	STA STACKACCESS
 	LDA #>CALL_2
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 22: 1 LIT_WORD init type: (addr)=>void
-	JSR POP16
+	; JSR PUSH16
+	; 19: 1 LIT_WORD init type: (addr)=>void
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_init
 	LDA STACKACCESS + 1
 	STA V_init + 1
 	; Prelude for:
-	; 33: 7 REF_BLOCK :[i 0 while i < WIDTH [j 0 while j < HEIGHT [k i + j poke SCREEN + k peek BUFFER + k j j + 40] inc i]] type: ()=>void
+; 30: 7 REF_BLOCK :[buffer 10000 screen 1024 col 0 while buffer < 10000 + 10 * 10 [poke screen peek buffer inc buffer inc screen inc col if col = 10 [screen screen + 40 - 10 col 0]]] type: ()=>void
 	JMP AFTER_3
 CALL_3:
-	; reserve 2 on the stack for: i (number offset 0)
+	; reserve 6 on the stack for: buffer (number offset 0), screen (number offset 2), col (number offset 4)
 	TSX
 	TXA
 	SEC
-	SBC #2
+	SBC #6
 	TAX
 	TXS
-	; 34:8 NUMBER 0
-	LDA #0
+	; 5:18 NUMBER 10000
+	LDA #39
 	STA STACKACCESS+1
-	LDA #0
+	LDA #16
 	STA STACKACCESS
-	JSR PUSH16
-	; 34: 5 LIT_WORD i type: (number)=>void
-	JSR POP16
+	; JSR PUSH16
+	; 31: 5 LIT_WORD buffer type: (number)=>void
+	; JSR POP16
 	TSX
 	TXA
 	CLC
@@ -635,8 +381,42 @@ CALL_3:
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-startloop118:
-	; 35: 11 WORD i type: ()=>number
+	; 4:18 NUMBER 1024
+	LDA #4
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	; JSR PUSH16
+	; 32: 5 LIT_WORD screen type: (number)=>void
+	; JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 33:10 NUMBER 0
+	LDA #0
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	; JSR PUSH16
+	; 33: 5 LIT_WORD col type: (number)=>void
+	; JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+startloop72:
+	; 34: 11 WORD buffer type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -647,27 +427,27 @@ startloop118:
 	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 2:13 NUMBER 10
-	LDA #0
+	; 34:33 NUMBER 10100
+	LDA #39
 	STA STACKACCESS+1
-	LDA #10
+	LDA #116
 	STA STACKACCESS
 	JSR PUSH16
-	; 35: 13 LT < type: (number,number)=>boolean
+	; 34: 18 LT < type: (number,number)=>boolean
 	LDX SP16
 	LDA STACKBASE + 4,X
 	CMP STACKBASE + 2,X
-	BCC less90
-	BNE greaterorequal90
+	BCC less52
+	BNE greaterorequal52
 	LDA STACKBASE + 3,X
 	CMP STACKBASE + 1,X
-	BCC less90
-greaterorequal90:
+	BCC less52
+greaterorequal52:
 	LDA #00
-	JMP store90
-less90:
+	JMP store52
+less52:
 	LDA #01
-store90:
+store52:
 	INX
 	INX
 	STA STACKBASE + 1,X
@@ -676,39 +456,26 @@ store90:
 	STX SP16
 	JSR POP16
 	LDA STACKACCESS
-	BNE trueblock118
+	BNE trueblock72
 	LDA STACKACCESS + 1
-	BNE trueblock118
-	JMP endblock118 ; if all zero
-trueblock118:
+	BNE trueblock72
+	JMP endblock72 ; if all zero
+trueblock72:
 	; Prelude for:
-	; 35: 21 BLOCK [j 0 while j < HEIGHT [k i + j poke SCREEN + k peek BUFFER + k j j + 40] inc i] type: ()=>void
-	; reserve 2 on the stack for: j (number offset 0)
-	TSX
-	TXA
-	SEC
-	SBC #2
-	TAX
-	TXS
-	; 36:12 NUMBER 0
-	LDA #0
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 36: 9 LIT_WORD j type: (number)=>void
-	JSR POP16
+; 34: 46 BLOCK [poke screen peek buffer inc buffer inc screen inc col if col = 10 [screen screen + 40 - 10 col 0]] type: ()=>void
+	; no stack memory to reserve
+	; 35: 14 WORD screen type: ()=>number
 	TSX
 	TXA
 	CLC
-	ADC #1
+	ADC #3
 	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-startloop115:
-	; 37: 15 WORD j type: ()=>number
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 35: 26 WORD buffer type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -718,59 +485,55 @@ startloop115:
 	STA STACKACCESS
 	LDA $0101,X
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 1:14 NUMBER 10
-	LDA #0
-	STA STACKACCESS+1
-	LDA #10
+	; JSR PUSH16
+	; 35: 21 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
 	STA STACKACCESS
-	JSR PUSH16
-	; 1:19 NUMBER 40
-	LDA #0
-	STA STACKACCESS+1
-	LDA #40
-	STA STACKACCESS
-	JSR PUSH16
-	; 1: 17 MULT * type: (number,number)=>number
-	JSR MUL16
-	; 37: 17 LT < type: (number,number)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BCC less97
-	BNE greaterorequal97
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BCC less97
-greaterorequal97:
-	LDA #00
-	JMP store97
-less97:
-	LDA #01
-store97:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
+	STY STACKACCESS+1
+	; JSR PUSH16
+	; 35: 9 POKE poke type: (number,byte)=>void
+	; JSR POP16
+	LDY STACKACCESS
 	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock115
-	LDA STACKACCESS + 1
-	BNE trueblock115
-	JMP endblock115 ; if all zero
-trueblock115:
-	; Prelude for:
-	; 37: 26 BLOCK [k i + j poke SCREEN + k peek BUFFER + k j j + 40] type: ()=>void
-	; reserve 2 on the stack for: k (number offset 0)
+	TYA
+	LDY #0
+	STA (STACKACCESS),Y
+	; no child generation for 'inc'
+	; 36: 9 INC inc type: (number)=>void
 	TSX
 	TXA
-	SEC
-	SBC #2
+	CLC
+	ADC #1
 	TAX
-	TXS
-	; 38: 16 WORD i type: ()=>number
+	INC $0100,X
+	BNE not_carry_57
+	INC $0101,X
+not_carry_57:
+	; no child generation for 'inc'
+	; 37: 9 INC inc type: (number)=>void
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	INC $0100,X
+	BNE not_carry_58
+	INC $0101,X
+not_carry_58:
+	; no child generation for 'inc'
+	; 38: 9 INC inc type: (number)=>void
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
+	INC $0100,X
+	BNE not_carry_59
+	INC $0101,X
+not_carry_59:
+	; 39: 12 WORD col type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -781,83 +544,42 @@ trueblock115:
 	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 38: 20 WORD j type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #3
-	TAX
-	LDA $0100,X
+	; 2:11 NUMBER 10
+	LDA #0
+	STA STACKACCESS+1
+	LDA #10
 	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
 	JSR PUSH16
-	; 38: 18 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 38: 13 LIT_WORD k type: (number)=>void
+; 39: 16 EQ = type: (number,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BNE notequal62
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal62
+	LDA #01
+	JMP store62
+notequal62:
+	LDA #00
+store62:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
 	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
 	LDA STACKACCESS
-	STA $0100,X
+	BNE trueblock70
 	LDA STACKACCESS + 1
-	STA $0101,X
-	; 3:14 NUMBER 1024
-	LDA #4
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 39: 27 WORD k type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 39: 25 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 4:14 NUMBER 10000
-	LDA #39
-	STA STACKACCESS+1
-	LDA #16
-	STA STACKACCESS
-	JSR PUSH16
-	; 39: 43 WORD k type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 39: 41 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 39: 29 PEEK peek type: (number)=>byte
-	JSR POP16
-	LDY #0
-	LDA (STACKACCESS),Y
-	STA STACKACCESS
-	STY STACKACCESS+1
-	JSR PUSH16
-	; 39: 13 POKE poke type: (number,byte)=>void
-	JSR POP16
-	LDY STACKACCESS
-	JSR POP16
-	TYA
-	LDY #0
-	STA (STACKACCESS),Y
-	; 40: 16 WORD j type: ()=>number
+	BNE trueblock70
+	JMP endblock70 ; if all zero
+trueblock70:
+	; Prelude for:
+	; 39: 24 BLOCK [screen screen + 40 - 10 col 0] type: ()=>void
+	; no stack memory to reserve
+	; 39: 33 WORD screen type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -868,15 +590,15 @@ trueblock115:
 	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 40:20 NUMBER 40
+	; 39:45 NUMBER 30
 	LDA #0
 	STA STACKACCESS+1
-	LDA #40
+	LDA #30
 	STA STACKACCESS
 	JSR PUSH16
-	; 40: 18 PLUS + type: (number,number)=>number
+	; 39: 40 PLUS + type: (number,number)=>number
 	JSR ADD16
-	; 40: 13 SET_WORD j type: (number)=>void
+	; 39: 25 SET_WORD screen type: (number)=>void
 	JSR POP16
 	TSX
 	TXA
@@ -887,45 +609,38 @@ trueblock115:
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-	; 37: 26 BLOCK [k i + j poke SCREEN + k peek BUFFER + k j j + 40] type: ()=>void
-	; release 2 on the stack
+	; 39:58 NUMBER 0
+	LDA #0
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	; JSR PUSH16
+	; 39: 53 SET_WORD col type: (number)=>void
+	; JSR POP16
 	TSX
 	TXA
 	CLC
-	ADC #2
+	ADC #5
 	TAX
-	TXS
-	; 37: 9 WHILE while type: (boolean,void)=>void
-	JMP startloop115
-endblock115:
-	; no child generation for 'inc'
-	; 42: 9 INC inc type: (number)=>void
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 39: 24 BLOCK [screen screen + 40 - 10 col 0] type: ()=>void
+	; no stack memory to release
+	; 39: 9 IF if type: (boolean,void)=>void
+endblock70:
+; 34: 46 BLOCK [poke screen peek buffer inc buffer inc screen inc col if col = 10 [screen screen + 40 - 10 col 0]] type: ()=>void
+	; no stack memory to release
+	; 34: 5 WHILE while type: (boolean,void)=>void
+	JMP startloop72
+endblock72:
+; 30: 7 REF_BLOCK :[buffer 10000 screen 1024 col 0 while buffer < 10000 + 10 * 10 [poke screen peek buffer inc buffer inc screen inc col if col = 10 [screen screen + 40 - 10 col 0]]] type: ()=>void
+	; release 6 on the stack
 	TSX
 	TXA
 	CLC
-	ADC #3
-	TAX
-	INC $0100,X
-	BNE not_carry_116
-	INC $0101,X
-not_carry_116:
-	; 35: 21 BLOCK [j 0 while j < HEIGHT [k i + j poke SCREEN + k peek BUFFER + k j j + 40] inc i] type: ()=>void
-	; release 2 on the stack
-	TSX
-	TXA
-	CLC
-	ADC #2
-	TAX
-	TXS
-	; 35: 5 WHILE while type: (boolean,void)=>void
-	JMP startloop118
-endblock118:
-	; 33: 7 REF_BLOCK :[i 0 while i < WIDTH [j 0 while j < HEIGHT [k i + j poke SCREEN + k peek BUFFER + k j j + 40] inc i]] type: ()=>void
-	; release 2 on the stack
-	TSX
-	TXA
-	CLC
-	ADC #2
+	ADC #6
 	TAX
 	TXS
 	RTS
@@ -934,53 +649,27 @@ AFTER_3:
 	STA STACKACCESS
 	LDA #>CALL_3
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 33: 1 LIT_WORD show type: (addr)=>void
-	JSR POP16
+	; JSR PUSH16
+	; 30: 1 LIT_WORD show type: (addr)=>void
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_show
 	LDA STACKACCESS + 1
 	STA V_show + 1
 	; Prelude for:
-; 46: 16 REF_BLOCK :[base Number x Number y Number index base + y + x n 0 if LIFE_CHAR = peek index - 41 [inc n] if LIFE_CHAR = peek index - 40 [inc n] if LIFE_CHAR = peek index - 39 [inc n] if LIFE_CHAR = peek index - 1 [inc n] if LIFE_CHAR = peek index + 1 [inc n] if LIFE_CHAR = peek index + 39 [inc n] if LIFE_CHAR = peek index + 40 [inc n] if LIFE_CHAR = peek index + 41 [inc n] n] type: ()=>number
+; 43: 20 REF_BLOCK :[index Number n 0 !< index index - 41 if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] index index + 38 if 81 !< = peek index [inc n] inc index inc index if 81 !< = peek index [inc n] index index + 38 if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] n] type: ()=>byte
 	JMP AFTER_4
 CALL_4:
-	; reserve 10 on the stack for: base (number offset 0), x (number offset 2), y (number offset 4), index (number offset 6), n (number offset 8)
+	; reserve 3 on the stack for: index (number offset 0), n (byte offset 2)
 	TSX
 	TXA
 	SEC
-	SBC #10
+	SBC #3
 	TAX
 	TXS
-	; 46: 44 NUMBER Number type: ()=>number
+	; 43: 29 NUMBER Number type: ()=>number
 	; DO NOTHING
-	; 46: 41 LIT_WORD y type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #5
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 46: 34 NUMBER Number type: ()=>number
-	; DO NOTHING
-	; 46: 31 LIT_WORD x type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #3
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 46: 24 NUMBER Number type: ()=>number
-	; DO NOTHING
-	; 46: 18 LIT_WORD base type: (number)=>void
+	; 43: 22 LIT_WORD index type: (number)=>void
 	JSR POP16
 	TSX
 	TXA
@@ -991,7 +680,22 @@ CALL_4:
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-	; 47: 12 WORD base type: ()=>number
+	; 44:10 BYTE 0
+	LDA #0
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	; JSR PUSH16
+	; 44: 5 LIT_WORD n type: (byte)=>void
+	; JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	; 45: 12 WORD index type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -1002,101 +706,538 @@ CALL_4:
 	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 47: 19 WORD y type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #5
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 47: 23 WORD x type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #3
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 47: 21 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 47: 17 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 47: 5 LIT_WORD index type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #7
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 48:8 NUMBER 0
-	LDA #0
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 48: 5 LIT_WORD n type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #9
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
-	LDA #81
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 49: 25 WORD index type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #7
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 49:33 NUMBER 41
+	; 45:20 NUMBER 41
 	LDA #0
 	STA STACKACCESS+1
 	LDA #41
 	STA STACKACCESS
 	JSR PUSH16
-	; 49: 31 MINUS - type: (number,number)=>number
+	; 45: 18 MINUS - type: (number,number)=>number
 	JSR SUB16
-	; 49: 20 PEEK peek type: (number)=>byte
+	; 45: 5 SET_WORD index type: (number)=>void
 	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 46: 25 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 46: 20 PEEK peek type: (number)=>byte
+	; JSR POP16
 	LDY #0
 	LDA (STACKACCESS),Y
 	STA STACKACCESS
 	STY STACKACCESS+1
 	JSR PUSH16
-; 49: 18 EQ = type: (byte,byte)=>boolean
+; 46: 18 EQ = type: (byte,byte)=>boolean
 	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal141
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal86
+	LDA #01
+	JMP store86
+notequal86:
+	LDA #00
+store86:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock89
+	LDA STACKACCESS + 1
+	BNE trueblock89
+	JMP endblock89 ; if all zero
+trueblock89:
+	; Prelude for:
+	; 46: 31 BLOCK [inc n] type: ()=>void
+	; no stack memory to reserve
+	; no child generation for 'inc'
+	; 46: 32 INC inc type: (byte)=>void
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	INC $0100,X
+	; 46: 31 BLOCK [inc n] type: ()=>void
+	; no stack memory to release
+	; 46: 5 IF if type: (boolean,void)=>void
+endblock89:
+	; no child generation for 'inc'
+	; 47: 5 INC inc type: (number)=>void
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	INC $0100,X
+	BNE not_carry_90
+	INC $0101,X
+not_carry_90:
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 48: 25 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 48: 20 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+; 48: 18 EQ = type: (byte,byte)=>boolean
+	LDX SP16
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal94
+	LDA #01
+	JMP store94
+notequal94:
+	LDA #00
+store94:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock97
+	LDA STACKACCESS + 1
+	BNE trueblock97
+	JMP endblock97 ; if all zero
+trueblock97:
+	; Prelude for:
+	; 48: 31 BLOCK [inc n] type: ()=>void
+	; no stack memory to reserve
+	; no child generation for 'inc'
+	; 48: 32 INC inc type: (byte)=>void
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	INC $0100,X
+	; 48: 31 BLOCK [inc n] type: ()=>void
+	; no stack memory to release
+	; 48: 5 IF if type: (boolean,void)=>void
+endblock97:
+	; no child generation for 'inc'
+	; 49: 5 INC inc type: (number)=>void
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	INC $0100,X
+	BNE not_carry_98
+	INC $0101,X
+not_carry_98:
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 50: 25 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 50: 20 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+; 50: 18 EQ = type: (byte,byte)=>boolean
+	LDX SP16
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal102
+	LDA #01
+	JMP store102
+notequal102:
+	LDA #00
+store102:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock105
+	LDA STACKACCESS + 1
+	BNE trueblock105
+	JMP endblock105 ; if all zero
+trueblock105:
+	; Prelude for:
+	; 50: 31 BLOCK [inc n] type: ()=>void
+	; no stack memory to reserve
+	; no child generation for 'inc'
+	; 50: 32 INC inc type: (byte)=>void
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	INC $0100,X
+	; 50: 31 BLOCK [inc n] type: ()=>void
+	; no stack memory to release
+	; 50: 5 IF if type: (boolean,void)=>void
+endblock105:
+	; 52: 12 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 52:20 NUMBER 38
+	LDA #0
+	STA STACKACCESS+1
+	LDA #38
+	STA STACKACCESS
+	JSR PUSH16
+	; 52: 18 PLUS + type: (number,number)=>number
+	JSR ADD16
+	; 52: 5 SET_WORD index type: (number)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 53: 25 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 53: 20 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+; 53: 18 EQ = type: (byte,byte)=>boolean
+	LDX SP16
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal113
+	LDA #01
+	JMP store113
+notequal113:
+	LDA #00
+store113:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock116
+	LDA STACKACCESS + 1
+	BNE trueblock116
+	JMP endblock116 ; if all zero
+trueblock116:
+	; Prelude for:
+	; 53: 31 BLOCK [inc n] type: ()=>void
+	; no stack memory to reserve
+	; no child generation for 'inc'
+	; 53: 32 INC inc type: (byte)=>void
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	INC $0100,X
+	; 53: 31 BLOCK [inc n] type: ()=>void
+	; no stack memory to release
+	; 53: 5 IF if type: (boolean,void)=>void
+endblock116:
+	; no child generation for 'inc'
+	; 54: 5 INC inc type: (number)=>void
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	INC $0100,X
+	BNE not_carry_117
+	INC $0101,X
+not_carry_117:
+	; no child generation for 'inc'
+	; 55: 5 INC inc type: (number)=>void
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	INC $0100,X
+	BNE not_carry_118
+	INC $0101,X
+not_carry_118:
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 56: 25 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 56: 20 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+; 56: 18 EQ = type: (byte,byte)=>boolean
+	LDX SP16
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal122
+	LDA #01
+	JMP store122
+notequal122:
+	LDA #00
+store122:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock125
+	LDA STACKACCESS + 1
+	BNE trueblock125
+	JMP endblock125 ; if all zero
+trueblock125:
+	; Prelude for:
+	; 56: 31 BLOCK [inc n] type: ()=>void
+	; no stack memory to reserve
+	; no child generation for 'inc'
+	; 56: 32 INC inc type: (byte)=>void
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	INC $0100,X
+	; 56: 31 BLOCK [inc n] type: ()=>void
+	; no stack memory to release
+	; 56: 5 IF if type: (boolean,void)=>void
+endblock125:
+	; 58: 12 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 58:20 NUMBER 38
+	LDA #0
+	STA STACKACCESS+1
+	LDA #38
+	STA STACKACCESS
+	JSR PUSH16
+	; 58: 18 PLUS + type: (number,number)=>number
+	JSR ADD16
+	; 58: 5 SET_WORD index type: (number)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 59: 25 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 59: 20 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+; 59: 18 EQ = type: (byte,byte)=>boolean
+	LDX SP16
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal133
+	LDA #01
+	JMP store133
+notequal133:
+	LDA #00
+store133:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock136
+	LDA STACKACCESS + 1
+	BNE trueblock136
+	JMP endblock136 ; if all zero
+trueblock136:
+	; Prelude for:
+	; 59: 31 BLOCK [inc n] type: ()=>void
+	; no stack memory to reserve
+	; no child generation for 'inc'
+	; 59: 32 INC inc type: (byte)=>void
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	INC $0100,X
+	; 59: 31 BLOCK [inc n] type: ()=>void
+	; no stack memory to release
+	; 59: 5 IF if type: (boolean,void)=>void
+endblock136:
+	; no child generation for 'inc'
+	; 60: 5 INC inc type: (number)=>void
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	INC $0100,X
+	BNE not_carry_137
+	INC $0101,X
+not_carry_137:
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 61: 25 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 61: 20 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+; 61: 18 EQ = type: (byte,byte)=>boolean
+	LDX SP16
 	LDA STACKBASE + 3,X
 	CMP STACKBASE + 1,X
 	BNE notequal141
@@ -1119,72 +1260,65 @@ store141:
 	JMP endblock144 ; if all zero
 trueblock144:
 	; Prelude for:
-	; 49: 36 BLOCK [inc n] type: ()=>void
+	; 61: 31 BLOCK [inc n] type: ()=>void
 	; no stack memory to reserve
 	; no child generation for 'inc'
-	; 49: 37 INC inc type: (number)=>void
+	; 61: 32 INC inc type: (byte)=>void
 	TSX
 	TXA
 	CLC
-	ADC #9
+	ADC #3
 	TAX
 	INC $0100,X
-	BNE not_carry_142
-	INC $0101,X
-not_carry_142:
-	; 49: 36 BLOCK [inc n] type: ()=>void
+	; 61: 31 BLOCK [inc n] type: ()=>void
 	; no stack memory to release
-	; 49: 5 IF if type: (boolean,void)=>void
+	; 61: 5 IF if type: (boolean,void)=>void
 endblock144:
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
-	LDA #81
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 50: 25 WORD index type: ()=>number
+	; no child generation for 'inc'
+	; 62: 5 INC inc type: (number)=>void
 	TSX
 	TXA
 	CLC
-	ADC #7
+	ADC #1
+	TAX
+	INC $0100,X
+	BNE not_carry_145
+	INC $0101,X
+not_carry_145:
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 63: 25 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
 	TAX
 	LDA $0100,X
 	STA STACKACCESS
 	LDA $0101,X
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 50:33 NUMBER 40
-	LDA #0
-	STA STACKACCESS+1
-	LDA #40
-	STA STACKACCESS
-	JSR PUSH16
-	; 50: 31 MINUS - type: (number,number)=>number
-	JSR SUB16
-	; 50: 20 PEEK peek type: (number)=>byte
-	JSR POP16
+	; JSR PUSH16
+	; 63: 20 PEEK peek type: (number)=>byte
+	; JSR POP16
 	LDY #0
 	LDA (STACKACCESS),Y
 	STA STACKACCESS
 	STY STACKACCESS+1
 	JSR PUSH16
-; 50: 18 EQ = type: (byte,byte)=>boolean
+; 63: 18 EQ = type: (byte,byte)=>boolean
 	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal151
 	LDA STACKBASE + 3,X
 	CMP STACKBASE + 1,X
-	BNE notequal151
+	BNE notequal149
 	LDA #01
-	JMP store151
-notequal151:
+	JMP store149
+notequal149:
 	LDA #00
-store151:
+store149:
 	INX
 	INX
 	STA STACKBASE + 1,X
@@ -1193,526 +1327,43 @@ store151:
 	STX SP16
 	JSR POP16
 	LDA STACKACCESS
-	BNE trueblock154
+	BNE trueblock152
 	LDA STACKACCESS + 1
-	BNE trueblock154
-	JMP endblock154 ; if all zero
-trueblock154:
+	BNE trueblock152
+	JMP endblock152 ; if all zero
+trueblock152:
 	; Prelude for:
-	; 50: 36 BLOCK [inc n] type: ()=>void
+	; 63: 31 BLOCK [inc n] type: ()=>void
 	; no stack memory to reserve
 	; no child generation for 'inc'
-	; 50: 37 INC inc type: (number)=>void
+	; 63: 32 INC inc type: (byte)=>void
 	TSX
 	TXA
 	CLC
-	ADC #9
+	ADC #3
 	TAX
 	INC $0100,X
-	BNE not_carry_152
-	INC $0101,X
-not_carry_152:
-	; 50: 36 BLOCK [inc n] type: ()=>void
+	; 63: 31 BLOCK [inc n] type: ()=>void
 	; no stack memory to release
-	; 50: 5 IF if type: (boolean,void)=>void
-endblock154:
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
-	LDA #81
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 51: 25 WORD index type: ()=>number
+	; 63: 5 IF if type: (boolean,void)=>void
+endblock152:
+	; 64: 5 WORD n type: ()=>byte
 	TSX
 	TXA
 	CLC
-	ADC #7
+	ADC #3
 	TAX
 	LDA $0100,X
 	STA STACKACCESS
-	LDA $0101,X
+	LDA #0
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 51:33 NUMBER 39
-	LDA #0
-	STA STACKACCESS+1
-	LDA #39
-	STA STACKACCESS
-	JSR PUSH16
-	; 51: 31 MINUS - type: (number,number)=>number
-	JSR SUB16
-	; 51: 20 PEEK peek type: (number)=>byte
-	JSR POP16
-	LDY #0
-	LDA (STACKACCESS),Y
-	STA STACKACCESS
-	STY STACKACCESS+1
-	JSR PUSH16
-; 51: 18 EQ = type: (byte,byte)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal161
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BNE notequal161
-	LDA #01
-	JMP store161
-notequal161:
-	LDA #00
-store161:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock164
-	LDA STACKACCESS + 1
-	BNE trueblock164
-	JMP endblock164 ; if all zero
-trueblock164:
-	; Prelude for:
-	; 51: 36 BLOCK [inc n] type: ()=>void
-	; no stack memory to reserve
-	; no child generation for 'inc'
-	; 51: 37 INC inc type: (number)=>void
+; 43: 20 REF_BLOCK :[index Number n 0 !< index index - 41 if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] index index + 38 if 81 !< = peek index [inc n] inc index inc index if 81 !< = peek index [inc n] index index + 38 if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] n] type: ()=>byte
+	; release 3 on the stack
 	TSX
 	TXA
 	CLC
-	ADC #9
-	TAX
-	INC $0100,X
-	BNE not_carry_162
-	INC $0101,X
-not_carry_162:
-	; 51: 36 BLOCK [inc n] type: ()=>void
-	; no stack memory to release
-	; 51: 5 IF if type: (boolean,void)=>void
-endblock164:
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
-	LDA #81
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 53: 25 WORD index type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #7
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 53:33 NUMBER 1
-	LDA #0
-	STA STACKACCESS+1
-	LDA #1
-	STA STACKACCESS
-	JSR PUSH16
-	; 53: 31 MINUS - type: (number,number)=>number
-	JSR SUB16
-	; 53: 20 PEEK peek type: (number)=>byte
-	JSR POP16
-	LDY #0
-	LDA (STACKACCESS),Y
-	STA STACKACCESS
-	STY STACKACCESS+1
-	JSR PUSH16
-; 53: 18 EQ = type: (byte,byte)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal171
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BNE notequal171
-	LDA #01
-	JMP store171
-notequal171:
-	LDA #00
-store171:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock174
-	LDA STACKACCESS + 1
-	BNE trueblock174
-	JMP endblock174 ; if all zero
-trueblock174:
-	; Prelude for:
-	; 53: 35 BLOCK [inc n] type: ()=>void
-	; no stack memory to reserve
-	; no child generation for 'inc'
-	; 53: 36 INC inc type: (number)=>void
-	TSX
-	TXA
-	CLC
-	ADC #9
-	TAX
-	INC $0100,X
-	BNE not_carry_172
-	INC $0101,X
-not_carry_172:
-	; 53: 35 BLOCK [inc n] type: ()=>void
-	; no stack memory to release
-	; 53: 5 IF if type: (boolean,void)=>void
-endblock174:
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
-	LDA #81
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 54: 25 WORD index type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #7
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 54:33 NUMBER 1
-	LDA #0
-	STA STACKACCESS+1
-	LDA #1
-	STA STACKACCESS
-	JSR PUSH16
-	; 54: 31 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 54: 20 PEEK peek type: (number)=>byte
-	JSR POP16
-	LDY #0
-	LDA (STACKACCESS),Y
-	STA STACKACCESS
-	STY STACKACCESS+1
-	JSR PUSH16
-; 54: 18 EQ = type: (byte,byte)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal181
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BNE notequal181
-	LDA #01
-	JMP store181
-notequal181:
-	LDA #00
-store181:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock184
-	LDA STACKACCESS + 1
-	BNE trueblock184
-	JMP endblock184 ; if all zero
-trueblock184:
-	; Prelude for:
-	; 54: 35 BLOCK [inc n] type: ()=>void
-	; no stack memory to reserve
-	; no child generation for 'inc'
-	; 54: 36 INC inc type: (number)=>void
-	TSX
-	TXA
-	CLC
-	ADC #9
-	TAX
-	INC $0100,X
-	BNE not_carry_182
-	INC $0101,X
-not_carry_182:
-	; 54: 35 BLOCK [inc n] type: ()=>void
-	; no stack memory to release
-	; 54: 5 IF if type: (boolean,void)=>void
-endblock184:
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
-	LDA #81
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 56: 25 WORD index type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #7
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 56:33 NUMBER 39
-	LDA #0
-	STA STACKACCESS+1
-	LDA #39
-	STA STACKACCESS
-	JSR PUSH16
-	; 56: 31 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 56: 20 PEEK peek type: (number)=>byte
-	JSR POP16
-	LDY #0
-	LDA (STACKACCESS),Y
-	STA STACKACCESS
-	STY STACKACCESS+1
-	JSR PUSH16
-; 56: 18 EQ = type: (byte,byte)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal191
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BNE notequal191
-	LDA #01
-	JMP store191
-notequal191:
-	LDA #00
-store191:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock194
-	LDA STACKACCESS + 1
-	BNE trueblock194
-	JMP endblock194 ; if all zero
-trueblock194:
-	; Prelude for:
-	; 56: 36 BLOCK [inc n] type: ()=>void
-	; no stack memory to reserve
-	; no child generation for 'inc'
-	; 56: 37 INC inc type: (number)=>void
-	TSX
-	TXA
-	CLC
-	ADC #9
-	TAX
-	INC $0100,X
-	BNE not_carry_192
-	INC $0101,X
-not_carry_192:
-	; 56: 36 BLOCK [inc n] type: ()=>void
-	; no stack memory to release
-	; 56: 5 IF if type: (boolean,void)=>void
-endblock194:
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
-	LDA #81
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 57: 25 WORD index type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #7
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 57:33 NUMBER 40
-	LDA #0
-	STA STACKACCESS+1
-	LDA #40
-	STA STACKACCESS
-	JSR PUSH16
-	; 57: 31 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 57: 20 PEEK peek type: (number)=>byte
-	JSR POP16
-	LDY #0
-	LDA (STACKACCESS),Y
-	STA STACKACCESS
-	STY STACKACCESS+1
-	JSR PUSH16
-; 57: 18 EQ = type: (byte,byte)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal201
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BNE notequal201
-	LDA #01
-	JMP store201
-notequal201:
-	LDA #00
-store201:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock204
-	LDA STACKACCESS + 1
-	BNE trueblock204
-	JMP endblock204 ; if all zero
-trueblock204:
-	; Prelude for:
-	; 57: 36 BLOCK [inc n] type: ()=>void
-	; no stack memory to reserve
-	; no child generation for 'inc'
-	; 57: 37 INC inc type: (number)=>void
-	TSX
-	TXA
-	CLC
-	ADC #9
-	TAX
-	INC $0100,X
-	BNE not_carry_202
-	INC $0101,X
-not_carry_202:
-	; 57: 36 BLOCK [inc n] type: ()=>void
-	; no stack memory to release
-	; 57: 5 IF if type: (boolean,void)=>void
-endblock204:
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
-	LDA #81
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 58: 25 WORD index type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #7
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 58:33 NUMBER 41
-	LDA #0
-	STA STACKACCESS+1
-	LDA #41
-	STA STACKACCESS
-	JSR PUSH16
-	; 58: 31 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 58: 20 PEEK peek type: (number)=>byte
-	JSR POP16
-	LDY #0
-	LDA (STACKACCESS),Y
-	STA STACKACCESS
-	STY STACKACCESS+1
-	JSR PUSH16
-; 58: 18 EQ = type: (byte,byte)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal211
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BNE notequal211
-	LDA #01
-	JMP store211
-notequal211:
-	LDA #00
-store211:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock214
-	LDA STACKACCESS + 1
-	BNE trueblock214
-	JMP endblock214 ; if all zero
-trueblock214:
-	; Prelude for:
-	; 58: 36 BLOCK [inc n] type: ()=>void
-	; no stack memory to reserve
-	; no child generation for 'inc'
-	; 58: 37 INC inc type: (number)=>void
-	TSX
-	TXA
-	CLC
-	ADC #9
-	TAX
-	INC $0100,X
-	BNE not_carry_212
-	INC $0101,X
-not_carry_212:
-	; 58: 36 BLOCK [inc n] type: ()=>void
-	; no stack memory to release
-	; 58: 5 IF if type: (boolean,void)=>void
-endblock214:
-	; 59: 5 WORD n type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #9
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-; 46: 16 REF_BLOCK :[base Number x Number y Number index base + y + x n 0 if LIFE_CHAR = peek index - 41 [inc n] if LIFE_CHAR = peek index - 40 [inc n] if LIFE_CHAR = peek index - 39 [inc n] if LIFE_CHAR = peek index - 1 [inc n] if LIFE_CHAR = peek index + 1 [inc n] if LIFE_CHAR = peek index + 39 [inc n] if LIFE_CHAR = peek index + 40 [inc n] if LIFE_CHAR = peek index + 41 [inc n] n] type: ()=>number
-	; release 10 on the stack
-	TSX
-	TXA
-	CLC
-	ADC #10
+	ADC #3
 	TAX
 	TXS
 	RTS
@@ -1721,31 +1372,37 @@ AFTER_4:
 	STA STACKACCESS
 	LDA #>CALL_4
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 46: 1 LIT_WORD get_num_neigh type: (addr)=>void
-	JSR POP16
+	; JSR PUSH16
+	; 43: 1 LIT_WORD get_num_alive_old type: (addr)=>void
+	; JSR POP16
 	LDA STACKACCESS
-	STA V_get_num_neigh
+	STA V_get_num_alive_old
 	LDA STACKACCESS + 1
-	STA V_get_num_neigh + 1
+	STA V_get_num_alive_old + 1
+	; 70:6 BYTE 0
+	LDA #0
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	; JSR PUSH16
+	; 70: 1 LIT_WORD n type: (byte)=>void
+	; JSR POP16
+	LDA STACKACCESS
+	STA V_n
 	; Prelude for:
-; 62: 7 REF_BLOCK :[i 0 while i < WIDTH [j 0 while j < HEIGHT [k i + j cell_state peek SCREEN + k n_neigborough get_num_neigh SCREEN j i new_state cell_state either cell_state = LIFE_CHAR [if n_neigborough < 2 [new_state DEAD_CHAR] if n_neigborough > 3 [new_state DEAD_CHAR]] [if n_neigborough = 3 [new_state LIFE_CHAR]] poke BUFFER + k new_state j j + 40] inc i]] type: ()=>void
+; 72: 16 REF_BLOCK :[index Number n 0 !< index index - 41 if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] index index + 38 if 81 !< = peek index [inc n] inc index inc index if 81 !< = peek index [inc n] index index + 38 if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] n] type: ()=>byte
 	JMP AFTER_5
 CALL_5:
-	; reserve 2 on the stack for: i (number offset 0)
+	; reserve 2 on the stack for: index (number offset 0)
 	TSX
 	TXA
 	SEC
 	SBC #2
 	TAX
 	TXS
-	; 63:8 NUMBER 0
-	LDA #0
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 63: 5 LIT_WORD i type: (number)=>void
+	; 72: 25 NUMBER Number type: ()=>number
+	; DO NOTHING
+	; 72: 18 LIT_WORD index type: (number)=>void
 	JSR POP16
 	TSX
 	TXA
@@ -1756,8 +1413,17 @@ CALL_5:
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-startloop290:
-	; 64: 11 WORD i type: ()=>number
+	; 73:10 BYTE 0
+	LDA #0
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	; JSR PUSH16
+	; 73: 5 SET_WORD n type: (byte)=>void
+	; JSR POP16
+	LDA STACKACCESS
+	STA V_n
+	; 74: 12 WORD index type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -1768,56 +1434,15 @@ startloop290:
 	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 2:13 NUMBER 10
+	; 74:20 NUMBER 41
 	LDA #0
 	STA STACKACCESS+1
-	LDA #10
+	LDA #41
 	STA STACKACCESS
 	JSR PUSH16
-	; 64: 13 LT < type: (number,number)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BCC less222
-	BNE greaterorequal222
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BCC less222
-greaterorequal222:
-	LDA #00
-	JMP store222
-less222:
-	LDA #01
-store222:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock290
-	LDA STACKACCESS + 1
-	BNE trueblock290
-	JMP endblock290 ; if all zero
-trueblock290:
-	; Prelude for:
-; 64: 21 BLOCK [j 0 while j < HEIGHT [k i + j cell_state peek SCREEN + k n_neigborough get_num_neigh SCREEN j i new_state cell_state either cell_state = LIFE_CHAR [if n_neigborough < 2 [new_state DEAD_CHAR] if n_neigborough > 3 [new_state DEAD_CHAR]] [if n_neigborough = 3 [new_state LIFE_CHAR]] poke BUFFER + k new_state j j + 40] inc i] type: ()=>void
-	; reserve 2 on the stack for: j (number offset 0)
-	TSX
-	TXA
-	SEC
-	SBC #2
-	TAX
-	TXS
-	; 65:12 NUMBER 0
-	LDA #0
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 65: 9 LIT_WORD j type: (number)=>void
+	; 74: 18 MINUS - type: (number,number)=>number
+	JSR SUB16
+	; 74: 5 SET_WORD index type: (number)=>void
 	JSR POP16
 	TSX
 	TXA
@@ -1828,8 +1453,13 @@ trueblock290:
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-startloop287:
-	; 66: 15 WORD j type: ()=>number
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 68: 40 WORD index type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -1839,276 +1469,92 @@ startloop287:
 	STA STACKACCESS
 	LDA $0101,X
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 1:14 NUMBER 10
-	LDA #0
-	STA STACKACCESS+1
-	LDA #10
-	STA STACKACCESS
-	JSR PUSH16
-	; 1:19 NUMBER 40
-	LDA #0
-	STA STACKACCESS+1
-	LDA #40
-	STA STACKACCESS
-	JSR PUSH16
-	; 1: 17 MULT * type: (number,number)=>number
-	JSR MUL16
-	; 66: 17 LT < type: (number,number)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BCC less229
-	BNE greaterorequal229
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BCC less229
-greaterorequal229:
-	LDA #00
-	JMP store229
-less229:
-	LDA #01
-store229:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock287
-	LDA STACKACCESS + 1
-	BNE trueblock287
-	JMP endblock287 ; if all zero
-trueblock287:
-	; Prelude for:
-; 66: 26 BLOCK [k i + j cell_state peek SCREEN + k n_neigborough get_num_neigh SCREEN j i new_state cell_state either cell_state = LIFE_CHAR [if n_neigborough < 2 [new_state DEAD_CHAR] if n_neigborough > 3 [new_state DEAD_CHAR]] [if n_neigborough = 3 [new_state LIFE_CHAR]] poke BUFFER + k new_state j j + 40] type: ()=>void
-	; reserve 6 on the stack for: k (number offset 0), cell_state (byte offset 2), n_neigborough (number offset 3), new_state (byte offset 5)
-	TSX
-	TXA
-	SEC
-	SBC #6
-	TAX
-	TXS
-	; 67: 16 WORD i type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #9
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 67: 20 WORD j type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #7
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 67: 18 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 67: 13 LIT_WORD k type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 3:14 NUMBER 1024
-	LDA #4
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 68: 39 WORD k type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 68: 37 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 68: 25 PEEK peek type: (number)=>byte
-	JSR POP16
+	; JSR PUSH16
+	; 68: 35 PEEK peek type: (number)=>byte
+	; JSR POP16
 	LDY #0
 	LDA (STACKACCESS),Y
 	STA STACKACCESS
 	STY STACKACCESS+1
 	JSR PUSH16
-	; 68: 13 LIT_WORD cell_state type: (byte)=>void
+; 68: 33 EQ = type: (byte,byte)=>boolean
+	LDX SP16
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal169
+	LDA #01
+	JMP store169
+notequal169:
+	LDA #00
+store169:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
 	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #3
-	TAX
 	LDA STACKACCESS
-	STA $0100,X
-	; 3:14 NUMBER 1024
-	LDA #4
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 69: 49 WORD j type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #7
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 69: 51 WORD i type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #9
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 69: 28 WORD get_num_neigh type: ()=>number
-	LDA V_get_num_neigh
-	STA CALL_FUN_242 + 1
-	LDA V_get_num_neigh + 1
-	STA CALL_FUN_242 + 2
-CALL_FUN_242:
-	JSR $1111 ; will be overwritten
-	; 69: 13 LIT_WORD n_neigborough type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #4
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
+	BNE trueblock172
 	LDA STACKACCESS + 1
-	STA $0101,X
-	; 70: 24 WORD cell_state type: ()=>byte
+	BNE trueblock172
+	JMP endblock172 ; if all zero
+trueblock172:
+	; Prelude for:
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to reserve
+	; no child generation for 'inc'
+	; 68: 47 INC inc type: (byte)=>void
+	INC V_n
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to release
+	; 68: 20 IF if type: (boolean,void)=>void
+endblock172:
+	; no child generation for 'inc'
+	; 76: 5 INC inc type: (number)=>void
 	TSX
 	TXA
 	CLC
-	ADC #3
+	ADC #1
 	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 70: 13 LIT_WORD new_state type: (byte)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #6
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	; 71: 20 WORD cell_state type: ()=>byte
-	TSX
-	TXA
-	CLC
-	ADC #3
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
+	INC $0100,X
+	BNE not_carry_173
+	INC $0101,X
+not_carry_173:
+	; 6:19 BYTE 81
 	LDA #81
 	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
 	LDA #0
-	STA STACKBASE + 2,X
-; 71: 31 EQ = type: (byte,byte)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal249
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BNE notequal249
-	LDA #01
-	JMP store249
-notequal249:
-	LDA #00
-store249:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock276
-	LDA STACKACCESS + 1
-	BNE trueblock276
-	JMP elseblock276 ; if all zero
-trueblock276:
-	; Prelude for:
-	; 71: 43 BLOCK [if n_neigborough < 2 [new_state DEAD_CHAR] if n_neigborough > 3 [new_state DEAD_CHAR]] type: ()=>void
-	; no stack memory to reserve
-	; 72: 20 WORD n_neigborough type: ()=>number
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 68: 40 WORD index type: ()=>number
 	TSX
 	TXA
 	CLC
-	ADC #4
+	ADC #1
 	TAX
 	LDA $0100,X
 	STA STACKACCESS
 	LDA $0101,X
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 72:36 NUMBER 2
-	LDA #0
-	STA STACKACCESS+1
-	LDA #2
+	; JSR PUSH16
+	; 68: 35 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
 	STA STACKACCESS
+	STY STACKACCESS+1
 	JSR PUSH16
-	; 72: 34 LT < type: (number,number)=>boolean
+; 68: 33 EQ = type: (byte,byte)=>boolean
 	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BCC less252
-	BNE greaterorequal252
 	LDA STACKBASE + 3,X
 	CMP STACKBASE + 1,X
-	BCC less252
-greaterorequal252:
-	LDA #00
-	JMP store252
-less252:
+	BNE notequal177
 	LDA #01
-store252:
+	JMP store177
+notequal177:
+	LDA #00
+store177:
 	INX
 	INX
 	STA STACKBASE + 1,X
@@ -2117,195 +1563,90 @@ store252:
 	STX SP16
 	JSR POP16
 	LDA STACKACCESS
-	BNE trueblock257
+	BNE trueblock180
 	LDA STACKACCESS + 1
-	BNE trueblock257
-	JMP endblock257 ; if all zero
-trueblock257:
+	BNE trueblock180
+	JMP endblock180 ; if all zero
+trueblock180:
 	; Prelude for:
-	; 72: 38 BLOCK [new_state DEAD_CHAR] type: ()=>void
+	; 68: 46 BLOCK [inc n] type: ()=>void
 	; no stack memory to reserve
-	; 6:17 NUMBER 32
-	LDA #0
-	STA STACKACCESS+1
-	LDA #32
-	STA STACKACCESS
-	JSR PUSH16
-	; 6: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 72: 39 SET_WORD new_state type: (byte)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #6
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	; 72: 38 BLOCK [new_state DEAD_CHAR] type: ()=>void
+	; no child generation for 'inc'
+	; 68: 47 INC inc type: (byte)=>void
+	INC V_n
+	; 68: 46 BLOCK [inc n] type: ()=>void
 	; no stack memory to release
-	; 72: 17 IF if type: (boolean,void)=>void
-endblock257:
-	; 73: 20 WORD n_neigborough type: ()=>number
+	; 68: 20 IF if type: (boolean,void)=>void
+endblock180:
+	; no child generation for 'inc'
+	; 78: 5 INC inc type: (number)=>void
 	TSX
 	TXA
 	CLC
-	ADC #4
+	ADC #1
 	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 73:36 NUMBER 3
-	LDA #0
-	STA STACKACCESS+1
-	LDA #3
-	STA STACKACCESS
-	JSR PUSH16
-	; 73: 34 GT > type: (number,number)=>boolean
-	LDX SP16
-	LDA STACKBASE + 2,X
-	CMP STACKBASE + 4,X
-	BCC greater260
-	BNE lessorequal260
-	LDA STACKBASE + 1,X
-	CMP STACKBASE + 3,X
-	BCC greater260
-lessorequal260:
-	LDA #00
-	JMP result260
-greater260:
-	LDA #01
-result260:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock265
-	LDA STACKACCESS + 1
-	BNE trueblock265
-	JMP endblock265 ; if all zero
-trueblock265:
-	; Prelude for:
-	; 73: 38 BLOCK [new_state DEAD_CHAR] type: ()=>void
-	; no stack memory to reserve
-	; 6:17 NUMBER 32
-	LDA #0
-	STA STACKACCESS+1
-	LDA #32
-	STA STACKACCESS
-	JSR PUSH16
-	; 6: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
-	; 73: 39 SET_WORD new_state type: (byte)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #6
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	; 73: 38 BLOCK [new_state DEAD_CHAR] type: ()=>void
-	; no stack memory to release
-	; 73: 17 IF if type: (boolean,void)=>void
-endblock265:
-	; 71: 43 BLOCK [if n_neigborough < 2 [new_state DEAD_CHAR] if n_neigborough > 3 [new_state DEAD_CHAR]] type: ()=>void
-	; no stack memory to release
-	JMP endblock276
-elseblock276:
-	; Prelude for:
-; 74: 15 BLOCK [if n_neigborough = 3 [new_state LIFE_CHAR]] type: ()=>void
-	; no stack memory to reserve
-	; 75: 20 WORD n_neigborough type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #4
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 75:36 NUMBER 3
-	LDA #0
-	STA STACKACCESS+1
-	LDA #3
-	STA STACKACCESS
-	JSR PUSH16
-; 75: 34 EQ = type: (number,number)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal269
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BNE notequal269
-	LDA #01
-	JMP store269
-notequal269:
-	LDA #00
-store269:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock274
-	LDA STACKACCESS + 1
-	BNE trueblock274
-	JMP endblock274 ; if all zero
-trueblock274:
-	; Prelude for:
-	; 75: 38 BLOCK [new_state LIFE_CHAR] type: ()=>void
-	; no stack memory to reserve
-	; 5:17 NUMBER 81
-	LDA #0
-	STA STACKACCESS+1
+	INC $0100,X
+	BNE not_carry_181
+	INC $0101,X
+not_carry_181:
+	; 6:19 BYTE 81
 	LDA #81
 	STA STACKACCESS
-	JSR PUSH16
-	; 5: 20 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
 	LDA #0
-	STA STACKBASE + 2,X
-	; 75: 39 SET_WORD new_state type: (byte)=>void
-	JSR POP16
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 68: 40 WORD index type: ()=>number
 	TSX
 	TXA
 	CLC
-	ADC #6
+	ADC #1
 	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	; 75: 38 BLOCK [new_state LIFE_CHAR] type: ()=>void
-	; no stack memory to release
-	; 75: 17 IF if type: (boolean,void)=>void
-endblock274:
-; 74: 15 BLOCK [if n_neigborough = 3 [new_state LIFE_CHAR]] type: ()=>void
-	; no stack memory to release
-	; 71: 13 EITHER either type: (boolean,void,void)=>void
-endblock276:
-	; 4:14 NUMBER 10000
-	LDA #39
-	STA STACKACCESS+1
-	LDA #16
+	LDA $0100,X
 	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 68: 35 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
 	JSR PUSH16
-	; 77: 27 WORD k type: ()=>number
+; 68: 33 EQ = type: (byte,byte)=>boolean
+	LDX SP16
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal185
+	LDA #01
+	JMP store185
+notequal185:
+	LDA #00
+store185:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock188
+	LDA STACKACCESS + 1
+	BNE trueblock188
+	JMP endblock188 ; if all zero
+trueblock188:
+	; Prelude for:
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to reserve
+	; no child generation for 'inc'
+	; 68: 47 INC inc type: (byte)=>void
+	INC V_n
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to release
+	; 68: 20 IF if type: (boolean,void)=>void
+endblock188:
+	; 81: 12 WORD index type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -2316,90 +1657,391 @@ endblock276:
 	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 77: 25 PLUS + type: (number,number)=>number
+	; 81:20 NUMBER 38
+	LDA #0
+	STA STACKACCESS+1
+	LDA #38
+	STA STACKACCESS
+	JSR PUSH16
+	; 81: 18 PLUS + type: (number,number)=>number
 	JSR ADD16
-	; 77: 29 WORD new_state type: ()=>byte
+	; 81: 5 SET_WORD index type: (number)=>void
+	JSR POP16
 	TSX
 	TXA
 	CLC
-	ADC #6
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 68: 40 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
 	TAX
 	LDA $0100,X
 	STA STACKACCESS
-	LDA #0
+	LDA $0101,X
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 77: 13 POKE poke type: (number,byte)=>void
-	JSR POP16
-	LDY STACKACCESS
-	JSR POP16
-	TYA
+	; JSR PUSH16
+	; 68: 35 PEEK peek type: (number)=>byte
+	; JSR POP16
 	LDY #0
-	STA (STACKACCESS),Y
-	; 78: 16 WORD j type: ()=>number
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+; 68: 33 EQ = type: (byte,byte)=>boolean
+	LDX SP16
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal196
+	LDA #01
+	JMP store196
+notequal196:
+	LDA #00
+store196:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock199
+	LDA STACKACCESS + 1
+	BNE trueblock199
+	JMP endblock199 ; if all zero
+trueblock199:
+	; Prelude for:
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to reserve
+	; no child generation for 'inc'
+	; 68: 47 INC inc type: (byte)=>void
+	INC V_n
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to release
+	; 68: 20 IF if type: (boolean,void)=>void
+endblock199:
+	; no child generation for 'inc'
+	; 83: 5 INC inc type: (number)=>void
 	TSX
 	TXA
 	CLC
-	ADC #7
+	ADC #1
+	TAX
+	INC $0100,X
+	BNE not_carry_200
+	INC $0101,X
+not_carry_200:
+	; no child generation for 'inc'
+	; 84: 5 INC inc type: (number)=>void
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	INC $0100,X
+	BNE not_carry_201
+	INC $0101,X
+not_carry_201:
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 68: 40 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 68: 35 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+; 68: 33 EQ = type: (byte,byte)=>boolean
+	LDX SP16
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal205
+	LDA #01
+	JMP store205
+notequal205:
+	LDA #00
+store205:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock208
+	LDA STACKACCESS + 1
+	BNE trueblock208
+	JMP endblock208 ; if all zero
+trueblock208:
+	; Prelude for:
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to reserve
+	; no child generation for 'inc'
+	; 68: 47 INC inc type: (byte)=>void
+	INC V_n
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to release
+	; 68: 20 IF if type: (boolean,void)=>void
+endblock208:
+	; 87: 12 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
 	TAX
 	LDA $0100,X
 	STA STACKACCESS
 	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 78:20 NUMBER 40
+	; 87:20 NUMBER 38
 	LDA #0
 	STA STACKACCESS+1
-	LDA #40
+	LDA #38
 	STA STACKACCESS
 	JSR PUSH16
-	; 78: 18 PLUS + type: (number,number)=>number
+	; 87: 18 PLUS + type: (number,number)=>number
 	JSR ADD16
-	; 78: 13 SET_WORD j type: (number)=>void
+	; 87: 5 SET_WORD index type: (number)=>void
 	JSR POP16
 	TSX
 	TXA
 	CLC
-	ADC #7
+	ADC #1
 	TAX
 	LDA STACKACCESS
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-; 66: 26 BLOCK [k i + j cell_state peek SCREEN + k n_neigborough get_num_neigh SCREEN j i new_state cell_state either cell_state = LIFE_CHAR [if n_neigborough < 2 [new_state DEAD_CHAR] if n_neigborough > 3 [new_state DEAD_CHAR]] [if n_neigborough = 3 [new_state LIFE_CHAR]] poke BUFFER + k new_state j j + 40] type: ()=>void
-	; release 6 on the stack
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 68: 40 WORD index type: ()=>number
 	TSX
 	TXA
 	CLC
-	ADC #6
+	ADC #1
 	TAX
-	TXS
-	; 66: 9 WHILE while type: (boolean,void)=>void
-	JMP startloop287
-endblock287:
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 68: 35 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+; 68: 33 EQ = type: (byte,byte)=>boolean
+	LDX SP16
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal216
+	LDA #01
+	JMP store216
+notequal216:
+	LDA #00
+store216:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock219
+	LDA STACKACCESS + 1
+	BNE trueblock219
+	JMP endblock219 ; if all zero
+trueblock219:
+	; Prelude for:
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to reserve
 	; no child generation for 'inc'
-	; 80: 9 INC inc type: (number)=>void
+	; 68: 47 INC inc type: (byte)=>void
+	INC V_n
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to release
+	; 68: 20 IF if type: (boolean,void)=>void
+endblock219:
+	; no child generation for 'inc'
+	; 89: 5 INC inc type: (number)=>void
 	TSX
 	TXA
 	CLC
-	ADC #3
+	ADC #1
 	TAX
 	INC $0100,X
-	BNE not_carry_288
+	BNE not_carry_220
 	INC $0101,X
-not_carry_288:
-; 64: 21 BLOCK [j 0 while j < HEIGHT [k i + j cell_state peek SCREEN + k n_neigborough get_num_neigh SCREEN j i new_state cell_state either cell_state = LIFE_CHAR [if n_neigborough < 2 [new_state DEAD_CHAR] if n_neigborough > 3 [new_state DEAD_CHAR]] [if n_neigborough = 3 [new_state LIFE_CHAR]] poke BUFFER + k new_state j j + 40] inc i] type: ()=>void
-	; release 2 on the stack
+not_carry_220:
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 68: 40 WORD index type: ()=>number
 	TSX
 	TXA
 	CLC
-	ADC #2
+	ADC #1
 	TAX
-	TXS
-	; 64: 5 WHILE while type: (boolean,void)=>void
-	JMP startloop290
-endblock290:
-; 62: 7 REF_BLOCK :[i 0 while i < WIDTH [j 0 while j < HEIGHT [k i + j cell_state peek SCREEN + k n_neigborough get_num_neigh SCREEN j i new_state cell_state either cell_state = LIFE_CHAR [if n_neigborough < 2 [new_state DEAD_CHAR] if n_neigborough > 3 [new_state DEAD_CHAR]] [if n_neigborough = 3 [new_state LIFE_CHAR]] poke BUFFER + k new_state j j + 40] inc i]] type: ()=>void
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 68: 35 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+; 68: 33 EQ = type: (byte,byte)=>boolean
+	LDX SP16
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal224
+	LDA #01
+	JMP store224
+notequal224:
+	LDA #00
+store224:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock227
+	LDA STACKACCESS + 1
+	BNE trueblock227
+	JMP endblock227 ; if all zero
+trueblock227:
+	; Prelude for:
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to reserve
+	; no child generation for 'inc'
+	; 68: 47 INC inc type: (byte)=>void
+	INC V_n
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to release
+	; 68: 20 IF if type: (boolean,void)=>void
+endblock227:
+	; no child generation for 'inc'
+	; 91: 5 INC inc type: (number)=>void
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	INC $0100,X
+	BNE not_carry_228
+	INC $0101,X
+not_carry_228:
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+	; 68: 40 WORD index type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 68: 35 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+; 68: 33 EQ = type: (byte,byte)=>boolean
+	LDX SP16
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal232
+	LDA #01
+	JMP store232
+notequal232:
+	LDA #00
+store232:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock235
+	LDA STACKACCESS + 1
+	BNE trueblock235
+	JMP endblock235 ; if all zero
+trueblock235:
+	; Prelude for:
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to reserve
+	; no child generation for 'inc'
+	; 68: 47 INC inc type: (byte)=>void
+	INC V_n
+	; 68: 46 BLOCK [inc n] type: ()=>void
+	; no stack memory to release
+	; 68: 20 IF if type: (boolean,void)=>void
+endblock235:
+	; 93: 5 WORD n type: ()=>byte
+	LDA V_n
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS + 1
+	JSR PUSH16
+; 72: 16 REF_BLOCK :[index Number n 0 !< index index - 41 if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] index index + 38 if 81 !< = peek index [inc n] inc index inc index if 81 !< = peek index [inc n] index index + 38 if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] n] type: ()=>byte
 	; release 2 on the stack
 	TSX
 	TXA
@@ -2413,73 +2055,108 @@ AFTER_5:
 	STA STACKACCESS
 	LDA #>CALL_5
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 62: 1 LIT_WORD step type: (addr)=>void
-	JSR POP16
+	; JSR PUSH16
+	; 72: 1 LIT_WORD get_num_alive type: (addr)=>void
+	; JSR POP16
 	LDA STACKACCESS
-	STA V_step
+	STA V_get_num_alive
 	LDA STACKACCESS + 1
-	STA V_step + 1
-	; 85: 8 WORD time type: ()=>number
-	LDA V_time
-	STA CALL_FUN_293 + 1
-	LDA V_time + 1
-	STA CALL_FUN_293 + 2
-CALL_FUN_293:
-	JSR $1111 ; will be overwritten
-	; 85: 1 LIT_WORD start type: (number)=>void
-	JSR POP16
+	STA V_get_num_alive + 1
+	; Prelude for:
+; 97: 7 REF_BLOCK :[from_loc 1024 to_loc 10000 col 0 while to_loc < 10000 + 10 * 10 [nalive get_num_alive from_loc cell_state peek from_loc either cell_state = 81 !< [either nalive = 2 [poke to_loc 81 !<] [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]]] [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]] inc from_loc inc to_loc inc col if col = 10 [from_loc from_loc + 40 - 10 col 0]]] type: ()=>void
+	JMP AFTER_6
+CALL_6:
+	; reserve 6 on the stack for: from_loc (number offset 0), to_loc (number offset 2), col (number offset 4)
+	TSX
+	TXA
+	SEC
+	SBC #6
+	TAX
+	TXS
+	; 4:18 NUMBER 1024
+	LDA #4
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	; JSR PUSH16
+	; 98: 5 LIT_WORD from_loc type: (number)=>void
+	; JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
 	LDA STACKACCESS
-	STA V_start
+	STA $0100,X
 	LDA STACKACCESS + 1
-	STA V_start + 1
-	; 86: 1 WORD init type: ()=>void
-	LDA V_init
-	STA CALL_FUN_295 + 1
-	LDA V_init + 1
-	STA CALL_FUN_295 + 2
-CALL_FUN_295:
-	JSR $1111 ; will be overwritten
-	; 88:4 NUMBER 0
+	STA $0101,X
+	; 5:18 NUMBER 10000
+	LDA #39
+	STA STACKACCESS+1
+	LDA #16
+	STA STACKACCESS
+	; JSR PUSH16
+	; 99: 5 LIT_WORD to_loc type: (number)=>void
+	; JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 100:10 NUMBER 0
 	LDA #0
 	STA STACKACCESS+1
 	LDA #0
 	STA STACKACCESS
-	JSR PUSH16
-	; 88: 1 LIT_WORD i type: (number)=>void
-	JSR POP16
+	; JSR PUSH16
+	; 100: 5 LIT_WORD col type: (number)=>void
+	; JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
 	LDA STACKACCESS
-	STA V_i
+	STA $0100,X
 	LDA STACKACCESS + 1
-	STA V_i + 1
-startloop305:
-	; 89: 7 WORD i type: ()=>number
-	LDA V_i
+	STA $0101,X
+startloop308:
+	; 101: 11 WORD to_loc type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	LDA $0100,X
 	STA STACKACCESS
-	LDA V_i + 1
+	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 89:11 NUMBER 10
-	LDA #0
+	; 101:33 NUMBER 10100
+	LDA #39
 	STA STACKACCESS+1
-	LDA #10
+	LDA #116
 	STA STACKACCESS
 	JSR PUSH16
-	; 89: 9 LT < type: (number,number)=>boolean
+	; 101: 18 LT < type: (number,number)=>boolean
 	LDX SP16
 	LDA STACKBASE + 4,X
 	CMP STACKBASE + 2,X
-	BCC less300
-	BNE greaterorequal300
+	BCC less247
+	BNE greaterorequal247
 	LDA STACKBASE + 3,X
 	CMP STACKBASE + 1,X
-	BCC less300
-greaterorequal300:
+	BCC less247
+greaterorequal247:
 	LDA #00
-	JMP store300
-less300:
+	JMP store247
+less247:
 	LDA #01
-store300:
+store247:
 	INX
 	INX
 	STA STACKBASE + 1,X
@@ -2488,75 +2165,718 @@ store300:
 	STX SP16
 	JSR POP16
 	LDA STACKACCESS
-	BNE trueblock305
+	BNE trueblock308
 	LDA STACKACCESS + 1
-	BNE trueblock305
-	JMP endblock305 ; if all zero
-trueblock305:
+	BNE trueblock308
+	JMP endblock308 ; if all zero
+trueblock308:
 	; Prelude for:
-	; 89: 14 BLOCK [show step inc i] type: ()=>void
-	; no stack memory to reserve
-	; 90: 5 WORD show type: ()=>void
-	LDA V_show
-	STA CALL_FUN_301 + 1
-	LDA V_show + 1
-	STA CALL_FUN_301 + 2
-CALL_FUN_301:
+; 101: 46 BLOCK [nalive get_num_alive from_loc cell_state peek from_loc either cell_state = 81 !< [either nalive = 2 [poke to_loc 81 !<] [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]]] [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]] inc from_loc inc to_loc inc col if col = 10 [from_loc from_loc + 40 - 10 col 0]] type: ()=>void
+	; reserve 2 on the stack for: nalive (byte offset 0), cell_state (byte offset 1)
+	TSX
+	TXA
+	SEC
+	SBC #2
+	TAX
+	TXS
+	; 102: 31 WORD from_loc type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 102: 17 WORD get_num_alive type: ()=>byte
+	LDA V_get_num_alive
+	STA CALL_FUN_249 + 1
+	LDA V_get_num_alive + 1
+	STA CALL_FUN_249 + 2
+CALL_FUN_249:
 	JSR $1111 ; will be overwritten
-	; 91: 5 WORD step type: ()=>void
+	; 102: 9 LIT_WORD nalive type: (byte)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	; 103: 26 WORD from_loc type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 103: 21 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	; JSR PUSH16
+	; 103: 9 LIT_WORD cell_state type: (byte)=>void
+	; JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #2
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	; 104: 16 WORD cell_state type: ()=>byte
+	TSX
+	TXA
+	CLC
+	ADC #2
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	JSR PUSH16
+; 104: 27 EQ = type: (byte,byte)=>boolean
+	LDX SP16
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal256
+	LDA #01
+	JMP store256
+notequal256:
+	LDA #00
+store256:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock292
+	LDA STACKACCESS + 1
+	BNE trueblock292
+	JMP elseblock292 ; if all zero
+trueblock292:
+	; Prelude for:
+; 104: 39 BLOCK [either nalive = 2 [poke to_loc 81 !<] [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]]] type: ()=>void
+	; no stack memory to reserve
+	; 105: 20 WORD nalive type: ()=>byte
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 105:29 NUMBER 2
+	LDA #0
+	STA STACKACCESS+1
+	LDA #2
+	STA STACKACCESS
+	JSR PUSH16
+; 105: 27 EQ = type: (byte,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BNE notequal259
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal259
+	LDA #01
+	JMP store259
+notequal259:
+	LDA #00
+store259:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock277
+	LDA STACKACCESS + 1
+	BNE trueblock277
+	JMP elseblock277 ; if all zero
+trueblock277:
+	; Prelude for:
+	; 105: 31 BLOCK [poke to_loc 81 !<] type: ()=>void
+	; no stack memory to reserve
+	; 106: 20 WORD to_loc type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	; JSR PUSH16
+	; 106: 15 POKE poke type: (number,byte)=>void
+	; JSR POP16
+	LDY STACKACCESS
+	JSR POP16
+	TYA
+	LDY #0
+	STA (STACKACCESS),Y
+	; 105: 31 BLOCK [poke to_loc 81 !<] type: ()=>void
+	; no stack memory to release
+	JMP endblock277
+elseblock277:
+	; Prelude for:
+; 107: 15 BLOCK [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]] type: ()=>void
+	; no stack memory to reserve
+	; 108: 22 WORD nalive type: ()=>byte
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 108:31 NUMBER 3
+	LDA #0
+	STA STACKACCESS+1
+	LDA #3
+	STA STACKACCESS
+	JSR PUSH16
+; 108: 29 EQ = type: (byte,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BNE notequal266
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal266
+	LDA #01
+	JMP store266
+notequal266:
+	LDA #00
+store266:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock275
+	LDA STACKACCESS + 1
+	BNE trueblock275
+	JMP elseblock275 ; if all zero
+trueblock275:
+	; Prelude for:
+	; 108: 33 BLOCK [poke to_loc 81 !<] type: ()=>void
+	; no stack memory to reserve
+	; 109: 22 WORD to_loc type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	; JSR PUSH16
+	; 109: 17 POKE poke type: (number,byte)=>void
+	; JSR POP16
+	LDY STACKACCESS
+	JSR POP16
+	TYA
+	LDY #0
+	STA (STACKACCESS),Y
+	; 108: 33 BLOCK [poke to_loc 81 !<] type: ()=>void
+	; no stack memory to release
+	JMP endblock275
+elseblock275:
+	; Prelude for:
+	; 110: 16 BLOCK [poke to_loc 32 !<] type: ()=>void
+	; no stack memory to reserve
+	; 111: 22 WORD to_loc type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 7:19 BYTE 32
+	LDA #32
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	; JSR PUSH16
+	; 111: 17 POKE poke type: (number,byte)=>void
+	; JSR POP16
+	LDY STACKACCESS
+	JSR POP16
+	TYA
+	LDY #0
+	STA (STACKACCESS),Y
+	; 110: 16 BLOCK [poke to_loc 32 !<] type: ()=>void
+	; no stack memory to release
+	; 108: 15 EITHER either type: (boolean,void,void)=>void
+endblock275:
+; 107: 15 BLOCK [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]] type: ()=>void
+	; no stack memory to release
+	; 105: 13 EITHER either type: (boolean,void,void)=>void
+endblock277:
+; 104: 39 BLOCK [either nalive = 2 [poke to_loc 81 !<] [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]]] type: ()=>void
+	; no stack memory to release
+	JMP endblock292
+elseblock292:
+	; Prelude for:
+; 114: 11 BLOCK [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]] type: ()=>void
+	; no stack memory to reserve
+	; 115: 20 WORD nalive type: ()=>byte
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 115:29 NUMBER 3
+	LDA #0
+	STA STACKACCESS+1
+	LDA #3
+	STA STACKACCESS
+	JSR PUSH16
+; 115: 27 EQ = type: (byte,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BNE notequal281
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal281
+	LDA #01
+	JMP store281
+notequal281:
+	LDA #00
+store281:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock290
+	LDA STACKACCESS + 1
+	BNE trueblock290
+	JMP elseblock290 ; if all zero
+trueblock290:
+	; Prelude for:
+	; 115: 31 BLOCK [poke to_loc 81 !<] type: ()=>void
+	; no stack memory to reserve
+	; 116: 20 WORD to_loc type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 6:19 BYTE 81
+	LDA #81
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	; JSR PUSH16
+	; 116: 15 POKE poke type: (number,byte)=>void
+	; JSR POP16
+	LDY STACKACCESS
+	JSR POP16
+	TYA
+	LDY #0
+	STA (STACKACCESS),Y
+	; 115: 31 BLOCK [poke to_loc 81 !<] type: ()=>void
+	; no stack memory to release
+	JMP endblock290
+elseblock290:
+	; Prelude for:
+	; 117: 15 BLOCK [poke to_loc 32 !<] type: ()=>void
+	; no stack memory to reserve
+	; 118: 20 WORD to_loc type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 7:19 BYTE 32
+	LDA #32
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	; JSR PUSH16
+	; 118: 15 POKE poke type: (number,byte)=>void
+	; JSR POP16
+	LDY STACKACCESS
+	JSR POP16
+	TYA
+	LDY #0
+	STA (STACKACCESS),Y
+	; 117: 15 BLOCK [poke to_loc 32 !<] type: ()=>void
+	; no stack memory to release
+	; 115: 13 EITHER either type: (boolean,void,void)=>void
+endblock290:
+; 114: 11 BLOCK [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]] type: ()=>void
+	; no stack memory to release
+	; 104: 9 EITHER either type: (boolean,void,void)=>void
+endblock292:
+	; no child generation for 'inc'
+	; 121: 9 INC inc type: (number)=>void
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	INC $0100,X
+	BNE not_carry_293
+	INC $0101,X
+not_carry_293:
+	; no child generation for 'inc'
+	; 122: 9 INC inc type: (number)=>void
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
+	INC $0100,X
+	BNE not_carry_294
+	INC $0101,X
+not_carry_294:
+	; no child generation for 'inc'
+	; 123: 9 INC inc type: (number)=>void
+	TSX
+	TXA
+	CLC
+	ADC #7
+	TAX
+	INC $0100,X
+	BNE not_carry_295
+	INC $0101,X
+not_carry_295:
+	; 124: 12 WORD col type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #7
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 2:11 NUMBER 10
+	LDA #0
+	STA STACKACCESS+1
+	LDA #10
+	STA STACKACCESS
+	JSR PUSH16
+; 124: 16 EQ = type: (number,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BNE notequal298
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal298
+	LDA #01
+	JMP store298
+notequal298:
+	LDA #00
+store298:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock306
+	LDA STACKACCESS + 1
+	BNE trueblock306
+	JMP endblock306 ; if all zero
+trueblock306:
+	; Prelude for:
+	; 124: 24 BLOCK [from_loc from_loc + 40 - 10 col 0] type: ()=>void
+	; no stack memory to reserve
+	; 124: 35 WORD from_loc type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 124:49 NUMBER 30
+	LDA #0
+	STA STACKACCESS+1
+	LDA #30
+	STA STACKACCESS
+	JSR PUSH16
+	; 124: 44 PLUS + type: (number,number)=>number
+	JSR ADD16
+	; 124: 25 SET_WORD from_loc type: (number)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 124:62 NUMBER 0
+	LDA #0
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	; JSR PUSH16
+	; 124: 57 SET_WORD col type: (number)=>void
+	; JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #7
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 124: 24 BLOCK [from_loc from_loc + 40 - 10 col 0] type: ()=>void
+	; no stack memory to release
+	; 124: 9 IF if type: (boolean,void)=>void
+endblock306:
+; 101: 46 BLOCK [nalive get_num_alive from_loc cell_state peek from_loc either cell_state = 81 !< [either nalive = 2 [poke to_loc 81 !<] [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]]] [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]] inc from_loc inc to_loc inc col if col = 10 [from_loc from_loc + 40 - 10 col 0]] type: ()=>void
+	; release 2 on the stack
+	TSX
+	TXA
+	CLC
+	ADC #2
+	TAX
+	TXS
+	; 101: 5 WHILE while type: (boolean,void)=>void
+	JMP startloop308
+endblock308:
+; 97: 7 REF_BLOCK :[from_loc 1024 to_loc 10000 col 0 while to_loc < 10000 + 10 * 10 [nalive get_num_alive from_loc cell_state peek from_loc either cell_state = 81 !< [either nalive = 2 [poke to_loc 81 !<] [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]]] [either nalive = 3 [poke to_loc 81 !<] [poke to_loc 32 !<]] inc from_loc inc to_loc inc col if col = 10 [from_loc from_loc + 40 - 10 col 0]]] type: ()=>void
+	; release 6 on the stack
+	TSX
+	TXA
+	CLC
+	ADC #6
+	TAX
+	TXS
+	RTS
+AFTER_6:
+	LDA #<CALL_6
+	STA STACKACCESS
+	LDA #>CALL_6
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 97: 1 LIT_WORD step type: (addr)=>void
+	; JSR POP16
+	LDA STACKACCESS
+	STA V_step
+	LDA STACKACCESS + 1
+	STA V_step + 1
+	; 128: 8 WORD time type: ()=>number
+	LDA V_time
+	STA CALL_FUN_311 + 1
+	LDA V_time + 1
+	STA CALL_FUN_311 + 2
+CALL_FUN_311:
+	JSR $1111 ; will be overwritten
+	; 128: 1 LIT_WORD start type: (number)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_start
+	LDA STACKACCESS + 1
+	STA V_start + 1
+	; 129: 1 WORD init type: ()=>void
+	LDA V_init
+	STA CALL_FUN_313 + 1
+	LDA V_init + 1
+	STA CALL_FUN_313 + 2
+CALL_FUN_313:
+	JSR $1111 ; will be overwritten
+	; 131:4 NUMBER 0
+	LDA #0
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	; JSR PUSH16
+	; 131: 1 LIT_WORD i type: (number)=>void
+	; JSR POP16
+	LDA STACKACCESS
+	STA V_i
+	LDA STACKACCESS + 1
+	STA V_i + 1
+startloop323:
+	; 132: 7 WORD i type: ()=>number
+	LDA V_i
+	STA STACKACCESS
+	LDA V_i + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 132:11 NUMBER 10
+	LDA #0
+	STA STACKACCESS+1
+	LDA #10
+	STA STACKACCESS
+	JSR PUSH16
+	; 132: 9 LT < type: (number,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BCC less318
+	BNE greaterorequal318
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BCC less318
+greaterorequal318:
+	LDA #00
+	JMP store318
+less318:
+	LDA #01
+store318:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock323
+	LDA STACKACCESS + 1
+	BNE trueblock323
+	JMP endblock323 ; if all zero
+trueblock323:
+	; Prelude for:
+	; 132: 14 BLOCK [show step inc i] type: ()=>void
+	; no stack memory to reserve
+	; 133: 5 WORD show type: ()=>void
+	LDA V_show
+	STA CALL_FUN_319 + 1
+	LDA V_show + 1
+	STA CALL_FUN_319 + 2
+CALL_FUN_319:
+	JSR $1111 ; will be overwritten
+	; 134: 5 WORD step type: ()=>void
 	LDA V_step
-	STA CALL_FUN_302 + 1
+	STA CALL_FUN_320 + 1
 	LDA V_step + 1
-	STA CALL_FUN_302 + 2
-CALL_FUN_302:
+	STA CALL_FUN_320 + 2
+CALL_FUN_320:
 	JSR $1111 ; will be overwritten
 	; no child generation for 'inc'
-	; 92: 5 INC inc type: (number)=>void
+	; 135: 5 INC inc type: (number)=>void
 	INC V_i
-	BNE not_carry_303
+	BNE not_carry_321
 	INC V_i + 1
-not_carry_303:
-	; 89: 14 BLOCK [show step inc i] type: ()=>void
+not_carry_321:
+	; 132: 14 BLOCK [show step inc i] type: ()=>void
 	; no stack memory to release
-	; 89: 1 WHILE while type: (boolean,void)=>void
-	JMP startloop305
-endblock305:
-	; 94: 6 WORD time type: ()=>number
+	; 132: 1 WHILE while type: (boolean,void)=>void
+	JMP startloop323
+endblock323:
+	; 137: 6 WORD time type: ()=>number
 	LDA V_time
-	STA CALL_FUN_306 + 1
+	STA CALL_FUN_324 + 1
 	LDA V_time + 1
-	STA CALL_FUN_306 + 2
-CALL_FUN_306:
+	STA CALL_FUN_324 + 2
+CALL_FUN_324:
 	JSR $1111 ; will be overwritten
-	; 94: 1 LIT_WORD end type: (number)=>void
+	; 137: 1 LIT_WORD end type: (number)=>void
 	JSR POP16
 	LDA STACKACCESS
 	STA V_end
 	LDA STACKACCESS + 1
 	STA V_end + 1
-	; 95: 7 WORD start type: ()=>number
+	; 138: 7 WORD start type: ()=>number
 	LDA V_start
 	STA STACKACCESS
 	LDA V_start + 1
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 95: 1 PRINT print type: (number)=>void
-	JSR POP16
+	; JSR PUSH16
+	; 138: 1 PRINT print type: (number)=>void
+	; JSR POP16
 	JSR PRINT_INT
 	LDA #13
 	JSR $FFD2
-	; 96: 7 WORD end type: ()=>number
+	; 139: 7 WORD end type: ()=>number
 	LDA V_end
 	STA STACKACCESS
 	LDA V_end + 1
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 96: 1 PRINT print type: (number)=>void
-	JSR POP16
+	; JSR PUSH16
+	; 139: 1 PRINT print type: (number)=>void
+	; JSR POP16
 	JSR PRINT_INT
 	LDA #13
 	JSR $FFD2
-	; 97:6 STRING "ELAPSED: "
+	; 140:6 STRING "ELAPSED: "
 	LDA #0
 	STA STACKACCESS+1
 	LDA #9
@@ -2567,23 +2887,23 @@ CALL_FUN_306:
 	LDA #<str0
 	STA STACKACCESS
 	JSR PUSH16
-	; 97: 1 PRIN prin type: (string)=>void
+	; 140: 1 PRIN prin type: (string)=>void
 	JSR PRINT_STRING
-	; 97: 24 WORD end type: ()=>number
+	; 140: 24 WORD end type: ()=>number
 	LDA V_end
 	STA STACKACCESS
 	LDA V_end + 1
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 97: 30 WORD start type: ()=>number
+	; 140: 30 WORD start type: ()=>number
 	LDA V_start
 	STA STACKACCESS
 	LDA V_start + 1
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 97: 28 MINUS - type: (number,number)=>number
+	; 140: 28 MINUS - type: (number,number)=>number
 	JSR SUB16
-	; 97: 18 PRINT print type: (number)=>void
+	; 140: 18 PRINT print type: (number)=>void
 	JSR POP16
 	JSR PRINT_INT
 	LDA #13
@@ -2965,17 +3285,13 @@ NOCARRY:
 	JSR PUSH16
 	RTS
 str0: BYTE 69,76,65,80,83,69,68,58,32
-V_HEIGHT DS 2
-V_WIDTH DS 2
-V_SCREEN DS 2
-V_BUFFER DS 2
-V_LIFE_CHAR DS 1
-V_DEAD_CHAR DS 1
 V_time DS 2
 V_fill DS 2
 V_init DS 2
 V_show DS 2
-V_get_num_neigh DS 2
+V_get_num_alive_old DS 2
+V_n DS 1
+V_get_num_alive DS 2
 V_step DS 2
 V_start DS 2
 V_i DS 2

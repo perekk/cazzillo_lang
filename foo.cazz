@@ -1,5 +1,11 @@
-def a 10
-def b [a + 1]
-def c [a + b + 2]
+struct Persona :[
+  'nome String
+  'eta Number
+]
 
-print c
+'davide Persona
+;nome 0
+;eta 4
+;Persona 6
+
+davide . eta
