@@ -38,34 +38,37 @@ enum TokenType {
     PROG,
     INC,
     DEFINE,
+    STRUCT,
+    STRUCT_NAME,
     TOKEN_COUNT,
 }
 
-enum ValueType {
-    NUMBER,
-    BYTE,
-    STRING,
-    BOOL,    
-    VOID,
-    ADDR,
-    SYMBOL,
-    VALUETYPESCOUNT
-}
+type ValueType = "number" | "byte" | "string" | "bool" | "void" | "addr" | "symbol" | ["usertype", string];
 
-const sizeForValueType: { [key in ValueType]: number } = {
-    [ValueType.NUMBER]: 2,
-    [ValueType.BYTE]: 1,
-    [ValueType.STRING]: 4,
-    [ValueType.BOOL]: 1,
-    [ValueType.SYMBOL]: 0,
-    [ValueType.VOID]: 0,
-    [ValueType.ADDR]: 2,
-    [ValueType.VALUETYPESCOUNT]: 0,
+function sizeForValueType(t: ValueType): number {
+    switch (t) {
+        case "addr": return 2;
+        case "bool": return 1;
+        case "byte": return 1;
+        case "number": return 2;
+        case "string": return 4;
+        case "symbol": return 0;
+        case "void": return 0;
+        default: {
+            const typeName = t[1];
+            const structDef = getStrucDefinition(typeName);
+            if (structDef === undefined) {
+                console.log(`getting the size of struct, can't find struct ${typeName}`);
+                Deno.exit(1);
+            }
+            return structDef.size;
+        }
+    }
 }
 
 function humanReadableToken(t: TokenType | undefined): string {
     if (t === undefined) return "undefined";
-    console.assert(TokenType.TOKEN_COUNT === 39, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 41, "Exaustive token types count");
     switch (t) {
         case TokenType.LITERAL: return "LITERAL";
         case TokenType.PLUS: return "PLUS";
@@ -106,6 +109,8 @@ function humanReadableToken(t: TokenType | undefined): string {
         case TokenType.PROG: return "PROG";
         case TokenType.INC: return "INC";
         case TokenType.DEFINE: return "DEFINE";
+        case TokenType.STRUCT: return "STRUCT";
+        case TokenType.STRUCT_NAME: return "STRUCT_NAME";
         default:
             throw new Error(`Token Type ${t} not defined`);
     }
@@ -113,18 +118,17 @@ function humanReadableToken(t: TokenType | undefined): string {
 }
 
 function humanReadableType(t: ValueType | undefined): string {
-    if (t === undefined) return "undefined";
-    console.assert(ValueType.VALUETYPESCOUNT === 7, "Exaustive value types count");
+    if (t === undefined) return "undefined";    
     switch (t) {
-        case ValueType.NUMBER: return "number";
-        case ValueType.BYTE: return "byte";
-        case ValueType.STRING: return "string";
-        case ValueType.BOOL: return "boolean";
-        case ValueType.ADDR: return "addr";
-        case ValueType.VOID: return "void";
-        case ValueType.SYMBOL: return "symbol";
+        case "number": return "number";
+        case "byte": return "byte";
+        case "string": return "string";
+        case "bool": return "boolean";
+        case "addr": return "addr";
+        case "void": return "void";
+        case "symbol": return "symbol";        
         default:
-            throw new Error(`Value Type ${t} not defined`);
+            return t[1];
     }
 
 }
@@ -147,21 +151,21 @@ function humanReadableFunction(token: Token): string {
 type Location = { row: number, col: number, filename: string }
 
 type Token = {
-    type: TokenType;    
-    txt: string;
-    loc: Location;
-    internalValueType?: ValueType;
-    context?: Context;
+    type: TokenType
+    txt: string,
+    loc: Location,
+    internalValueType?: ValueType,
+    context?: Context,
     expectedArity?: number,
     expectedArityOut?: number,
     grabFromStack?: boolean,
-    ins?: Array<ValueType>;
-    out?: ValueType;
-    position?: InstructionPosition;
-    priority?: number;
-    isUserFunction?: boolean;
-    functionIndex?: number;
-    childs: Token[];
+    ins?: Array<ValueType>,
+    out?: ValueType,
+    position?: InstructionPosition,
+    priority?: number,
+    isUserFunction?: boolean,
+    functionIndex?: number,
+    childs: Token[],
 };
 
 enum InstructionPosition {
@@ -233,19 +237,20 @@ function getInstructionPosition(token: Token): InstructionPosition {
 }
 
 type Instruction = {    
-    txt: string;
-    position: InstructionPosition;
-    priority: number | undefined;
+    txt: string,
+    position: InstructionPosition,
+    priority: number | undefined,
     userFunction: boolean,
     grabFromStack: boolean,
     expectedArity: number,
     expectedArityOut: number,
     functionIndex?: number,
-    ins: (ast: Token) => Array<ValueType>;
-    out: (ast: Token) => ValueType;
-    generateAsm: (ast: Token) => Assembly;
-    generatePreludeAsm?: (ast: Token) => Assembly;
-    generateChildPreludeAsm?: (ast: Token, childIndex: number) => Assembly | undefined
+    ins: (ast: Token) => Array<ValueType>,
+    out: (ast: Token) => ValueType,
+    generateAsm: (ast: Token) => Assembly,
+    generatePreludeAsm?: (ast: Token) => Assembly,
+    generateChildPreludeAsm?: (ast: Token, childIndex: number) => Assembly | undefined,
+    preprocessTokens?: (ast: AST) => void,
 };
 
 type Vocabulary = Record<number, Instruction>;
@@ -257,7 +262,7 @@ type Assembly = Array<string>;
 function sizeOfContext(context: Context): number {
     let size = 0;
     Object.values(context.varsDefinition).forEach(varDef => {
-        size += sizeForValueType[varDef.internalType];
+        size += sizeForValueType(varDef.internalType);
     });
     return size;
 }
@@ -280,42 +285,17 @@ function getWordDefinition(context: Context | undefined, variableName: string): 
     return undefined;
 }
 
-function getInternalType(token: Token): ValueType {
-
-    if (token.type === TokenType.LITERAL) {
-        if (token.out === undefined) {
-            logError(token.loc, `'${token.txt}' does not have the out type value set`);
-            Deno.exit(1);
-        }
-        return token.out;
-    }
-
-    if (token.type === TokenType.WORD) {
-        if (token.isUserFunction) return ValueType.ADDR;
-        if (token.out === undefined) {
-            logError(token.loc, `'${token.txt}' does not have the out type value set`);
-            Deno.exit(1);
-        }
-        return token.out;
-    }
-
-    logError(token.loc, `why asking for valuetype of '${token.txt}', it's a ${humanReadableToken(token.type)}`);
-    Deno.exit(1);
-}
-
 function getAsmForSetWordGlobal(token: Token, varType: ValueType, varName: string): Assembly {
 
     const asmVarName = "V_" + varName;
-
-    console.assert(ValueType.VALUETYPESCOUNT === 7, "Exaustive value types count");
     switch (varType) {
-        case ValueType.BOOL:
+        case "bool":
             return [
                 `JSR POP16`,
                 `LDA STACKACCESS`,
                 `STA ${asmVarName}`,
             ];
-        case ValueType.NUMBER:
+        case "number":
             return [
                 `JSR POP16`,
                 `LDA STACKACCESS`,
@@ -323,13 +303,13 @@ function getAsmForSetWordGlobal(token: Token, varType: ValueType, varName: strin
                 `LDA STACKACCESS + 1`,
                 `STA ${asmVarName} + 1`,
             ];
-        case ValueType.BYTE:
+        case "byte":
             return [
                 `JSR POP16`,
                 `LDA STACKACCESS`,
                 `STA ${asmVarName}`,
             ];
-        case ValueType.STRING:
+        case "string":
             return [
                 `JSR POP16`,
                 `LDA STACKACCESS`,
@@ -343,7 +323,7 @@ function getAsmForSetWordGlobal(token: Token, varType: ValueType, varName: strin
                 `LDA STACKACCESS + 1`,
                 `STA ${asmVarName} + 1`,
             ];
-        case ValueType.ADDR:
+        case "addr":
             return [
                 `JSR POP16`,
                 `LDA STACKACCESS`,
@@ -369,14 +349,14 @@ function getAsmForSetWordLocal(token: Token, varType: ValueType, varName: string
         "TAX"
     ];
 
-    if (varType === ValueType.NUMBER) {
+    if (varType === "number") {
         return popAndOffsetStack.concat([
             "LDA STACKACCESS",
             "STA $0100,X",
             "LDA STACKACCESS + 1",
             "STA $0101,X"
         ]);
-    } else if (varType === ValueType.STRING) {
+    } else if (varType === "string") {
         return popAndOffsetStack.concat([
             "LDA STACKACCESS",
             "STA $0102,X",
@@ -392,17 +372,17 @@ function getAsmForSetWordLocal(token: Token, varType: ValueType, varName: string
             "LDA STACKACCESS + 1",
             "STA $0101,X",
         ]);
-    } else if (varType === ValueType.BYTE) {
+    } else if (varType === "byte") {
         return popAndOffsetStack.concat([
             "LDA STACKACCESS",
             "STA $0100,X",
         ]);
-    } else if (varType === ValueType.BOOL) {
+    } else if (varType === "bool") {
         return popAndOffsetStack.concat([
             "LDA STACKACCESS",
             "STA $0100,X",
         ]);
-    } else if (varType === ValueType.ADDR) {
+    } else if (varType === "addr") {
         return popAndOffsetStack.concat([
             "LDA STACKACCESS",
             "STA $0100,X",
@@ -430,9 +410,8 @@ function getAsmForGetWordGlobal(token: Token, varType: ValueType, varName: strin
         ];
     }
 
-    console.assert(ValueType.VALUETYPESCOUNT === 7, "Exaustive value types count");
     switch (varType) {
-        case ValueType.BOOL:
+        case "bool":
             return [
                 `LDA ${asmVarName}`,
                 `STA STACKACCESS`,
@@ -440,7 +419,7 @@ function getAsmForGetWordGlobal(token: Token, varType: ValueType, varName: strin
                 `STA STACKACCESS + 1`,
                 `JSR PUSH16`
             ];
-        case ValueType.NUMBER:
+        case "number":
             return [
                 `LDA ${asmVarName}`,
                 `STA STACKACCESS`,
@@ -448,7 +427,7 @@ function getAsmForGetWordGlobal(token: Token, varType: ValueType, varName: strin
                 `STA STACKACCESS + 1`,
                 `JSR PUSH16`
             ];
-        case ValueType.BYTE:
+        case "byte":
             return [
                 `LDA ${asmVarName}`,
                 `STA STACKACCESS`,
@@ -456,7 +435,7 @@ function getAsmForGetWordGlobal(token: Token, varType: ValueType, varName: strin
                 `STA STACKACCESS + 1`,
                 `JSR PUSH16`
             ];
-        case ValueType.STRING:
+        case "string":
             return [
                 `LDA ${asmVarName}`,
                 `STA STACKACCESS`,
@@ -469,7 +448,7 @@ function getAsmForGetWordGlobal(token: Token, varType: ValueType, varName: strin
                 `STA STACKACCESS + 1`,
                 `JSR PUSH16`
             ];
-        case ValueType.ADDR:
+        case "addr":
             return [
                 `LDA ${asmVarName}`,
                 `STA CALL_FUN_@ + 1`,
@@ -504,8 +483,7 @@ function getAsmForGetWordLocal(token: Token, varType: ValueType, varName: string
         ]);
     }
 
-    console.assert(ValueType.VALUETYPESCOUNT === 7, "Exaustive value types count");
-    if (varType === ValueType.NUMBER) {
+    if (varType === "number") {
         return asmOffset.concat([
             "LDA $0100,X",
             "STA STACKACCESS",
@@ -513,7 +491,7 @@ function getAsmForGetWordLocal(token: Token, varType: ValueType, varName: string
             "STA STACKACCESS + 1",
             "JSR PUSH16"
         ]);
-    } else if (varType === ValueType.STRING) {
+    } else if (varType === "string") {
         return asmOffset.concat([
             "LDA $0100,X",
             "STA STACKACCESS",
@@ -530,7 +508,7 @@ function getAsmForGetWordLocal(token: Token, varType: ValueType, varName: string
             "STA STACKACCESS + 1",
             "JSR PUSH16"
         ]);
-    } else if (varType === ValueType.BYTE) {
+    } else if (varType === "byte") {
         return asmOffset.concat([
             "LDA $0100,X",
             "STA STACKACCESS",
@@ -538,7 +516,7 @@ function getAsmForGetWordLocal(token: Token, varType: ValueType, varName: string
             "STA STACKACCESS + 1",
             "JSR PUSH16"
         ]);
-    } else if (varType === ValueType.BOOL) {
+    } else if (varType === "bool") {
         return asmOffset.concat([
             "LDA $0100,X",
             "STA STACKACCESS",
@@ -546,7 +524,7 @@ function getAsmForGetWordLocal(token: Token, varType: ValueType, varName: string
             "STA STACKACCESS + 1",
             "JSR PUSH16"
         ]);
-    } if (varType === ValueType.ADDR) {
+    } if (varType === "addr") {
         return asmOffset.concat([
             "LDA $0100,X",
             `STA CALL_FUN_@ + 1`,
@@ -567,7 +545,7 @@ function getReturnTypeOfAWord(token: Token): ValueType {
         dumpAst(astProgram);
         Deno.exit(1);
     }
-    if (token.type === TokenType.REF_BLOCK) return ValueType.ADDR;
+    if (token.type === TokenType.REF_BLOCK) return "addr";
     return token.out;
 }
 
@@ -602,7 +580,7 @@ function assertChildNumber(token: Token, spec: number | Array<ValueType | "any">
 }
 
 function createVocabulary(): Vocabulary {
-    console.assert(TokenType.TOKEN_COUNT === 39, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 41, "Exaustive token types count");
     const voc: Vocabulary = {};
     voc[TokenType.PRINT] = {
         txt: "print",        
@@ -620,18 +598,17 @@ function createVocabulary(): Vocabulary {
             }
             return [valueType];
         },
-        out: () => ValueType.VOID,
-        generateAsm: (token) => {
-            console.assert(ValueType.VALUETYPESCOUNT === 7, "Exaustive value types count");
+        out: () => "void",
+        generateAsm: (token) => {            
             const valueType = getReturnTypeOfAWord(token.childs[0]);
-            if (valueType === ValueType.NUMBER) {
+            if (valueType === "number") {
                 return [
                     "JSR POP16",
                     "JSR PRINT_INT",
                     "LDA #13",
                     "JSR $FFD2",
                 ];
-            } else if (valueType === ValueType.BYTE) {
+            } else if (valueType === "byte") {
                 return [
                     "JSR POP16",
                     "LDA #0",
@@ -640,13 +617,13 @@ function createVocabulary(): Vocabulary {
                     "LDA #13",
                     "JSR $FFD2",
                 ];
-            } else if (valueType === ValueType.STRING) {
+            } else if (valueType === "string") {
                 return [
                     "JSR PRINT_STRING",
                     "LDA #13",
                     "JSR $FFD2",
                 ];
-            } else if (valueType === ValueType.BOOL) {
+            } else if (valueType === "bool") {
                 return [
                     "JSR POP16",
                     "LDA STACKACCESS",
@@ -662,7 +639,7 @@ function createVocabulary(): Vocabulary {
                     "LDA #13",
                     "JSR $FFD2",
                 ];
-            } else if (valueType === ValueType.ADDR) {
+            } else if (valueType === "addr") {
                 return [
                     "; print addr ?",
                     "JSR POP16",
@@ -692,27 +669,26 @@ function createVocabulary(): Vocabulary {
             }
             return [valueType]
         },
-        out: () => ValueType.VOID,        
-        generateAsm: token => {
-            console.assert(ValueType.VALUETYPESCOUNT === 7, "Exaustive value types count");
+        out: () => "void",
+        generateAsm: token => {            
             const valueType = getReturnTypeOfAWord(token.childs[0]);
-            if (valueType === ValueType.NUMBER) {
+            if (valueType === "number") {
                 return [
                     "JSR POP16",
                     "JSR PRINT_INT",
                 ];
-            } else if (valueType === ValueType.BYTE) {
+            } else if (valueType === "byte") {
                 return [
                     "JSR POP16",
                     "LDA #0",
                     "STA STACKACCESS + 1",
                     "JSR PRINT_INT",
                 ];
-            } else if (valueType === ValueType.STRING) {
+            } else if (valueType === "string") {
                 return [
                     "JSR PRINT_STRING",
                 ];
-            } else if (valueType === ValueType.BOOL) {
+            } else if (valueType === "bool") {
                 return [
                     "JSR POP16",
                     "LDA STACKACCESS",
@@ -726,7 +702,7 @@ function createVocabulary(): Vocabulary {
                     "print_bool@:",
                     "JSR $FFD2",
                 ];
-            } else if (valueType === ValueType.ADDR) {
+            } else if (valueType === "addr") {
                 return [
                     "JSR POP16",
                     "JSR PRINT_INT",
@@ -745,8 +721,8 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: () => [ValueType.BYTE],
-        out: () => ValueType.VOID,        
+        ins: () => ["byte"],
+        out: () => "void",        
         generateAsm: (token) => [
             "JSR POP16",
             "LDA STACKACCESS",
@@ -762,7 +738,7 @@ function createVocabulary(): Vocabulary {
         priority: 10,
         userFunction: false,
         ins: (token) => [],
-        out: () => ValueType.VOID,
+        out: () => "void",
         generateAsm: () => [
             "LDA #13",
             "JSR $FFD2",
@@ -780,23 +756,23 @@ function createVocabulary(): Vocabulary {
             console.assert(token.childs.length === 2, "The childs of a plus operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+            if ((type1 === "byte" || type1 === "number") && (type2 === "byte" || type2 === "number")) {
                 return [type1, type2]
             }
-            return [ValueType.NUMBER, ValueType.NUMBER];
+            return ["number", "number"];
         },
         out: token => {
             console.assert(token.childs.length === 2, "The childs of a plus operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if (type1 === ValueType.BYTE && type2 === ValueType.BYTE) return ValueType.BYTE;
-            return ValueType.NUMBER;
+            if (type1 === "byte" && type2 === "byte") return "byte";
+            return "number";
         },
         generateAsm: token => {
             console.assert(token.childs.length === 2, "The childs of a plus operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if (type1 === ValueType.BYTE && type2 === ValueType.BYTE) {
+            if (type1 === "byte" && type2 === "byte") {
                 return [
                     "LDX SP16",
                     "CLC",
@@ -825,12 +801,12 @@ function createVocabulary(): Vocabulary {
             console.assert(token.childs.length === 2, "The childs of a minus operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+            if ((type1 === "byte" || type1 === "number") && (type2 === "byte" || type2 === "number")) {
                 return [type1, type2]
             }
-            return [ValueType.NUMBER, ValueType.NUMBER];
+            return ["number", "number"];
         },
-        out: () => ValueType.NUMBER,
+        out: () => "number",
         generateAsm: (token) => [
             "JSR SUB16"
         ]
@@ -847,12 +823,12 @@ function createVocabulary(): Vocabulary {
             console.assert(token.childs.length === 2, "The childs of a multiply operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+            if ((type1 === "byte" || type1 === "number") && (type2 === "byte" || type2 === "number")) {
                 return [type1, type2]
             }
-            return [ValueType.NUMBER, ValueType.NUMBER];
+            return ["number", "number"];
         },
-        out: () => ValueType.NUMBER,
+        out: () => "number",
         generateAsm: (token) => [
             "JSR MUL16"
         ]
@@ -869,12 +845,12 @@ function createVocabulary(): Vocabulary {
             console.assert(token.childs.length === 2, "The childs of a division operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+            if ((type1 === "byte" || type1 === "number") && (type2 === "byte" || type2 === "number")) {
                 return [type1, type2]
             }
-            return [ValueType.NUMBER, ValueType.NUMBER];
+            return ["number", "number"];
         },
-        out: () => ValueType.NUMBER,
+        out: () => "number",
         generateAsm: (token) => [
             "JSR DIV16"
         ]
@@ -891,12 +867,12 @@ function createVocabulary(): Vocabulary {
             console.assert(token.childs.length === 2, "The childs of a plus operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+            if ((type1 === "byte" || type1 === "number") && (type2 === "byte" || type2 === "number")) {
                 return [type1, type2]
             }
-            return [ValueType.NUMBER, ValueType.NUMBER];
+            return ["number", "number"];
         },
-        out: () => ValueType.NUMBER,
+        out: () => "number",
         generateAsm: (token) => [
             "JSR MOD16"
         ]
@@ -912,18 +888,18 @@ function createVocabulary(): Vocabulary {
         ins: token => {
             console.assert(token.childs.length === 1, "The childs of a not operand should be 1, compiler error");
             const valueType = getReturnTypeOfAWord(token.childs[0]);
-            if (valueType === ValueType.BYTE || valueType === ValueType.NUMBER || valueType === ValueType.BOOL) return [valueType];
-            return [ValueType.NUMBER];
+            if (valueType === "byte" || valueType === "number" || valueType === "bool") return [valueType];
+            return ["number"];
         },
         out: token => {
             console.assert(token.childs.length === 1, "The childs of a not operand should be 1, compiler error");
             const valueType = getReturnTypeOfAWord(token.childs[0]);
-            if (valueType === ValueType.BYTE || valueType === ValueType.NUMBER || valueType === ValueType.BOOL) return valueType;
-            return ValueType.NUMBER;
+            if (valueType === "byte" || valueType === "number" || valueType === "bool") return valueType;
+            return "number";
         },
         generateAsm: (token) => {
             const valueType = getReturnTypeOfAWord(token.childs[0]);
-            if (valueType === ValueType.NUMBER) {
+            if (valueType === "number") {
                 return [
                     "LDX SP16",
                     "LDA STACKBASE + 1,X",
@@ -939,7 +915,7 @@ function createVocabulary(): Vocabulary {
                     "JSR PUSH16",
                     "JSR ADD16",
                 ]
-            } else if (valueType === ValueType.BYTE) {
+            } else if (valueType === "byte") {
                 return [
                     "LDX SP16",
                     "LDA STACKBASE + 1,X",
@@ -948,7 +924,7 @@ function createVocabulary(): Vocabulary {
                     "INC STACKBASE + 1,X",
                     "INC STACKBASE + 1,X"
                 ]
-            } else if (valueType === ValueType.BOOL) {
+            } else if (valueType === "bool") {
                 return [
                     "LDX SP16",
                     "LDA STACKBASE + 1,X",
@@ -977,16 +953,16 @@ function createVocabulary(): Vocabulary {
             assertChildNumber(token, 2);
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+            if ((type1 === "byte" || type1 === "number") && (type2 === "byte" || type2 === "number")) {
                 return [type1, type2]
             }
-            return [ValueType.NUMBER, ValueType.NUMBER];
+            return ["number", "number"];
         },
-        out: () => ValueType.BOOL,
+        out: () => "bool",
         generateAsm: token => {
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if (type1 === ValueType.BYTE && type2 === ValueType.BYTE) {
+            if (type1 === "byte" && type2 === "byte") {
                 return [
                     "LDX SP16",
                     "LDA STACKBASE + 3,X",
@@ -1044,16 +1020,16 @@ function createVocabulary(): Vocabulary {
             assertChildNumber(token, 2);
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+            if ((type1 === "byte" || type1 === "number") && (type2 === "byte" || type2 === "number")) {
                 return [type1, type2]
             }
-            return [ValueType.NUMBER, ValueType.NUMBER];
+            return ["number", "number"];
         },
-        out: () => ValueType.BOOL,
+        out: () => "bool",
         generateAsm: (token) => {
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if (type1 === ValueType.BYTE && type2 === ValueType.BYTE) {
+            if (type1 === "byte" && type2 === "byte") {
                 return [
                     "LDX SP16",
                     "LDA STACKBASE + 3,X",
@@ -1111,12 +1087,12 @@ function createVocabulary(): Vocabulary {
             console.assert(token.childs.length === 2, "The childs of a greater-than operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if ((type1 === ValueType.BYTE || type1 === ValueType.NUMBER) && (type2 === ValueType.BYTE || type2 === ValueType.NUMBER)) {
+            if ((type1 === "byte" || type1 === "number") && (type2 === "byte" || type2 === "number")) {
                 return [type1, type2]
             }
-            return [ValueType.NUMBER, ValueType.NUMBER];
+            return ["number", "number"];
         },
-        out: () => ValueType.BOOL,
+        out: () => "bool",
         generateAsm: (token) => [
             "LDX SP16",
             "LDA STACKBASE + 2,X",
@@ -1151,8 +1127,8 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: () => [ValueType.BOOL, ValueType.VOID],
-        out: () => ValueType.VOID,
+        ins: () => ["bool", "void"],
+        out: () => "void",
         generateChildPreludeAsm: (ast, n) => {
             // prelude for the true branch
             if (n === 1) return [
@@ -1197,7 +1173,7 @@ function createVocabulary(): Vocabulary {
                 logError(token.childs[2].loc, `while the 'else' branch returns '${humanReadableType(typeElse)}'`);
                 Deno.exit(1);
             }
-            return [ValueType.BOOL, typeThen, typeElse];
+            return ["bool", typeThen, typeElse];
         },
         out: token => {
             console.assert(token.childs.length === 3, "'Either' should have 3 childs");
@@ -1236,7 +1212,7 @@ function createVocabulary(): Vocabulary {
         priority: 150,
         userFunction: false,
         ins: () => [],
-        out: () => ValueType.VOID,
+        out: () => "void",
         generateAsm: (token) => []
     };
     voc[TokenType.OPEN_REF_BRACKETS] = {
@@ -1248,7 +1224,7 @@ function createVocabulary(): Vocabulary {
         priority: 150,
         userFunction: false,
         ins: () => [],
-        out: () => ValueType.VOID,
+        out: () => "void",
         generateAsm: (token) => []
     };
     voc[TokenType.CLOSE_BRACKETS] = {
@@ -1260,7 +1236,7 @@ function createVocabulary(): Vocabulary {
         priority: 150,
         userFunction: false,
         ins: () => [],
-        out: () => ValueType.VOID,
+        out: () => "void",
         generateAsm: (token) => []
     };
     voc[TokenType.BLOCK] = {
@@ -1274,11 +1250,11 @@ function createVocabulary(): Vocabulary {
         ins: token => {
             const childNumber = token.childs.length;
             if (childNumber === 0) return [];
-            //return new Array(childNumber).fill(ValueType.VOID);
-            return token.childs.map((child, index) => index === childNumber - 1 ? getReturnTypeOfAWord(child) : ValueType.VOID);
+            //return new Array(childNumber).fill("void");
+            return token.childs.map((child, index) => index === childNumber - 1 ? getReturnTypeOfAWord(child) : "void");
         },
         out: token => {
-            if (token.childs.length === 0) return ValueType.VOID;
+            if (token.childs.length === 0) return "void";
             const lastChild = token.childs[token.childs.length - 1];
             const valueType = getReturnTypeOfAWord(lastChild);
             if (valueType === undefined) {
@@ -1323,11 +1299,7 @@ function createVocabulary(): Vocabulary {
                     logError(varDef.token.loc, `the internal type of word '${varDef.token.txt}' is undefined, cannot reserve space on stack`);
                     Deno.exit(1);
                 }
-                if (!(valueType in sizeForValueType)) {
-                    logError(varDef.token.loc, `cannot reserve space on the stack for type ${humanReadableType(valueType)} yet`);
-                    Deno.exit(1);
-                }
-                sizeToReserve += sizeForValueType[valueType];
+                sizeToReserve += sizeForValueType(valueType);
             }
 
             const strVariables = Object.values(token.context.varsDefinition).map(varDef => varDef.token.txt + " (" + humanReadableType(varDef.out) + " offset " + varDef.offset + ")").join(", ");
@@ -1372,11 +1344,7 @@ function createVocabulary(): Vocabulary {
                     logError(varDef.token.loc, `the internal type of word '${varDef.token.txt}' is undefined, cannot reserve space on stack`);
                     Deno.exit(1);
                 }
-                if (!(valueType in sizeForValueType)) {
-                    logError(varDef.token.loc, `cannot reserve space on the stack for type ${humanReadableType(valueType)} yet`);
-                    Deno.exit(1);
-                }
-                sizeToReserve += sizeForValueType[valueType];
+                sizeToReserve += sizeForValueType(valueType);
             }
 
             const strVariables = Object.values(token.context.varsDefinition).map(varDef => varDef.token.txt + " (" + humanReadableType(varDef.internalType) + " offset " + varDef.offset + ")").join(", ");
@@ -1449,7 +1417,7 @@ function createVocabulary(): Vocabulary {
                 logError(child.loc, `cannot determine the type of '${child.txt}'`);
                 Deno.exit(1);
             }
-            if (valueType === ValueType.VOID) {
+            if (valueType === "void") {
                 logError(token.loc, `can't store 'void' values in variables`);
                 Deno.exit(1);
             }
@@ -1460,7 +1428,7 @@ function createVocabulary(): Vocabulary {
             }
             return [varDef.out];
         },
-        out: () => ValueType.VOID,
+        out: () => "void",
         generateAsm: token => {
             const varName = token.txt;
             const varDef = getWordDefinition(token.context, varName);
@@ -1493,13 +1461,13 @@ function createVocabulary(): Vocabulary {
                 logError(child.loc, `cannot determine the type of '${child.txt}'`);
                 Deno.exit(1);
             }
-            if (valueType === ValueType.VOID) {
+            if (valueType === "void") {
                 logError(token.loc, `can't store 'void' values in variables`);
                 Deno.exit(1);
             }
             return [valueType];
         },
-        out: () => ValueType.VOID,
+        out: () => "void",
         generateAsm: token => {
             const varName = token.txt;
             const varDef = getWordDefinition(token.context, varName);
@@ -1565,7 +1533,7 @@ function createVocabulary(): Vocabulary {
                 logError(token.loc, `cannot find declaration for '${varName}', compiler error`);
                 Deno.exit(1);
             }
-            //const valueType = token.valueType === ValueType.ADDR ? varDef.out : varDef.valueType;
+            //const valueType = token.valueType === "addr" ? varDef.out : varDef.valueType;
             const valueType = varDef.out;
             if (valueType === undefined) {
                 logError(token.loc, `cannot determine the result type of function '${varName}', compiler error`);
@@ -1589,8 +1557,8 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: () => [ValueType.BOOL, ValueType.VOID],
-        out: () => ValueType.VOID,
+        ins: () => ["bool", "void"],
+        out: () => "void",
         generateChildPreludeAsm: (ast, n) => {
             // prelude for the true branch
             if (n === 0) {
@@ -1622,8 +1590,8 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: () => [ValueType.NUMBER, ValueType.BYTE],
-        out: () => ValueType.VOID,
+        ins: () => ["number", "byte"],
+        out: () => "void",
         generateAsm: (token) => [
             "JSR POP16",
             "LDY STACKACCESS",
@@ -1641,8 +1609,8 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: false,
-        ins: () => [ValueType.NUMBER],
-        out: () => ValueType.BYTE,
+        ins: () => ["number"],
+        out: () => "byte",
         generateAsm: () => [
             "JSR POP16",
             "LDY #0",
@@ -1663,13 +1631,13 @@ function createVocabulary(): Vocabulary {
         ins: token => {
             assertChildNumber(token, 1);
             const type = getReturnTypeOfAWord(token.childs[0]);
-            if (type === ValueType.ADDR || type === ValueType.STRING || type === ValueType.SYMBOL || type === ValueType.VOID) {
+            if (type === "addr" || type === "string" || type === "symbol" || type === "void") {
                 logError(token.loc, `expected Number, Byte or Boolean, but '${token.txt}' returns a ${humanReadableType(type)}`);
                 Deno.exit(1);
             }
             return [type];
         },
-        out: () => ValueType.BYTE,
+        out: () => "byte",
         generateAsm: () => [
             "LDX SP16",
             "LDA #0",
@@ -1684,8 +1652,8 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.POSTFIX,
         priority: 100,
         userFunction: false,
-        ins: () => [ValueType.BYTE],
-        out: () => ValueType.NUMBER,
+        ins: () => ["byte"],
+        out: () => "number",
         generateAsm: () => []
     };
     voc[TokenType.NUMBER] = {
@@ -1697,7 +1665,7 @@ function createVocabulary(): Vocabulary {
         priority: 100,
         userFunction: false,
         ins: () => [],
-        out: () => ValueType.NUMBER,
+        out: () => "number",
         generateAsm: token => {
 
             return [
@@ -1718,7 +1686,7 @@ function createVocabulary(): Vocabulary {
         priority: 100,
         userFunction: false,
         ins: () => [],
-        out: () => ValueType.STRING,
+        out: () => "string",
         generateAsm: () => []
     };
     voc[TokenType.BYTE] = {
@@ -1730,7 +1698,7 @@ function createVocabulary(): Vocabulary {
         priority: 100,
         userFunction: false,
         ins: () => [],
-        out: () => ValueType.BYTE,
+        out: () => "byte",
         generateAsm: () => [
             // "LDA #0",
             // "STA STACKACCESS",
@@ -1748,7 +1716,7 @@ function createVocabulary(): Vocabulary {
         priority: 100,
         userFunction: false,
         ins: () => [],
-        out: () => ValueType.BOOL,
+        out: () => "bool",
         generateAsm: () => [
             // "LDA #0",
             // "STA STACKACCESS",
@@ -1765,8 +1733,8 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.INFIX,
         priority: 100,
         userFunction: false,
-        ins: () => [ValueType.STRING, ValueType.STRING],
-        out: () => ValueType.STRING,
+        ins: () => ["string", "string"],
+        out: () => "string",
         generateAsm: () => [
             // 8 0
             // 7 len1
@@ -1855,7 +1823,7 @@ function createVocabulary(): Vocabulary {
         priority: 100,
         userFunction: false,
         ins: () => [],
-        out: () => ValueType.NUMBER,
+        out: () => "number",
         generateAsm: () => [
             "LDA HEAPTOP",
             "STA STACKACCESS",
@@ -1872,8 +1840,8 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.POSTFIX,
         priority: 100,
         userFunction: false,
-        ins: () => [ValueType.STRING],
-        out: () => ValueType.BYTE,
+        ins: () => ["string"],
+        out: () => "byte",
         generateAsm: () => [
             "JSR POP16",
         ]
@@ -1888,7 +1856,7 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: () => [],
         out: token => {
-            if (token.childs.length === 0) return ValueType.VOID;
+            if (token.childs.length === 0) return "void";
             const lastChild = token.childs[token.childs.length - 1];
             const valueType = getReturnTypeOfAWord(lastChild);
             if (valueType === undefined) {
@@ -2329,11 +2297,7 @@ function createVocabulary(): Vocabulary {
             if (token.context !== undefined) {
                 Object.entries(token.context.varsDefinition).forEach(([name, varDef]) => {
                     const variableName = "V_" + name;
-                    if (!(varDef.internalType in sizeForValueType)) {
-                        logError(varDef.token.loc, `cannot find the size of '${varDef.token.txt}' to allocate on the heap`);
-                        Deno.exit(1);
-                    }
-                    const size = sizeForValueType[varDef.internalType];
+                    const size = sizeForValueType(varDef.internalType);
                     vars.push(`${variableName} DS ${size}`);
                 });
             }
@@ -2379,13 +2343,13 @@ function createVocabulary(): Vocabulary {
                 logError(child.loc, `unknown word '${child.txt}'`);
                 Deno.exit(1);
             }
-            if (wordDef.internalType !== ValueType.NUMBER && wordDef.internalType !== ValueType.BYTE) {
+            if (wordDef.internalType !== "number" && wordDef.internalType !== "byte") {
                 logError(child.loc, `'INC' expects a word of type 'number' or 'byte', but word '${child.txt}' has type '${humanReadableType(wordDef.internalType)}'`);
                 Deno.exit(1);
             }
             return [wordDef.internalType];
         },
-        out: () => ValueType.VOID,
+        out: () => "void",
         generateChildPreludeAsm: () => { return undefined }, // no child generation asm
         generateAsm: token => {
             assertChildNumber(token, 1);
@@ -2398,7 +2362,7 @@ function createVocabulary(): Vocabulary {
             }
             if (varDef.isGlobalContext) {
                 const asmVarName = "V_" + varName;
-                if (varDef.internalType === ValueType.BYTE) return [
+                if (varDef.internalType === "byte") return [
                     `INC ${asmVarName}`,
                 ];
 
@@ -2417,7 +2381,7 @@ function createVocabulary(): Vocabulary {
                 Deno.exit(1);
             }
 
-            if (varDef.internalType === ValueType.BYTE) {
+            if (varDef.internalType === "byte") {
                 return [
                     "TSX",
                     "TXA",
@@ -2457,14 +2421,14 @@ function createVocabulary(): Vocabulary {
                 logError(secondChild.loc, `cannot determine the type of '${secondChild.txt}'`);
                 Deno.exit(1);
             }
-            if (valueType === ValueType.VOID) {
+            if (valueType === "void") {
                 logError(secondChild.loc, `'${secondChild.txt}' produce void value, can't define 'void' values`);
                 Deno.exit(1);
             }
 
-            return [ValueType.SYMBOL, valueType];
+            return ["symbol", valueType];
         },
-        out: () => ValueType.VOID,
+        out: () => "void",
         generateChildPreludeAsm: (token, n) => {
             if (n === 0) return undefined;
             return [];
@@ -2474,6 +2438,75 @@ function createVocabulary(): Vocabulary {
             return [];
         }
     };
+    voc[TokenType.STRUCT] = {
+        txt: "struct",
+        expectedArity: 2,
+        expectedArityOut: 0,
+        grabFromStack: false,
+        position: InstructionPosition.PREFIX,
+        priority: 5,
+        userFunction: false,
+        ins: token => {
+            assertChildNumber(token, 2);
+            const firstChild = token.childs[0];
+            const secondChild = token.childs[1];
+            const valueType = getReturnTypeOfAWord(secondChild);
+            if (firstChild.internalValueType !== "symbol") {
+                logError(firstChild.loc, `the first parameter of struct should be a 'symbol', but '${firstChild.txt}' is a ${humanReadableToken(firstChild.type)}`);
+                Deno.exit(1);
+            }
+            return ["symbol", valueType];
+        },
+        out: () => "void",
+        generateChildPreludeAsm: (token, n) => {
+            if (n === 0) return undefined;
+            return [];
+        },
+        generateAsm: () => {
+            return [];
+        },
+        preprocessTokens: ast => {
+            if (ast[1].type === TokenType.WORD) {
+                ast[1].type = TokenType.LITERAL;
+                ast[1].internalValueType = "symbol";
+            }
+        }
+    };
+    voc[TokenType.STRUCT_NAME] = {
+        txt: "",
+        expectedArity: 1,
+        expectedArityOut: 1,
+        grabFromStack: false,
+        position: InstructionPosition.PREFIX,
+        priority: 10,
+        userFunction: false,
+        ins: token => {
+            assertChildNumber(token, 1);
+            if (token.childs[0].type !== TokenType.BLOCK) {
+                logError(token.loc, `'${token.txt}' expects a block`);
+                Deno.exit(1);
+            }
+            const funcDef = getStrucDefinition(token.txt);
+            return ["void"];
+        },
+        out: token => {
+            return ["usertype", token.txt];
+        },
+        generateAsm: token => {
+            const strucName = token.txt;
+            const strucDef = getStrucDefinition(strucName);
+            if (strucDef === undefined) {
+                logError(token.loc, `cannot find declaration for '${strucName}', compiler error`);
+                Deno.exit(1);
+            }
+            //const valueType = token.valueType === "addr" ? varDef.out : varDef.valueType;
+            const valueType: ValueType = ["usertype", strucName];
+
+            return [
+                "; do heap malloc for size of structure and return back the address"
+            ]
+        }
+    }; 
     return voc;
 }
 
@@ -2490,12 +2523,12 @@ function identifyToken(vocabulary: Vocabulary, txt: string): { type: TokenType, 
         if (txt === instr.txt) return { type: parseInt(tokenType, 10) as TokenType, literalType: undefined };
     }
 
-    if (txt.match(/^-?\d+$/)) return { type: TokenType.LITERAL, literalType: ValueType.NUMBER };
-    if (txt[0] === '"' && txt[txt.length - 1] === '"') return { type: TokenType.LITERAL, literalType: ValueType.STRING };
-    if (txt[0] === "'" && txt[txt.length - 1] === "'") return { type: TokenType.LITERAL, literalType: ValueType.SYMBOL };
+    if (txt.match(/^-?\d+$/)) return { type: TokenType.LITERAL, literalType: "number" };
+    if (txt[0] === '"' && txt[txt.length - 1] === '"') return { type: TokenType.LITERAL, literalType: "string" };
+    if (txt[0] === "'" && txt[txt.length - 1] === "'") return { type: TokenType.LITERAL, literalType: "symbol" };
     if (txt[txt.length - 1] === ":") return { type: TokenType.SET_WORD, literalType: undefined };
     if (txt[0] === "'") return { type: TokenType.LIT_WORD, literalType: undefined };
-    if (txt === "true" || txt === "false") return { type: TokenType.LITERAL, literalType: ValueType.BOOL };
+    if (txt === "true" || txt === "false") return { type: TokenType.LITERAL, literalType: "bool" };
 
     return { type: TokenType.WORD, literalType: undefined };
 }
@@ -2520,7 +2553,7 @@ async function tokenizer(filename: string, vocabulary: Vocabulary): Promise<AST>
             logError(loc, `unknown token '${tokenText}'`);
             Deno.exit(1);
         }
-        if (token.type === TokenType.LITERAL && (token.literalType === ValueType.STRING || token.literalType === ValueType.SYMBOL)) {
+        if (token.type === TokenType.LITERAL && (token.literalType === "string" || token.literalType === "symbol")) {
             tokenText = tokenText.substring(1, tokenText.length - 1);
         } else if (token.type === TokenType.SET_WORD) {
             tokenText = tokenText.substring(0, tokenText.length - 1);
@@ -2765,7 +2798,7 @@ function getReturnValueByBlock(block: Token) {
         Deno.exit(1);
     }
     const lastChild = block.childs.at(-1);
-    if (lastChild === undefined) return ValueType.VOID;
+    if (lastChild === undefined) return "void";
 
     const lastChildType = lastChild.out;
     if (lastChildType === undefined) {
@@ -2783,7 +2816,7 @@ function typeCheckBlock(block: Token) {
     }
 
     for (let i = 0; i < block.childs.length - 1; i++) {
-        if (block.childs[i].out !== ValueType.VOID) {
+        if (block.childs[i].out !== "void") {
             logError(block.childs[i].loc, `the expression '${block.childs[i].txt}' should not return unhandled data, currently it returns ${humanReadableType(block.childs[i].out)}`);
             dumpAst(block);
             Deno.exit(1);
@@ -2810,7 +2843,7 @@ function typeCheckBlock(block: Token) {
     block.ins = [];
     block.expectedArity = ins.length;
     block.out = getReturnValueByBlock(block);
-    block.expectedArityOut = block.out === ValueType.VOID ? 0 : 1;
+    block.expectedArityOut = block.out === "void" ? 0 : 1;
 
 }
 
@@ -2837,8 +2870,8 @@ function optimize(token: Token) {
                 token.txt = String(result);
                 token.expectedArity = 0;
                 token.expectedArityOut = 1;
-                token.internalValueType = ValueType.NUMBER;
-                token.out = ValueType.NUMBER;
+                token.internalValueType = "number";
+                token.out = "number";
                 token.ins = [];
                 token.position = InstructionPosition.PREFIX;
                 token.priority = 1000;
@@ -2853,8 +2886,8 @@ function optimize(token: Token) {
                 token.txt = String(result);
                 token.expectedArity = 0;
                 token.expectedArityOut = 1;
-                token.internalValueType = ValueType.NUMBER;
-                token.out = ValueType.NUMBER;
+                token.internalValueType = "number";
+                token.out = "number";
                 token.ins = [];
                 token.position = InstructionPosition.PREFIX;
                 token.priority = 1000;
@@ -2870,8 +2903,8 @@ function optimize(token: Token) {
                 token.txt = String(result);
                 token.expectedArity = 0;
                 token.expectedArityOut = 1;
-                token.internalValueType = ValueType.NUMBER;
-                token.out = ValueType.NUMBER;
+                token.internalValueType = "number";
+                token.out = "number";
                 token.ins = [];
                 token.position = InstructionPosition.PREFIX;
                 token.priority = 1000;
@@ -2886,8 +2919,8 @@ function optimize(token: Token) {
                 token.txt = String(result);
                 token.expectedArity = 0;
                 token.expectedArityOut = 1;
-                token.internalValueType = ValueType.NUMBER;
-                token.out = ValueType.NUMBER;
+                token.internalValueType = "number";
+                token.out = "number";
                 token.ins = [];
                 token.position = InstructionPosition.PREFIX;
                 token.priority = 1000;
@@ -2902,8 +2935,8 @@ function optimize(token: Token) {
                 token.txt = String(result);
                 token.expectedArity = 0;
                 token.expectedArityOut = 1;
-                token.internalValueType = ValueType.BYTE;
-                token.out = ValueType.BYTE;
+                token.internalValueType = "byte";
+                token.out = "byte";
                 token.ins = [];
                 token.position = InstructionPosition.PREFIX;
                 token.priority = 1000;
@@ -3004,13 +3037,13 @@ function setWordDefinition(token: Token) {
             position: child.position,
             priority: child.priority,
             definitionType,
-            internalType: isUserFunction ? ValueType.ADDR : child.out,
+            internalType: isUserFunction ? "addr" : child.out,
             offset: undefined
         };
 
     // } else {
     //     // define
-    //     assertChildNumber(token, [ValueType.SYMBOL, "any"]);
+    //     assertChildNumber(token, ["symbol", "any"]);
 
     //     const macroName = token.childs[0].txt;
     //     const child = token.childs[1];
@@ -3042,6 +3075,100 @@ function setWordDefinition(token: Token) {
     //     };
 
     // }
+}
+
+type StructDef = {
+    token: Token,
+    size: number,
+    elements: Array<{ name: string, size: number, offset: number }>
+};
+
+type Struct = {
+    [name: string]: StructDef
+};
+
+const structs: Struct = {};
+
+function setStructDefinition(token: Token) {
+
+    if (token.type !== TokenType.STRUCT) {
+        logError(token.loc, `'${token.txt}' is not a 'STRUCT'`);
+        Deno.exit(1);
+    }
+
+    if (token.context === undefined) {
+        logError(token.loc, `The token '${token.txt}' does not have a context`);
+        Deno.exit(1);
+    }
+
+    assertChildNumber(token, 2);
+    if (token.childs[0].internalValueType !== "symbol") {
+        logError(token.childs[0].loc, `struct expects the first parameters to be a 'symbol' but '${token.childs[0].txt}' is a ${humanReadableType(token.childs[0].internalValueType)}`);
+        Deno.exit(1);
+    }
+    if (token.childs[1].type !== TokenType.BLOCK) {
+        logError(token.childs[1].loc, `struct expects the second parameters to be a 'BLOCK' but '${token.childs[1].txt}' is a ${humanReadableToken(token.childs[0].type)}`);
+        Deno.exit(1);
+    }
+
+    const name = token.childs[0].txt;
+    const block = token.childs[1];
+
+    if (name in structs) {
+        const previousToken = structs[name].token;
+        logError(token.childs[0].loc, `struct '${name}' was already defined`);
+        logError(previousToken.loc, `here is the previous definition`);
+        Deno.exit(1);
+    }
+
+    const wordDef = getWordDefinition(token.context, name);
+    if (wordDef !== undefined) {
+        logError(token.childs[0].loc, `can't use '${name}' for the struct, it was used as variables`);
+        logError(wordDef.token.loc, `here is the variable definition`);
+        Deno.exit(1);
+    }
+
+    if (block.context === undefined) {
+        logError(block.loc, `The context for the block is undefined`);
+        Deno.exit(1);
+    }
+
+    let size = 0;
+
+    const structDef: StructDef = {
+        token,
+        size: 0,
+        elements: []
+    };
+
+    Object.entries(block.context.varsDefinition).forEach(([name, varDef]) => {
+        structDef.elements.push({
+            name,
+            offset: size,
+            size: sizeForValueType(varDef.internalType),
+        });
+        size += sizeForValueType(varDef.internalType);
+    })
+    structDef.size = size;
+    structs[name] = structDef;
+
+    token.context.varsDefinition[name] = {
+        ins: ["void"],
+        out: "addr",
+        token,
+        position: InstructionPosition.PREFIX,
+        priority: 100,
+        definitionType: "value",
+        internalType: ["usertype", name],
+        offset: undefined
+    };
+    console.log("created struct word " + name);
+
+}
+
+function getStrucDefinition(name: string): undefined | StructDef {
+    if (name in structs) return structs[name];
+    return undefined;
 }
 
 function parseBlock(ast: AST): AST {
@@ -3080,8 +3207,10 @@ function parseBlock(ast: AST): AST {
             const group = groupFunctionToken(ast, j);
             typeCheck(group);
             optimize(group);
-            if (group.type === TokenType.LIT_WORD || group.type === TokenType.DEFINE) {
+            if (group.type === TokenType.LIT_WORD) {
                 setWordDefinition(group);
+            } else if (group.type === TokenType.STRUCT) {
+                setStructDefinition(group);
             }
 
             if (token.position !== InstructionPosition.PREFIX) j = j - 1; // we already taken as child the token before this
@@ -3149,7 +3278,7 @@ function groupByExpectedArityOutZeroOLD(sequence: AST) {
                     Deno.exit(1);
                 }
                 console.log("the output of block is " + humanReadableType(token.out));
-                token.expectedArityOut = token.out === ValueType.VOID ? 0 : 1;
+                token.expectedArityOut = token.out === "void" ? 0 : 1;
                 console.log("the arity out is " + token.expectedArityOut);
             }
         }
@@ -3199,27 +3328,19 @@ function groupByExpectedArityOutZero(sequence: AST) {
                 logError(token.loc, `unknown word '${token.txt}'`);                
                 Deno.exit(1);
             }
-            if (childLeft > 0 && varDef.out === ValueType.VOID) {
+            if (childLeft > 0 && varDef.out === "void") {
                 logError(token.loc, `expected a value but '${token.txt}' returns 'void' `);
                 Deno.exit(1);
             }
-            childLeft = childLeft + varDef.ins.length - (varDef.out === ValueType.VOID ? 0 : 1);
-        } else if (token.type === TokenType.REF_BLOCK) {
+            childLeft = childLeft + varDef.ins.length - (varDef.out === "void" ? 0 : 1);
+        } else if (token.type === TokenType.REF_BLOCK || token.type === TokenType.BLOCK) {
             const childs = token.childs;
             groupByExpectedArityOutZero(childs);
             //token.childs = childs;
             typeCheckBlock(token);
             // since we just type checked the block the arities must be a number
             //childLeft = childLeft + token.expectedArity! - token.expectedArityOut!;
-            childLeft = childLeft - 1;
-        } else if (token.type === TokenType.BLOCK) {
-            const childs = token.childs;
-            groupByExpectedArityOutZero(childs);
-            //token.childs = childs;
-            typeCheckBlock(token);
-            // since we just type checked the block the arities must be a number
-            //childLeft = childLeft + token.expectedArity! - token.expectedArityOut!;
-            childLeft = childLeft - 1;
+            childLeft = childLeft - 1;        
         } else {
             // instruction
             if (token.expectedArity === undefined) {
@@ -3321,7 +3442,7 @@ function groupSequence(vocabulary: Vocabulary, program: AST): Token {
                 position: InstructionPosition.PREFIX,
                 context: currentContext,
                 ins: [],
-                out: 0,
+                out: undefined,
                 priority: 10,
                 functionIndex: undefined,
                 internalValueType: undefined,
@@ -3349,6 +3470,11 @@ function groupSequence(vocabulary: Vocabulary, program: AST): Token {
             } else {
                 const instr = vocabulary[token.type];
                 if (instr) {
+
+                    if (instr.preprocessTokens) {
+                        instr.preprocessTokens(program.slice(j));
+                    }
+
                     ast.push({
                         loc: token.loc,
                         txt: token.txt,
@@ -3377,11 +3503,11 @@ function groupSequence(vocabulary: Vocabulary, program: AST): Token {
         Deno.exit(1);
     }
 
-    const prog = {
+    const prog: Token = {
         loc: { col: 1, row: 1, filename },
         txt: "[prog]",
         type: TokenType.PROG,
-        internalValueType: ValueType.VOID,
+        internalValueType: "void",
         ins: [],
         out: undefined,
         isUserFunction: false,
@@ -3419,9 +3545,8 @@ function getAfterFunctionName(n: number): string {
 }
 
 function compileLiteral(ast: Token): Assembly {
-    let ret: Assembly = [];
-    console.assert(ValueType.VALUETYPESCOUNT === 7, "Exaustive value types count");
-    if (ast.out === ValueType.NUMBER) {
+    let ret: Assembly = [];    
+    if (ast.out === "number") {
         ret.push(`; ${ast.loc.row}:${ast.loc.col} NUMBER ${ast.txt}`);
         const MSB = (parseInt(ast.txt, 10) >> 8) & 255;
         ret.push(`LDA #${MSB}`);
@@ -3431,7 +3556,7 @@ function compileLiteral(ast: Token): Assembly {
         ret.push(`STA STACKACCESS`);
         ret.push(`JSR PUSH16`);
 
-    } else if (ast.out === ValueType.BYTE) {
+    } else if (ast.out === "byte") {
         ret.push(`; ${ast.loc.row}:${ast.loc.col} BYTE ${ast.txt}`);
         const LSB = parseInt(ast.txt, 10) & 255;
         ret.push(`LDA #${LSB}`);
@@ -3439,7 +3564,7 @@ function compileLiteral(ast: Token): Assembly {
         ret.push(`LDA #0`);
         ret.push(`STA STACKACCESS+1`);
         ret.push(`JSR PUSH16`);
-    } else if (ast.out === ValueType.STRING) {
+    } else if (ast.out === "string") {
         ret.push(`; ${ast.loc.row}:${ast.loc.col} STRING "${ast.txt}"`);
         // push lenght 
         // todo: ora la lunghezza massima della stringa è 255 caratteri, aumentarla ?
@@ -3463,17 +3588,17 @@ function compileLiteral(ast: Token): Assembly {
         ret.push(`STA STACKACCESS`);
         ret.push(`JSR PUSH16`);
 
-    } else if (ast.out === ValueType.BOOL) {
+    } else if (ast.out === "bool") {
         ret.push(`; ${ast.loc.row}:${ast.loc.col} BOOL ${ast.txt}`);
         ret.push(`LDA #${ast.txt === "true" ? "1" : "0"}`);
         ret.push(`STA STACKACCESS`);
         ret.push(`LDA #0`);
         ret.push(`STA STACKACCESS+1`);
         ret.push(`JSR PUSH16`);
-    } else if (ast.out === ValueType.ADDR) {
+    } else if (ast.out === "addr") {
         logError(ast.loc, `'Addr' should not be compiled as a value, compiler error`);
         Deno.exit(1);
-    } else if (ast.out === ValueType.VOID) {
+    } else if (ast.out === "void") {
         logError(ast.loc, `'Void' should not be compiled as a value, compiler error`);
         Deno.exit(1);
     } else {
@@ -3623,7 +3748,7 @@ function dumpAst(ast: AST | Token, prefix = "") {
     });
 }
 
-function dumpContext(context: Context) {
+function dumpContext(context: Context | undefined) {
     if (context === undefined) {
         console.log("Context is undefined");
         return;

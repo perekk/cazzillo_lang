@@ -10,17 +10,137 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
-	; 1:9 NUMBER 3
+	; no child generation for 'struct'
+	; Prelude for:
+	; 1: 16 BLOCK [nome String eta Number] type: ()=>void
+	; reserve 6 on the stack for: nome (string offset 0), eta (number offset 4)
+	TSX
+	TXA
+	SEC
+	SBC #6
+	TAX
+	TXS
+	; 2: 9 STRING String type: ()=>string
+	; 2: 3 LIT_WORD nome type: (string)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0102,X
+	LDA STACKACCESS + 1
+	STA $0103,X
+	TXA
+	PHA
+	JSR POP16
+	PLA
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 3: 8 NUMBER Number type: ()=>number
+	; DO NOTHING
+	; 3: 3 LIT_WORD eta type: (number)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 1: 16 BLOCK [nome String eta Number] type: ()=>void
+	; release 6 on the stack
+	TSX
+	TXA
+	CLC
+	ADC #6
+	TAX
+	TXS
+	; 1: 1 STRUCT struct type: (symbol,void)=>void
+	; Prelude for:
+	; 6: 17 BLOCK [nome davide eta 10 + 40] type: ()=>void
+	; reserve 6 on the stack for: nome (string offset 0), eta (number offset 4)
+	TSX
+	TXA
+	SEC
+	SBC #6
+	TAX
+	TXS
+	; 6:24 STRING "davide"
 	LDA #0
 	STA STACKACCESS+1
-	LDA #3
+	LDA #6
+	STA STACKACCESS
+	JSR PUSH16
+	LDA #>str0
+	STA STACKACCESS+1
+	LDA #<str0
 	STA STACKACCESS
 	; JSR PUSH16
-	; 1: 1 PRINT print type: (number)=>void
+	; 6: 18 LIT_WORD nome type: (string)=>void
 	; JSR POP16
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0102,X
+	LDA STACKACCESS + 1
+	STA $0103,X
+	TXA
+	PHA
+	JSR POP16
+	PLA
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 6:41 NUMBER 50
+	LDA #0
+	STA STACKACCESS+1
+	LDA #50
+	STA STACKACCESS
+	; JSR PUSH16
+	; 6: 33 LIT_WORD eta type: (number)=>void
+	; JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 6: 17 BLOCK [nome davide eta 10 + 40] type: ()=>void
+	; release 6 on the stack
+	TSX
+	TXA
+	CLC
+	ADC #6
+	TAX
+	TXS
+	; 6: 9 WORD Persona type: ()=>addr
+	LDA V_Persona
+	STA CALL_FUN_11 + 1
+	LDA V_Persona + 1
+	STA CALL_FUN_11 + 2
+CALL_FUN_11:
+	JSR $1111 ; will be overwritten
+	; 6: 1 LIT_WORD davide type: (addr)=>void
+	JSR POP16
+	LDA STACKACCESS
+	STA V_davide
+	LDA STACKACCESS + 1
+	STA V_davide + 1
 	; 1: 1 PROG [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
@@ -397,4 +517,7 @@ NOCARRY:
 	STA STACKACCESS + 1
 	JSR PUSH16
 	RTS
+str0: BYTE 100,97,118,105,100,101
+V_Persona DS 6
+V_davide DS 2
 HEAPSTART:

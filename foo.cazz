@@ -1,11 +1,11 @@
-struct Persona :[
+struct Persona [
   'nome String
   'eta Number
 ]
 
-'davide Persona
+'davide Persona ['nome "davide" 'eta 10 + 40] 
 ;nome 0
 ;eta 4
 ;Persona 6
 
-davide . eta
+;davide . eta
