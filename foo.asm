@@ -10,146 +10,74 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
-	; Prelude for:
-	; 2: 1 BLOCK [i 0 while [i i + 1 i < 10] [print i]] type: ()=>void
-	; reserve 2 on the stack for: i (number offset 0)
-	TSX
-	TXA
-	SEC
-	SBC #2
-	TAX
-	TXS
-	; 3:6 NUMBER 0
+	; 1:15 NUMBER 0
 	LDA #0
 	STA STACKACCESS+1
 	LDA #0
 	STA STACKACCESS
 	; JSR PUSH16
-	; 3: 3 LIT_WORD i type: (number)=>void
+	; 1: 12 LIT_WORD i type: (number)=>void
 	; JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
 	LDA STACKACCESS
-	STA $0100,X
+	STA V_i
 	LDA STACKACCESS + 1
-	STA $0101,X
-startloop13:
+	STA V_i + 1
+startloop10:
 	; Prelude for:
-	; 4: 9 BLOCK [i i + 1 i < 10] type: ()=>boolean
+	; 1: 23 BLOCK [inc i i < 5 + 1] type: ()=>boolean
 	; no stack memory to reserve
-	; 4: 14 WORD i type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA $0100,X
+	; no child generation for 'inc'
+	; 1: 25 INC inc type: (number)=>void
+	INC V_i
+	BNE not_carry_2
+	INC V_i + 1
+not_carry_2:
+	; 1: 31 WORD i type: ()=>number
+	LDA V_i
 	STA STACKACCESS
-	LDA $0101,X
+	LDA V_i + 1
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 4:18 NUMBER 1
+	; 2:9 NUMBER 6
 	LDA #0
 	STA STACKACCESS+1
-	LDA #1
+	LDA #6
 	STA STACKACCESS
 	JSR PUSH16
-	; 4: 16 PLUS + type: (number,number)=>number
-	JSR ADD16
-	; 4: 11 SET_WORD i type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 4: 20 WORD i type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 4:24 NUMBER 10
-	LDA #0
-	STA STACKACCESS+1
-	LDA #10
-	STA STACKACCESS
-	JSR PUSH16
-	; 4: 22 LT < type: (number,number)=>boolean
+	; 1: 33 LT < type: (number,number)=>boolean
 	LDX SP16
 	LDA STACKBASE + 4,X
 	CMP STACKBASE + 2,X
-	BCC less8
-	BNE greaterorequal8
+	BCC less5
+	BNE greaterorequal5
 	LDA STACKBASE + 3,X
 	CMP STACKBASE + 1,X
-	BCC less8
-greaterorequal8:
+	BCC less5
+greaterorequal5:
 	LDA #00
-	JMP store8
-less8:
+	JMP store5
+less5:
 	LDA #01
-store8:
+store5:
 	INX
 	INX
 	STA STACKBASE + 1,X
 	LDA #00
 	STA STACKBASE + 2,X
 	STX SP16
-	; 4: 9 BLOCK [i i + 1 i < 10] type: ()=>boolean
+	; 1: 23 BLOCK [inc i i < 5 + 1] type: ()=>boolean
 	; no stack memory to release
 	JSR POP16
 	LDA STACKACCESS
-	BNE trueblock13
+	BNE trueblock10
 	LDA STACKACCESS + 1
-	BNE trueblock13
-	JMP endblock13 ; if all zero
-trueblock13:
+	BNE trueblock10
+	JMP endblock10 ; if all zero
+trueblock10:
 	; Prelude for:
-	; 4: 28 BLOCK [print i] type: ()=>void
+	; 3: 11 BLOCK [print CIAO] type: ()=>void
 	; no stack memory to reserve
-	; 5: 11 WORD i type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	; JSR PUSH16
-	; 5: 5 PRINT print type: (number)=>void
-	; JSR POP16
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	; 4: 28 BLOCK [print i] type: ()=>void
-	; no stack memory to release
-	; 4: 3 WHILE while type: (boolean,void)=>void
-	JMP startloop13
-endblock13:
-	; 2: 1 BLOCK [i 0 while [i i + 1 i < 10] [print i]] type: ()=>void
-	; release 2 on the stack
-	TSX
-	TXA
-	CLC
-	ADC #2
-	TAX
-	TXS
-	; 9:7 STRING "DONE"
+	; 3:18 STRING "CIAO"
 	LDA #0
 	STA STACKACCESS+1
 	LDA #4
@@ -160,10 +88,15 @@ endblock13:
 	LDA #<str0
 	STA STACKACCESS
 	JSR PUSH16
-	; 9: 1 PRINT print type: (string)=>void
+	; 3: 12 PRINT print type: (string)=>void
 	JSR PRINT_STRING
 	LDA #13
 	JSR $FFD2
+	; 3: 11 BLOCK [print CIAO] type: ()=>void
+	; no stack memory to release
+	; 1: 17 WHILE while type: (boolean,void)=>void
+	JMP startloop10
+endblock10:
 	; 1: 1 PROG [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
@@ -541,5 +474,6 @@ NOCARRY:
 	STA STACKACCESS + 1
 	JSR PUSH16
 	RTS
-str0: BYTE 68,79,78,69
+str0: BYTE 67,73,65,79
+V_i DS 2
 HEAPSTART:

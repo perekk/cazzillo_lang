@@ -1,3 +1,5 @@
+	; Prelude for:
+	; 1: 1 PROG [prog] type: ()=>void
 	processor 6502 ; TEH BEAST
 	ORG $0801 ; BASIC STARTS HERE
 	HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00
@@ -8,17 +10,19 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
-	; 1:4 BYTE VAL 69
-	LDA #69
-	STA STACKACCESS
+	; 1:4 NUMBER 69
 	LDA #0
 	STA STACKACCESS+1
-	JSR PUSH16
-	; 1: 1 LIT_WORD a type: void
-	JSR POP16
+	LDA #69
+	STA STACKACCESS
+	; JSR PUSH16
+	; 1: 1 LIT_WORD a type: (number)=>void
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_a
-	; 2:4 STRING VAL CAZZ
+	LDA STACKACCESS + 1
+	STA V_a + 1
+	; 2:4 STRING "CAZZ"
 	LDA #0
 	STA STACKACCESS+1
 	LDA #4
@@ -28,9 +32,9 @@
 	STA STACKACCESS+1
 	LDA #<str0
 	STA STACKACCESS
-	JSR PUSH16
-	; 2: 1 LIT_WORD b type: void
-	JSR POP16
+	; JSR PUSH16
+	; 2: 1 LIT_WORD b type: (string)=>void
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_b + 2
 	LDA STACKACCESS + 1
@@ -40,35 +44,38 @@
 	STA V_b
 	LDA STACKACCESS + 1
 	STA V_b + 1
-	; 3:4 BOOL VAL true
+	; 3:4 BOOL true
 	LDA #1
 	STA STACKACCESS
 	LDA #0
 	STA STACKACCESS+1
-	JSR PUSH16
-	; 3: 1 LIT_WORD c type: void
-	JSR POP16
+	; JSR PUSH16
+	; 3: 1 LIT_WORD c type: (boolean)=>void
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_c
-	; 4:4 NUMBER VAL 420
+	; 4:4 NUMBER 420
 	LDA #1
 	STA STACKACCESS+1
 	LDA #164
 	STA STACKACCESS
-	JSR PUSH16
-	; 4: 1 LIT_WORD d type: void
-	JSR POP16
+	; JSR PUSH16
+	; 4: 1 LIT_WORD d type: (number)=>void
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_d
 	LDA STACKACCESS + 1
 	STA V_d + 1
+	; Prelude for:
+	; 5: 1 BLOCK [a ILLO b 420 c 69 d false prin A= print a prin B= print b prin C= print c prin D= print d] type: ()=>void
+	; reserve 9 on the stack for: a (string offset 0), b (number offset 4), c (number offset 6), d (boolean offset 8)
 	TSX
 	TXA
 	SEC
-	SBC #8
+	SBC #9
 	TAX
 	TXS
-	; 6:8 STRING VAL ILLO
+	; 6:8 STRING "ILLO"
 	LDA #0
 	STA STACKACCESS+1
 	LDA #4
@@ -78,9 +85,9 @@
 	STA STACKACCESS+1
 	LDA #<str1
 	STA STACKACCESS
-	JSR PUSH16
-	; 6: 5 LIT_WORD a type: void
-	JSR POP16
+	; JSR PUSH16
+	; 6: 5 LIT_WORD a type: (string)=>void
+	; JSR POP16
 	TSX
 	TXA
 	CLC
@@ -99,14 +106,14 @@
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-	; 7:8 NUMBER VAL 420
+	; 7:8 NUMBER 420
 	LDA #1
 	STA STACKACCESS+1
 	LDA #164
 	STA STACKACCESS
-	JSR PUSH16
-	; 7: 5 LIT_WORD b type: void
-	JSR POP16
+	; JSR PUSH16
+	; 7: 5 LIT_WORD b type: (number)=>void
+	; JSR POP16
 	TSX
 	TXA
 	CLC
@@ -116,14 +123,14 @@
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-	; 8:8 BYTE VAL 69
-	LDA #69
-	STA STACKACCESS
+	; 8:8 NUMBER 69
 	LDA #0
 	STA STACKACCESS+1
-	JSR PUSH16
-	; 8: 5 LIT_WORD c type: void
-	JSR POP16
+	LDA #69
+	STA STACKACCESS
+	; JSR PUSH16
+	; 8: 5 LIT_WORD c type: (number)=>void
+	; JSR POP16
 	TSX
 	TXA
 	CLC
@@ -131,22 +138,24 @@
 	TAX
 	LDA STACKACCESS
 	STA $0100,X
-	; 9:8 BOOL VAL false
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 9:8 BOOL false
 	LDA #0
 	STA STACKACCESS
 	LDA #0
 	STA STACKACCESS+1
-	JSR PUSH16
-	; 9: 5 LIT_WORD d type: void
-	JSR POP16
+	; JSR PUSH16
+	; 9: 5 LIT_WORD d type: (boolean)=>void
+	; JSR POP16
 	TSX
 	TXA
 	CLC
-	ADC #8
+	ADC #9
 	TAX
 	LDA STACKACCESS
 	STA $0100,X
-	; 10:10 STRING VAL A=
+	; 10:10 STRING "A="
 	LDA #0
 	STA STACKACCESS+1
 	LDA #2
@@ -157,9 +166,9 @@
 	LDA #<str2
 	STA STACKACCESS
 	JSR PUSH16
-	; 10: 5 PRIN prin type: void
+	; 10: 5 PRIN prin type: (string)=>void
 	JSR PRINT_STRING
-	; 10: 18 WORD a type: string
+	; 10: 21 WORD a type: ()=>string
 	TSX
 	TXA
 	CLC
@@ -179,11 +188,11 @@
 	LDA $0103,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 10: 12 PRINT print type: void
+	; 10: 15 PRINT print type: (string)=>void
 	JSR PRINT_STRING
 	LDA #13
 	JSR $FFD2
-	; 11:10 STRING VAL B=
+	; 11:10 STRING "B="
 	LDA #0
 	STA STACKACCESS+1
 	LDA #2
@@ -194,9 +203,9 @@
 	LDA #<str3
 	STA STACKACCESS
 	JSR PUSH16
-	; 11: 5 PRIN prin type: void
+	; 11: 5 PRIN prin type: (string)=>void
 	JSR PRINT_STRING
-	; 11: 18 WORD b type: number
+	; 11: 21 WORD b type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -206,13 +215,13 @@
 	STA STACKACCESS
 	LDA $0101,X
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 11: 12 PRINT print type: void
-	JSR POP16
+	; JSR PUSH16
+	; 11: 15 PRINT print type: (number)=>void
+	; JSR POP16
 	JSR PRINT_INT
 	LDA #13
 	JSR $FFD2
-	; 12:10 STRING VAL C=
+	; 12:10 STRING "C="
 	LDA #0
 	STA STACKACCESS+1
 	LDA #2
@@ -223,9 +232,9 @@
 	LDA #<str4
 	STA STACKACCESS
 	JSR PUSH16
-	; 12: 5 PRIN prin type: void
+	; 12: 5 PRIN prin type: (string)=>void
 	JSR PRINT_STRING
-	; 12: 18 WORD c type: byte
+	; 12: 21 WORD c type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -233,17 +242,15 @@
 	TAX
 	LDA $0100,X
 	STA STACKACCESS
-	LDA #0
+	LDA $0101,X
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 12: 12 PRINT print type: void
-	JSR POP16
-	LDA #0
-	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 12: 15 PRINT print type: (number)=>void
+	; JSR POP16
 	JSR PRINT_INT
 	LDA #13
 	JSR $FFD2
-	; 13:10 STRING VAL D=
+	; 13:10 STRING "D="
 	LDA #0
 	STA STACKACCESS+1
 	LDA #2
@@ -254,21 +261,21 @@
 	LDA #<str5
 	STA STACKACCESS
 	JSR PUSH16
-	; 13: 5 PRIN prin type: void
+	; 13: 5 PRIN prin type: (string)=>void
 	JSR PRINT_STRING
-	; 13: 18 WORD d type: boolean
+	; 13: 21 WORD d type: ()=>boolean
 	TSX
 	TXA
 	CLC
-	ADC #8
+	ADC #9
 	TAX
 	LDA $0100,X
 	STA STACKACCESS
 	LDA #0
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 13: 12 PRINT print type: void
-	JSR POP16
+	; JSR PUSH16
+	; 13: 15 PRINT print type: (boolean)=>void
+	; JSR POP16
 	LDA STACKACCESS
 	BNE print_true31
 	LDA STACKACCESS + 1
@@ -281,14 +288,15 @@ print_bool31:
 	JSR $FFD2
 	LDA #13
 	JSR $FFD2
-	; 5: 1 BLOCK [...] type: void
+	; 5: 1 BLOCK [a ILLO b 420 c 69 d false prin A= print a prin B= print b prin C= print c prin D= print d] type: ()=>void
+	; release 9 on the stack
 	TSX
 	TXA
 	CLC
-	ADC #8
+	ADC #9
 	TAX
 	TXS
-	; 15:6 STRING VAL A=
+	; 15:6 STRING "A="
 	LDA #0
 	STA STACKACCESS+1
 	LDA #2
@@ -299,22 +307,20 @@ print_bool31:
 	LDA #<str6
 	STA STACKACCESS
 	JSR PUSH16
-	; 15: 1 PRIN prin type: void
+	; 15: 1 PRIN prin type: (string)=>void
 	JSR PRINT_STRING
-	; 15: 14 WORD a type: byte
+	; 15: 17 WORD a type: ()=>number
 	LDA V_a
 	STA STACKACCESS
-	LDA #0
+	LDA V_a + 1
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 15: 8 PRINT print type: void
-	JSR POP16
-	LDA #0
-	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 15: 11 PRINT print type: (number)=>void
+	; JSR POP16
 	JSR PRINT_INT
 	LDA #13
 	JSR $FFD2
-	; 16:6 STRING VAL B=
+	; 16:6 STRING "B="
 	LDA #0
 	STA STACKACCESS+1
 	LDA #2
@@ -325,9 +331,9 @@ print_bool31:
 	LDA #<str7
 	STA STACKACCESS
 	JSR PUSH16
-	; 16: 1 PRIN prin type: void
+	; 16: 1 PRIN prin type: (string)=>void
 	JSR PRINT_STRING
-	; 16: 14 WORD b type: string
+	; 16: 17 WORD b type: ()=>string
 	LDA V_b
 	STA STACKACCESS
 	LDA V_b + 1
@@ -338,11 +344,11 @@ print_bool31:
 	LDA V_b + 3
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 16: 8 PRINT print type: void
+	; 16: 11 PRINT print type: (string)=>void
 	JSR PRINT_STRING
 	LDA #13
 	JSR $FFD2
-	; 17:6 STRING VAL C=
+	; 17:6 STRING "C="
 	LDA #0
 	STA STACKACCESS+1
 	LDA #2
@@ -353,16 +359,16 @@ print_bool31:
 	LDA #<str8
 	STA STACKACCESS
 	JSR PUSH16
-	; 17: 1 PRIN prin type: void
+	; 17: 1 PRIN prin type: (string)=>void
 	JSR PRINT_STRING
-	; 17: 14 WORD c type: boolean
+	; 17: 17 WORD c type: ()=>boolean
 	LDA V_c
 	STA STACKACCESS
 	LDA #0
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 17: 8 PRINT print type: void
-	JSR POP16
+	; JSR PUSH16
+	; 17: 11 PRINT print type: (boolean)=>void
+	; JSR POP16
 	LDA STACKACCESS
 	BNE print_true44
 	LDA STACKACCESS + 1
@@ -375,7 +381,7 @@ print_bool44:
 	JSR $FFD2
 	LDA #13
 	JSR $FFD2
-	; 18:6 STRING VAL D=
+	; 18:6 STRING "D="
 	LDA #0
 	STA STACKACCESS+1
 	LDA #2
@@ -386,26 +392,27 @@ print_bool44:
 	LDA #<str9
 	STA STACKACCESS
 	JSR PUSH16
-	; 18: 1 PRIN prin type: void
+	; 18: 1 PRIN prin type: (string)=>void
 	JSR PRINT_STRING
-	; 18: 14 WORD d type: number
+	; 18: 17 WORD d type: ()=>number
 	LDA V_d
 	STA STACKACCESS
 	LDA V_d + 1
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 18: 8 PRINT print type: void
-	JSR POP16
+	; JSR PUSH16
+	; 18: 11 PRINT print type: (number)=>void
+	; JSR POP16
 	JSR PRINT_INT
 	LDA #13
 	JSR $FFD2
-	; 1: 1 BLOCK [prog] type: void
+	; 1: 1 PROG [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
 HEAPSAVE DS 3 ; USED IN COPYSTRING
 AUXMUL DS 2
 HEAPTOP DS 2
 TEST_UPPER_BIT: BYTE $80
+AUX = $7D
 SP16 = $7F
 STACKACCESS = $0080
 STACKBASE = $0000
@@ -417,11 +424,11 @@ FROMADD:
 TOADD:
 	STA $1111
 	INC FROMADD + 1
-	BCC COPY_NO_CARRY1
+	BNE COPY_NO_CARRY1
 	INC FROMADD + 2
 COPY_NO_CARRY1:
 	INC TOADD + 1
-	BCC COPY_NO_CARRY2
+	BNE COPY_NO_CARRY2
 	INC TOADD + 2
 COPY_NO_CARRY2:
 	DEY
@@ -549,11 +556,12 @@ CNVBIT: ASL STACKACCESS + 0
 	CLD
 	RTS
 PRINT_INT:
+	LDY #0
 	JSR BINBCD16
 	LDA BCD+2
-	TAY
-	BEQ DIGIT2
 	AND #$0F
+	BEQ DIGIT2
+	TAY
 	CLC
 	ADC #$30
 	JSR $FFD2
@@ -563,22 +571,22 @@ DIGIT2:
 	LSR
 	LSR
 	LSR
-	BNE PRINT_DIGIT_2
+	BNE DO_DIGIT_2
 	CPY #00
 	BEQ DIGIT_3
-PRINT_DIGIT_2:
-	TAY
+DO_DIGIT_2:
+	LDY #1
 	CLC
 	ADC #$30
 	JSR $FFD2
 DIGIT_3:
 	LDA BCD+1
 	AND #$0F
-	BNE PRINT_DIGIT_3
+	BNE DO_DIGIT_3
 	CPY #00
 	BEQ DIGIT_4
-PRINT_DIGIT_3:
-	TAY
+DO_DIGIT_3:
+	LDY #1
 	CLC
 	ADC #$30
 	JSR $FFD2
@@ -588,11 +596,10 @@ DIGIT_4:
 	LSR
 	LSR
 	LSR
-	BNE PRINT_DIGIT_4
+	BNE DO_DIGIT_4
 	CPY #00
 	BEQ DIGIT_5
-PRINT_DIGIT_4:
-	TAY
+DO_DIGIT_4:
 	CLC
 	ADC #$30
 	JSR $FFD2
@@ -785,7 +792,7 @@ str6: BYTE 65,61
 str7: BYTE 66,61
 str8: BYTE 67,61
 str9: BYTE 68,61
-V_a DS 1
+V_a DS 2
 V_b DS 4
 V_c DS 1
 V_d DS 2

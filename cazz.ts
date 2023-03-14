@@ -2966,6 +2966,12 @@ function preprocess(program: AST): AST {
 
             const value = program[i + 2];
             if (value.type !== TokenType.OPEN_BRACKETS && value.type !== TokenType.OPEN_REF_BRACKETS) {
+                if (value.txt === '(') {
+                    value.type = TokenType.OPEN_BRACKETS;
+                } else if (value.txt === ')') {
+                    value.type = TokenType.CLOSE_BRACKETS;
+                }
+
                 defines[name.txt] = [value];
                 program.splice(i, 3);
                 console.log("DEFINE", name.txt, "=", defines[name.txt].map(t => t.txt).join(" "));
@@ -2980,7 +2986,11 @@ function preprocess(program: AST): AST {
                     } else if (program[index].type === TokenType.OPEN_BRACKETS || program[index].type === TokenType.OPEN_REF_BRACKETS) {
                         parens++;
                     } else {
-                        if (program[index].type === TokenType.WORD && program[index].txt in defines) {
+                        if (program[index].txt === '(') {
+                            program[index].type = TokenType.OPEN_BRACKETS;
+                        } else if (program[index].txt === ')') {
+                            program[index].type = TokenType.CLOSE_BRACKETS;
+                        } else if (program[index].type === TokenType.WORD && program[index].txt in defines) {
                             program.splice(index, 1, ...defines[program[index].txt]);
                         }
                     }
@@ -3382,10 +3392,11 @@ function setWordDefinition(token: Token) {
     if (varDef !== undefined) {
         if (varDef.token.context === token.context) {
             logError(token.loc, `Can't redefine the word '${token.txt}'`);
-        } else {
-            logError(token.loc, `Can't overshadow the word '${token.txt}'`);
+            Deno.exit(1);        
         }
-        Deno.exit(1);
+        // else {
+        //     logError(token.loc, `Can't overshadow the word '${token.txt}'`);
+        // }        
     }
 
     const isUserFunction = token.childs[0].type === TokenType.REF_BLOCK;    
