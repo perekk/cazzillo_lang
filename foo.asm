@@ -10,689 +10,56 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
-	; no child generation for 'struct'
-	; no child generation for 'struct'
-	; 1: 1 STRUCT struct type: (symbol,record)=>void
-	; no child generation for 'new'
 	; Prelude for:
-	; 7: 16 RECORD [label POINT 1 x 1 y 2] type: ()=>void
-	; reserve 8 on the stack for: label (string offset 0), x (number offset 4), y (number offset 6)
-	TSX
-	TXA
-	SEC
-	SBC #8
-	TAX
-	TXS
-	; 8:10 STRING "POINT 1"
-	LDA #0
-	STA STACKACCESS+1
-	LDA #7
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str0
-	STA STACKACCESS+1
-	LDA #<str0
-	STA STACKACCESS
-	; JSR PUSH16
-	; 8: 3 LIT_WORD label type: (string)=>void
-	; JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA STACKACCESS
-	STA $0102,X
-	LDA STACKACCESS + 1
-	STA $0103,X
-	TXA
-	PHA
-	JSR POP16
-	PLA
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 9:6 NUMBER 1
-	LDA #0
-	STA STACKACCESS+1
-	LDA #1
-	STA STACKACCESS
-	; JSR PUSH16
-	; 9: 3 LIT_WORD x type: (number)=>void
-	; JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #5
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 10:6 NUMBER 2
-	LDA #0
-	STA STACKACCESS+1
-	LDA #2
-	STA STACKACCESS
-	; JSR PUSH16
-	; 10: 3 LIT_WORD y type: (number)=>void
-	; JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #7
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 7: 16 RECORD [label POINT 1 x 1 y 2] type: ()=>void
-	; push the heap
-SAVE_HEAP_7:
-	LDA HEAPTOP
-	STA STACKACCESS
-	STA TOADD+1
-	LDA HEAPTOP+1
-	STA STACKACCESS+1
-	STA TOADD+2
-	JSR PUSH16
-	; copy mem
-	TSX
-	INX
-	STX FROMADD+1
-	LDA #01
-	STA FROMADD+2
-	LDY #8
-	JSR COPYMEM
-	CLC
-	LDA HEAPTOP
-	ADC #<8
-	STA HEAPTOP
-	LDA HEAPTOP+1
-	ADC #0
-	STA HEAPTOP+1
-	; release 8 on the stack
-	TSX
-	TXA
-	CLC
-	ADC #8
-	TAX
-	TXS
-	; 7: 6 NEW new type: (symbol,record)=>Point
-	; do heap malloc for size of structure and return back the address
-	; 7: 1 LIT_WORD pt1 type: (Point)=>void
-	JSR POP16
-	LDA STACKACCESS
-	STA V_pt1
-	LDA STACKACCESS + 1
-	STA V_pt1 + 1
-	; no child generation for 'struct'
-	; no child generation for 'struct'
-	; 13: 1 STRUCT struct type: (symbol,record)=>void
-	; 18: 7 WORD pt1 type: ()=>Point
-	LDA V_pt1
-	STA STACKACCESS
-	LDA V_pt1 + 1
-	STA STACKACCESS + 1
-	; JSR PUSH16
-	; 18: 1 PRINT print type: (Point)=>void
-	; JSR POP16
-	JSR PUSH16
-PRINT_COMPONENT_STRING_12:
-	LDA STACKACCESS
-	STA AUX
-	LDA STACKACCESS+1
-	STA AUX+1
-	LDY #0
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
-	JSR PUSH16
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
-	JSR PUSH16
-	JSR PRINT_STRING
-	LDA #13
-	JSR $FFD2
-	JSR POP16
-	CLC
-	LDA STACKACCESS
-	ADC #4
-	STA STACKACCESS
-	LDA STACKACCESS+1
-	ADC #0
-	STA STACKACCESS+1
-	JSR PUSH16
-	LDA STACKACCESS
-	STA AUX
-	LDA STACKACCESS+1
-	STA AUX+1
-	LDY #0
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	JSR POP16
-	CLC
-	LDA STACKACCESS
-	ADC #2
-	STA STACKACCESS
-	LDA STACKACCESS+1
-	ADC #0
-	STA STACKACCESS+1
-	JSR PUSH16
-	LDA STACKACCESS
-	STA AUX
-	LDA STACKACCESS+1
-	STA AUX+1
-	LDY #0
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	JSR POP16
-	; no child generation for 'new'
-	; Prelude for:
-	; 20: 18 RECORD [x 69 y 240] type: ()=>void
-	; reserve 4 on the stack for: x (number offset 0), y (number offset 2)
-	TSX
-	TXA
-	SEC
-	SBC #4
-	TAX
-	TXS
-	; 21:6 NUMBER 69
-	LDA #0
-	STA STACKACCESS+1
-	LDA #69
-	STA STACKACCESS
-	; JSR PUSH16
-	; 21: 3 LIT_WORD x type: (number)=>void
-	; JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 22:6 NUMBER 240
-	LDA #0
-	STA STACKACCESS+1
-	LDA #240
-	STA STACKACCESS
-	; JSR PUSH16
-	; 22: 3 LIT_WORD y type: (number)=>void
-	; JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #3
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 20: 18 RECORD [x 69 y 240] type: ()=>void
-	; push the heap
-SAVE_HEAP_17:
-	LDA HEAPTOP
-	STA STACKACCESS
-	STA TOADD+1
-	LDA HEAPTOP+1
-	STA STACKACCESS+1
-	STA TOADD+2
-	JSR PUSH16
-	; copy mem
-	TSX
-	INX
-	STX FROMADD+1
-	LDA #01
-	STA FROMADD+2
-	LDY #4
-	JSR COPYMEM
-	CLC
-	LDA HEAPTOP
-	ADC #<4
-	STA HEAPTOP
-	LDA HEAPTOP+1
-	ADC #0
-	STA HEAPTOP+1
-	; release 4 on the stack
-	TSX
-	TXA
-	CLC
-	ADC #4
-	TAX
-	TXS
-	; 20: 4 NEW new type: (symbol,record)=>Not_point
-	; do heap malloc for size of structure and return back the address
-	; 20: 1 LIT_WORD a type: (Not_point)=>void
-	JSR POP16
-	LDA STACKACCESS
-	STA V_a
-	LDA STACKACCESS + 1
-	STA V_a + 1
-	; 25:7 STRING "NOT POINT"
-	LDA #0
-	STA STACKACCESS+1
-	LDA #9
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str1
-	STA STACKACCESS+1
-	LDA #<str1
-	STA STACKACCESS
-	JSR PUSH16
-	; 25: 1 PRINT print type: (string)=>void
-	JSR PRINT_STRING
-	LDA #13
-	JSR $FFD2
-	; 26: 7 WORD a type: ()=>Not_point
-	LDA V_a
-	STA STACKACCESS
-	LDA V_a + 1
-	STA STACKACCESS + 1
-	; JSR PUSH16
-	; 26: 1 PRINT print type: (Not_point)=>void
-	; JSR POP16
-	JSR PUSH16
-	LDA STACKACCESS
-	STA AUX
-	LDA STACKACCESS+1
-	STA AUX+1
-	LDY #0
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	JSR POP16
-	CLC
-	LDA STACKACCESS
-	ADC #2
-	STA STACKACCESS
-	LDA STACKACCESS+1
-	ADC #0
-	STA STACKACCESS+1
-	JSR PUSH16
-	LDA STACKACCESS
-	STA AUX
-	LDA STACKACCESS+1
-	STA AUX+1
-	LDY #0
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	JSR POP16
-	; 28:10 NUMBER 2
-	LDA #0
-	STA STACKACCESS+1
-	LDA #2
-	STA STACKACCESS
-	; JSR PUSH16
-	; 28: 1 LIT_WORD scale_x type: (number)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_scale_x
-	LDA STACKACCESS + 1
-	STA V_scale_x + 1
-	; Prelude for:
-	; 29: 12 REF_BLOCK :[xx Number yy Number scale_y 3 new Point [label POINT 2 x xx * scale_x y yy * scale_y]] type: ()=>Point
-	JMP AFTER_0
-CALL_0:
-	; reserve 6 on the stack for: xx (number offset 0), yy (number offset 2), scale_y (number offset 4)
-	TSX
-	TXA
-	SEC
-	SBC #6
-	TAX
-	TXS
-	; 29: 29 NUMBER Number type: ()=>number
-	; DO NOTHING
-	; 29: 25 LIT_WORD yy type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #3
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 29: 18 NUMBER Number type: ()=>number
-	; DO NOTHING
-	; 29: 14 LIT_WORD xx type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 30:14 NUMBER 3
-	LDA #0
-	STA STACKACCESS+1
-	LDA #3
-	STA STACKACCESS
-	; JSR PUSH16
-	; 30: 5 LIT_WORD scale_y type: (number)=>void
-	; JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #5
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; no child generation for 'new'
-	; Prelude for:
-	; 31: 15 RECORD [label POINT 2 x xx * scale_x y yy * scale_y] type: ()=>void
-	; reserve 8 on the stack for: label (string offset 0), x (number offset 4), y (number offset 6)
-	TSX
-	TXA
-	SEC
-	SBC #8
-	TAX
-	TXS
-	; 32:14 STRING "POINT 2"
-	LDA #0
-	STA STACKACCESS+1
-	LDA #7
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str2
-	STA STACKACCESS+1
-	LDA #<str2
-	STA STACKACCESS
-	; JSR PUSH16
-	; 32: 7 LIT_WORD label type: (string)=>void
-	; JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA STACKACCESS
-	STA $0102,X
-	LDA STACKACCESS + 1
-	STA $0103,X
-	TXA
-	PHA
-	JSR POP16
-	PLA
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 33: 10 WORD xx type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #9
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 33: 15 WORD scale_x type: ()=>number
-	LDA V_scale_x
-	STA STACKACCESS
-	LDA V_scale_x + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 33: 13 MULT * type: (number,number)=>number
-	JSR MUL16
-	; 33: 7 LIT_WORD x type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #5
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 34: 10 WORD yy type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #11
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 34: 15 WORD scale_y type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #13
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 34: 13 MULT * type: (number,number)=>number
-	JSR MUL16
-	; 34: 7 LIT_WORD y type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #7
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 31: 15 RECORD [label POINT 2 x xx * scale_x y yy * scale_y] type: ()=>void
-	; push the heap
-SAVE_HEAP_42:
-	LDA HEAPTOP
-	STA STACKACCESS
-	STA TOADD+1
-	LDA HEAPTOP+1
-	STA STACKACCESS+1
-	STA TOADD+2
-	JSR PUSH16
-	; copy mem
-	TSX
-	INX
-	STX FROMADD+1
-	LDA #01
-	STA FROMADD+2
-	LDY #8
-	JSR COPYMEM
-	CLC
-	LDA HEAPTOP
-	ADC #<8
-	STA HEAPTOP
-	LDA HEAPTOP+1
-	ADC #0
-	STA HEAPTOP+1
-	; release 8 on the stack
-	TSX
-	TXA
-	CLC
-	ADC #8
-	TAX
-	TXS
-	; 31: 5 NEW new type: (symbol,record)=>Point
-	; do heap malloc for size of structure and return back the address
-	; 29: 12 REF_BLOCK :[xx Number yy Number scale_y 3 new Point [label POINT 2 x xx * scale_x y yy * scale_y]] type: ()=>Point
-	; release 6 on the stack
-	TSX
-	TXA
-	CLC
-	ADC #6
-	TAX
-	TXS
-	RTS
-AFTER_0:
-	LDA #<CALL_0
-	STA STACKACCESS
-	LDA #>CALL_0
-	STA STACKACCESS + 1
-	; JSR PUSH16
-	; 29: 1 LIT_WORD get_point type: (addr)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_get_point
-	LDA STACKACCESS + 1
-	STA V_get_point + 1
-	; 39:16 NUMBER 1
-	LDA #0
-	STA STACKACCESS+1
-	LDA #1
-	STA STACKACCESS
-	JSR PUSH16
-	; 39:18 NUMBER 2
-	LDA #0
-	STA STACKACCESS+1
-	LDA #2
-	STA STACKACCESS
-	JSR PUSH16
-	; 39: 6 WORD get_point type: ()=>Point
-	LDA V_get_point
-	STA CALL_FUN_48 + 1
-	LDA V_get_point + 1
-	STA CALL_FUN_48 + 2
-CALL_FUN_48:
-	JSR $1111 ; will be overwritten
-	; 39: 1 LIT_WORD pt2 type: (Point)=>void
-	JSR POP16
-	LDA STACKACCESS
-	STA V_pt2
-	LDA STACKACCESS + 1
-	STA V_pt2 + 1
-	; 40: 7 WORD pt2 type: ()=>Point
-	LDA V_pt2
-	STA STACKACCESS
-	LDA V_pt2 + 1
-	STA STACKACCESS + 1
-	; JSR PUSH16
-	; 40: 1 PRINT print type: (Point)=>void
-	; JSR POP16
-	JSR PUSH16
-PRINT_COMPONENT_STRING_51:
-	LDA STACKACCESS
-	STA AUX
-	LDA STACKACCESS+1
-	STA AUX+1
-	LDY #0
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
-	JSR PUSH16
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
-	JSR PUSH16
-	JSR PRINT_STRING
-	LDA #13
-	JSR $FFD2
-	JSR POP16
-	CLC
-	LDA STACKACCESS
-	ADC #4
-	STA STACKACCESS
-	LDA STACKACCESS+1
-	ADC #0
-	STA STACKACCESS+1
-	JSR PUSH16
-	LDA STACKACCESS
-	STA AUX
-	LDA STACKACCESS+1
-	STA AUX+1
-	LDY #0
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	JSR POP16
-	CLC
-	LDA STACKACCESS
-	ADC #2
-	STA STACKACCESS
-	LDA STACKACCESS+1
-	ADC #0
-	STA STACKACCESS+1
-	JSR PUSH16
-	LDA STACKACCESS
-	STA AUX
-	LDA STACKACCESS+1
-	STA AUX+1
-	LDY #0
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	JSR POP16
-	; Prelude for:
-	; 42: 14 REF_BLOCK :[p Point print POINT IS: print p] type: ()=>void
-	JMP AFTER_1
-CALL_1:
-	; reserve 2 on the stack for: p (Point offset 0)
+	; 2: 1 BLOCK [i 0 while [i i + 1 i < 10] [print i]] type: ()=>void
+	; reserve 2 on the stack for: i (number offset 0)
 	TSX
 	TXA
 	SEC
 	SBC #2
 	TAX
 	TXS
-	; 42: 19 WORD Point type: ()=>Point
-	; no asm for constructor
-	; 42: 16 LIT_WORD p type: (Point)=>void
+	; 3:6 NUMBER 0
+	LDA #0
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	; JSR PUSH16
+	; 3: 3 LIT_WORD i type: (number)=>void
+	; JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+startloop13:
+	; Prelude for:
+	; 4: 9 BLOCK [i i + 1 i < 10] type: ()=>boolean
+	; no stack memory to reserve
+	; 4: 14 WORD i type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 4:18 NUMBER 1
+	LDA #0
+	STA STACKACCESS+1
+	LDA #1
+	STA STACKACCESS
+	JSR PUSH16
+	; 4: 16 PLUS + type: (number,number)=>number
+	JSR ADD16
+	; 4: 11 SET_WORD i type: (number)=>void
 	JSR POP16
 	TSX
 	TXA
@@ -703,22 +70,57 @@ CALL_1:
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-	; 43:9 STRING "POINT IS:"
+	; 4: 20 WORD i type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 4:24 NUMBER 10
 	LDA #0
 	STA STACKACCESS+1
-	LDA #9
+	LDA #10
 	STA STACKACCESS
 	JSR PUSH16
-	LDA #>str3
-	STA STACKACCESS+1
-	LDA #<str3
-	STA STACKACCESS
-	JSR PUSH16
-	; 43: 3 PRINT print type: (string)=>void
-	JSR PRINT_STRING
-	LDA #13
-	JSR $FFD2
-	; 44: 9 WORD p type: ()=>Point
+	; 4: 22 LT < type: (number,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BCC less8
+	BNE greaterorequal8
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BCC less8
+greaterorequal8:
+	LDA #00
+	JMP store8
+less8:
+	LDA #01
+store8:
+	INX
+	INX
+	STA STACKBASE + 1,X
+	LDA #00
+	STA STACKBASE + 2,X
+	STX SP16
+	; 4: 9 BLOCK [i i + 1 i < 10] type: ()=>boolean
+	; no stack memory to release
+	JSR POP16
+	LDA STACKACCESS
+	BNE trueblock13
+	LDA STACKACCESS + 1
+	BNE trueblock13
+	JMP endblock13 ; if all zero
+trueblock13:
+	; Prelude for:
+	; 4: 28 BLOCK [print i] type: ()=>void
+	; no stack memory to reserve
+	; 5: 11 WORD i type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -729,77 +131,17 @@ CALL_1:
 	LDA $0101,X
 	STA STACKACCESS + 1
 	; JSR PUSH16
-	; 44: 3 PRINT print type: (Point)=>void
+	; 5: 5 PRINT print type: (number)=>void
 	; JSR POP16
-	JSR PUSH16
-PRINT_COMPONENT_STRING_57:
-	LDA STACKACCESS
-	STA AUX
-	LDA STACKACCESS+1
-	STA AUX+1
-	LDY #0
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
-	JSR PUSH16
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
-	JSR PUSH16
-	JSR PRINT_STRING
-	LDA #13
-	JSR $FFD2
-	JSR POP16
-	CLC
-	LDA STACKACCESS
-	ADC #4
-	STA STACKACCESS
-	LDA STACKACCESS+1
-	ADC #0
-	STA STACKACCESS+1
-	JSR PUSH16
-	LDA STACKACCESS
-	STA AUX
-	LDA STACKACCESS+1
-	STA AUX+1
-	LDY #0
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
 	JSR PRINT_INT
 	LDA #13
 	JSR $FFD2
-	JSR POP16
-	CLC
-	LDA STACKACCESS
-	ADC #2
-	STA STACKACCESS
-	LDA STACKACCESS+1
-	ADC #0
-	STA STACKACCESS+1
-	JSR PUSH16
-	LDA STACKACCESS
-	STA AUX
-	LDA STACKACCESS+1
-	STA AUX+1
-	LDY #0
-	LDA (AUX),Y
-	STA STACKACCESS
-	INY
-	LDA (AUX),Y
-	STA STACKACCESS+1
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	JSR POP16
-	; 42: 14 REF_BLOCK :[p Point print POINT IS: print p] type: ()=>void
+	; 4: 28 BLOCK [print i] type: ()=>void
+	; no stack memory to release
+	; 4: 3 WHILE while type: (boolean,void)=>void
+	JMP startloop13
+endblock13:
+	; 2: 1 BLOCK [i 0 while [i i + 1 i < 10] [print i]] type: ()=>void
 	; release 2 on the stack
 	TSX
 	TXA
@@ -807,32 +149,21 @@ PRINT_COMPONENT_STRING_57:
 	ADC #2
 	TAX
 	TXS
-	RTS
-AFTER_1:
-	LDA #<CALL_1
+	; 9:7 STRING "DONE"
+	LDA #0
+	STA STACKACCESS+1
+	LDA #4
 	STA STACKACCESS
-	LDA #>CALL_1
-	STA STACKACCESS + 1
-	; JSR PUSH16
-	; 42: 1 LIT_WORD print_point type: (addr)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_print_point
-	LDA STACKACCESS + 1
-	STA V_print_point + 1
-	; 47: 13 WORD pt2 type: ()=>Point
-	LDA V_pt2
-	STA STACKACCESS
-	LDA V_pt2 + 1
-	STA STACKACCESS + 1
 	JSR PUSH16
-	; 47: 1 WORD print_point type: ()=>void
-	LDA V_print_point
-	STA CALL_FUN_61 + 1
-	LDA V_print_point + 1
-	STA CALL_FUN_61 + 2
-CALL_FUN_61:
-	JSR $1111 ; will be overwritten
+	LDA #>str0
+	STA STACKACCESS+1
+	LDA #<str0
+	STA STACKACCESS
+	JSR PUSH16
+	; 9: 1 PRINT print type: (string)=>void
+	JSR PRINT_STRING
+	LDA #13
+	JSR $FFD2
 	; 1: 1 PROG [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
@@ -1210,16 +541,5 @@ NOCARRY:
 	STA STACKACCESS + 1
 	JSR PUSH16
 	RTS
-str0: BYTE 80,79,73,78,84,32,49
-str1: BYTE 78,79,84,32,80,79,73,78,84
-str2: BYTE 80,79,73,78,84,32,50
-str3: BYTE 80,79,73,78,84,32,73,83,58
-V_Point DS 2
-V_pt1 DS 8
-V_Not_point DS 2
-V_a DS 4
-V_scale_x DS 2
-V_get_point DS 2
-V_pt2 DS 8
-V_print_point DS 2
+str0: BYTE 68,79,78,69
 HEAPSTART:

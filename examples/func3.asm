@@ -1,3 +1,5 @@
+	; Prelude for:
+	; 1: 1 PROG [prog] type: ()=>void
 	processor 6502 ; TEH BEAST
 	ORG $0801 ; BASIC STARTS HERE
 	HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00
@@ -8,18 +10,20 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
+	; Prelude for:
+	; 1: 10 REF_BLOCK :[x Number [x + 1]] type: ()=>number
 	JMP AFTER_0
 CALL_0:
+	; reserve 2 on the stack for: x (number offset 0)
 	TSX
 	TXA
 	SEC
 	SBC #2
 	TAX
 	TXS
-	; NOW WE SHOULD GRAB THE PARAMS VALUE FROM THE STACK
-	; 1: 17 NUMBER Number type: number
+	; 1: 15 NUMBER Number type: ()=>number
 	; DO NOTHING
-	; 1: 14 LIT_WORD x type: void
+	; 1: 12 LIT_WORD x type: (number)=>void
 	JSR POP16
 	TSX
 	TXA
@@ -30,7 +34,10 @@ CALL_0:
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-	; 1: 25 WORD x type: ()=>number
+	; Prelude for:
+	; 1: 22 BLOCK [x + 1] type: ()=>number
+	; no stack memory to reserve
+	; 1: 23 WORD x type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -41,63 +48,63 @@ CALL_0:
 	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 1:29 BYTE VAL 1
-	LDA #1
-	STA STACKACCESS
+	; 1:27 NUMBER 1
 	LDA #0
 	STA STACKACCESS+1
+	LDA #1
+	STA STACKACCESS
 	JSR PUSH16
-	; 1: 27 PLUS + type: number
+	; 1: 25 PLUS + type: (number,number)=>number
 	JSR ADD16
-	; 1: 17 BLOCK [+] type: number
-	; 1: 13 PARAM_BLOCK [x [+]] type: number
+	; 1: 22 BLOCK [x + 1] type: ()=>number
+	; no stack memory to release
+	; 1: 10 REF_BLOCK :[x Number [x + 1]] type: ()=>number
+	; release 2 on the stack
 	TSX
 	TXA
 	CLC
 	ADC #2
 	TAX
 	TXS
-	; 1: 10 FN fn type: addr
 	RTS
 AFTER_0:
 	LDA #<CALL_0
 	STA STACKACCESS
 	LDA #>CALL_0
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 1: 1 LIT_WORD plusone type: void
-	JSR POP16
+	; JSR PUSH16
+	; 1: 1 LIT_WORD plusone type: (addr)=>void
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_plusone
 	LDA STACKACCESS + 1
 	STA V_plusone + 1
-	; 2:17 BYTE VAL 1
-	LDA #1
-	STA STACKACCESS
+	; 2:15 NUMBER 1
 	LDA #0
 	STA STACKACCESS+1
+	LDA #1
+	STA STACKACCESS
 	JSR PUSH16
-	; 2: 7 WORD plusone type: (number)=>number
+	; 2: 7 WORD plusone type: ()=>number
 	LDA V_plusone
-	STA CALL_FUN_10 + 1
+	STA CALL_FUN_9 + 1
 	LDA V_plusone + 1
-	STA CALL_FUN_10 + 2
-CALL_FUN_10:
+	STA CALL_FUN_9 + 2
+CALL_FUN_9:
 	JSR $1111 ; will be overwritten
-	; 2: 15 PLUS + type: number
-	JSR ADD16
-	; 2: 1 PRINT print type: void
+	; 2: 1 PRINT print type: (number)=>void
 	JSR POP16
 	JSR PRINT_INT
 	LDA #13
 	JSR $FFD2
-	; 1: 1 BLOCK [prog] type: void
+	; 1: 1 PROG [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
 HEAPSAVE DS 3 ; USED IN COPYSTRING
 AUXMUL DS 2
 HEAPTOP DS 2
 TEST_UPPER_BIT: BYTE $80
+AUX = $7D
 SP16 = $7F
 STACKACCESS = $0080
 STACKBASE = $0000
@@ -109,11 +116,11 @@ FROMADD:
 TOADD:
 	STA $1111
 	INC FROMADD + 1
-	BCC COPY_NO_CARRY1
+	BNE COPY_NO_CARRY1
 	INC FROMADD + 2
 COPY_NO_CARRY1:
 	INC TOADD + 1
-	BCC COPY_NO_CARRY2
+	BNE COPY_NO_CARRY2
 	INC TOADD + 2
 COPY_NO_CARRY2:
 	DEY
@@ -241,11 +248,12 @@ CNVBIT: ASL STACKACCESS + 0
 	CLD
 	RTS
 PRINT_INT:
+	LDY #0
 	JSR BINBCD16
 	LDA BCD+2
-	TAY
-	BEQ DIGIT2
 	AND #$0F
+	BEQ DIGIT2
+	TAY
 	CLC
 	ADC #$30
 	JSR $FFD2
@@ -255,22 +263,22 @@ DIGIT2:
 	LSR
 	LSR
 	LSR
-	BNE PRINT_DIGIT_2
+	BNE DO_DIGIT_2
 	CPY #00
 	BEQ DIGIT_3
-PRINT_DIGIT_2:
-	TAY
+DO_DIGIT_2:
+	LDY #1
 	CLC
 	ADC #$30
 	JSR $FFD2
 DIGIT_3:
 	LDA BCD+1
 	AND #$0F
-	BNE PRINT_DIGIT_3
+	BNE DO_DIGIT_3
 	CPY #00
 	BEQ DIGIT_4
-PRINT_DIGIT_3:
-	TAY
+DO_DIGIT_3:
+	LDY #1
 	CLC
 	ADC #$30
 	JSR $FFD2
@@ -280,11 +288,10 @@ DIGIT_4:
 	LSR
 	LSR
 	LSR
-	BNE PRINT_DIGIT_4
+	BNE DO_DIGIT_4
 	CPY #00
 	BEQ DIGIT_5
-PRINT_DIGIT_4:
-	TAY
+DO_DIGIT_4:
 	CLC
 	ADC #$30
 	JSR $FFD2

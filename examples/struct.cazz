@@ -1,0 +1,56 @@
+struct Point [
+  'label String
+  'x Number
+  'y Number
+]
+
+'pt1 new Point [
+  'label "POINT 1"
+  'x 1
+  'y 2
+]
+
+struct Not_point [
+  'x Number
+  'y Number
+]
+
+print pt1
+
+'a new Not_point [
+  'x 69
+  'y 240
+]
+
+print "NOT POINT"
+print a
+
+'scale_x 2
+'get_point :['xx Number 'yy Number
+    'scale_y 3    
+    new Point [
+      'label "POINT 2"
+      'x xx * scale_x
+      'y yy * scale_y
+    ]
+    
+]
+
+'pt2 get_point 1 2
+print pt2
+
+'print_point :['p Point 
+  print "POINT IS:"
+  print p
+]
+
+print_point pt2
+
+
+;print pt -> z
+
+;nome 0
+;eta 4
+;Persona 6
+
+;davide . eta

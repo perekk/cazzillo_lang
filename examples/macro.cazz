@@ -1,11 +1,11 @@
-def 'SCREEN_START' 1024
-def 'SCREEN_SIZE' 1000
-def 'SCREEN_END' SCREEN_START + SCREEN_SIZE
+def SCREEN_START 1024
+def SCREEN_SIZE 1000
+def SCREEN_END [SCREEN_START + SCREEN_SIZE]
 
 'fill :[
     'i SCREEN_START
     while i < SCREEN_END [
-        poke i 0 !<
+        poke i i !<
         inc i
     ]
 ]

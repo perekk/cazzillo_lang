@@ -1,7 +1,7 @@
 'a 1064 
 while a < 1104 [
-    asciicode: 128 + peek a
-    poke a + 40 * 19 asciicode !>
+    'asciicode 128 + peek a
+    poke a + 40 * 19 asciicode !<
     a: a + 1
     prin asciicode prin " "
 ]

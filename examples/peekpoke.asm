@@ -1,49 +1,55 @@
+	; Prelude for:
+	; 1: 1 PROG [prog] type: ()=>void
 	processor 6502 ; TEH BEAST
 	ORG $0801 ; BASIC STARTS HERE
 	HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00
 	ORG $0810 ; MY PROGRAM STARTS HERE
+	; INIT HEAP
+	LDA #<HEAPSTART
+	STA HEAPTOP
+	LDA #>HEAPSTART
+	STA HEAPTOP+1
 	JSR INITSTACK
-	; 1:4 BYTE VAL 0
-	LDA #0
-	STA STACKACCESS
+	; 1:4 NUMBER 0
 	LDA #0
 	STA STACKACCESS+1
-	JSR PUSH16
-	; 1:6 !n
-	; 1:1 i
-	JSR POP16
+	LDA #0
+	STA STACKACCESS
+	; JSR PUSH16
+	; 1: 1 LIT_WORD i type: (number)=>void
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_i
 	LDA STACKACCESS + 1
 	STA V_i + 1
-startloop29:
-	; 2:7 i
+startloop25:
+	; 2: 7 WORD i type: ()=>number
 	LDA V_i
 	STA STACKACCESS
 	LDA V_i + 1
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 2:11 NUMBER VAL 1000
+	; 2:11 NUMBER 1000
 	LDA #3
 	STA STACKACCESS+1
 	LDA #232
 	STA STACKACCESS
 	JSR PUSH16
-	; 2:9 <
+	; 2: 9 LT < type: (number,number)=>boolean
 	LDX SP16
 	LDA STACKBASE + 4,X
 	CMP STACKBASE + 2,X
-	BCC less5
-	BNE greaterorequal5
+	BCC less4
+	BNE greaterorequal4
 	LDA STACKBASE + 3,X
 	CMP STACKBASE + 1,X
-	BCC less5
-greaterorequal5:
+	BCC less4
+greaterorequal4:
 	LDA #00
-	JMP store5
-less5:
+	JMP store4
+less4:
 	LDA #01
-store5:
+store4:
 	INX
 	INX
 	STA STACKBASE + 1,X
@@ -52,136 +58,152 @@ store5:
 	STX SP16
 	JSR POP16
 	LDA STACKACCESS
-	BNE trueblock29
+	BNE trueblock25
 	LDA STACKACCESS + 1
-	BNE trueblock29
-	JMP endblock29 ; if all zero
-trueblock29:
-	; 3:10 NUMBER VAL 53281
+	BNE trueblock25
+	JMP endblock25 ; if all zero
+trueblock25:
+	; Prelude for:
+	; 2: 16 BLOCK [poke 53281 i !< poke 53280 i !< poke 1024 + i [1 + peek i] !< inc i] type: ()=>void
+	; no stack memory to reserve
+	; 3:10 NUMBER 53281
 	LDA #208
 	STA STACKACCESS+1
 	LDA #33
 	STA STACKACCESS
 	JSR PUSH16
-	; 3:16 i
+	; 3: 16 WORD i type: ()=>number
 	LDA V_i
 	STA STACKACCESS
 	LDA V_i + 1
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 3:18 !>
+	; 3: 18 CAST_BYTE !< type: (number)=>byte
 	LDX SP16
 	LDA #0
 	STA STACKBASE + 2,X
-	; 3:5 poke
+	; 3: 5 POKE poke type: (number,byte)=>void
 	JSR POP16
 	LDY STACKACCESS
 	JSR POP16
 	TYA
 	LDY #0
 	STA (STACKACCESS),Y
-	; 4:10 NUMBER VAL 53280
+	; 4:10 NUMBER 53280
 	LDA #208
 	STA STACKACCESS+1
 	LDA #32
 	STA STACKACCESS
 	JSR PUSH16
-	; 4:16 i
+	; 4: 16 WORD i type: ()=>number
 	LDA V_i
 	STA STACKACCESS
 	LDA V_i + 1
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 4:18 !>
+	; 4: 18 CAST_BYTE !< type: (number)=>byte
 	LDX SP16
 	LDA #0
 	STA STACKBASE + 2,X
-	; 4:5 poke
+	; 4: 5 POKE poke type: (number,byte)=>void
 	JSR POP16
 	LDY STACKACCESS
 	JSR POP16
 	TYA
 	LDY #0
 	STA (STACKACCESS),Y
-	; 5:10 NUMBER VAL 1024
+	; 5:10 NUMBER 1024
 	LDA #4
 	STA STACKACCESS+1
 	LDA #0
 	STA STACKACCESS
 	JSR PUSH16
-	; 5:17 i
+	; 5: 17 WORD i type: ()=>number
 	LDA V_i
 	STA STACKACCESS
 	LDA V_i + 1
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 5:15 +
+	; 5: 15 PLUS + type: (number,number)=>number
 	JSR ADD16
-	; 5:20 BYTE VAL 1
-	LDA #1
-	STA STACKACCESS
+	; Prelude for:
+	; 5: 19 BLOCK [1 + peek i] type: ()=>number
+	; no stack memory to reserve
+	; 5:20 NUMBER 1
 	LDA #0
 	STA STACKACCESS+1
+	LDA #1
+	STA STACKACCESS
 	JSR PUSH16
-	; 5:29 i
+	; 5: 29 WORD i type: ()=>number
 	LDA V_i
 	STA STACKACCESS
 	LDA V_i + 1
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 5:24 peek
-	JSR POP16
+	; JSR PUSH16
+	; 5: 24 PEEK peek type: (number)=>byte
+	; JSR POP16
 	LDY #0
 	LDA (STACKACCESS),Y
 	STA STACKACCESS
 	STY STACKACCESS+1
 	JSR PUSH16
-	; 5:22 +
+	; 5: 22 PLUS + type: (number,byte)=>number
 	JSR ADD16
-	; 5:17 [...]
-	; 5:32 !>
+	; 5: 19 BLOCK [1 + peek i] type: ()=>number
+	; no stack memory to release
+	; 5: 32 CAST_BYTE !< type: (number)=>byte
 	LDX SP16
 	LDA #0
 	STA STACKBASE + 2,X
-	; 5:5 poke
+	; 5: 5 POKE poke type: (number,byte)=>void
 	JSR POP16
 	LDY STACKACCESS
 	JSR POP16
 	TYA
 	LDY #0
 	STA (STACKACCESS),Y
-	; 6:8 i
-	LDA V_i
-	STA STACKACCESS
-	LDA V_i + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 6:12 BYTE VAL 1
-	LDA #1
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS+1
-	JSR PUSH16
-	; 6:10 +
-	JSR ADD16
-	; 6:5 i
-	JSR POP16
-	LDA STACKACCESS
-	STA V_i
-	LDA STACKACCESS + 1
-	STA V_i + 1
-	; 2:16 [...]
-	; 2:1 while
-	JMP startloop29
-endblock29:
-	; 1:1 [prog]
+	; no child generation for 'inc'
+	; 6: 5 INC inc type: (number)=>void
+	INC V_i
+	BNE not_carry_23
+	INC V_i + 1
+not_carry_23:
+	; 2: 16 BLOCK [poke 53281 i !< poke 53280 i !< poke 1024 + i [1 + peek i] !< inc i] type: ()=>void
+	; no stack memory to release
+	; 2: 1 WHILE while type: (boolean,void)=>void
+	JMP startloop25
+endblock25:
+	; 1: 1 PROG [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
+HEAPSAVE DS 3 ; USED IN COPYSTRING
 AUXMUL DS 2
+HEAPTOP DS 2
 TEST_UPPER_BIT: BYTE $80
-SP16 = $7D
+AUX = $7D
+SP16 = $7F
 STACKACCESS = $0080
 STACKBASE = $0000
+COPYMEM:
+	TYA
+	BEQ ENDCOPY
+FROMADD:
+	LDA $1111
+TOADD:
+	STA $1111
+	INC FROMADD + 1
+	BNE COPY_NO_CARRY1
+	INC FROMADD + 2
+COPY_NO_CARRY1:
+	INC TOADD + 1
+	BNE COPY_NO_CARRY2
+	INC TOADD + 2
+COPY_NO_CARRY2:
+	DEY
+	BNE COPYMEM
+ENDCOPY:
+	RTS
 PRINT_STRING:
 	JSR POP16
 	LDX SP16
@@ -189,7 +211,8 @@ PRINT_STRING:
 	INX
 	INX
 	STX SP16
-	TAX; IN X WE HAVE THE LEN
+	TAX; NOW IN X WE HAVE THE LEN
+	BEQ EXIT_PRINT_STR
 	LDY #0
 LOOP_PRINT_STRING:
 	LDA (STACKACCESS),Y
@@ -197,6 +220,7 @@ LOOP_PRINT_STRING:
 	INY
 	DEX
 	BNE LOOP_PRINT_STRING
+EXIT_PRINT_STR:
 	RTS
 	; stack.a65 from https://github.com/dourish/mitemon/blob/master/stack.a65
 INITSTACK:
@@ -301,11 +325,12 @@ CNVBIT: ASL STACKACCESS + 0
 	CLD
 	RTS
 PRINT_INT:
+	LDY #0
 	JSR BINBCD16
 	LDA BCD+2
-	TAY
-	BEQ DIGIT2
 	AND #$0F
+	BEQ DIGIT2
+	TAY
 	CLC
 	ADC #$30
 	JSR $FFD2
@@ -315,22 +340,22 @@ DIGIT2:
 	LSR
 	LSR
 	LSR
-	BNE PRINT_DIGIT_2
+	BNE DO_DIGIT_2
 	CPY #00
 	BEQ DIGIT_3
-PRINT_DIGIT_2:
-	TAY
+DO_DIGIT_2:
+	LDY #1
 	CLC
 	ADC #$30
 	JSR $FFD2
 DIGIT_3:
 	LDA BCD+1
 	AND #$0F
-	BNE PRINT_DIGIT_3
+	BNE DO_DIGIT_3
 	CPY #00
 	BEQ DIGIT_4
-PRINT_DIGIT_3:
-	TAY
+DO_DIGIT_3:
+	LDY #1
 	CLC
 	ADC #$30
 	JSR $FFD2
@@ -340,11 +365,10 @@ DIGIT_4:
 	LSR
 	LSR
 	LSR
-	BNE PRINT_DIGIT_4
+	BNE DO_DIGIT_4
 	CPY #00
 	BEQ DIGIT_5
-PRINT_DIGIT_4:
-	TAY
+DO_DIGIT_4:
 	CLC
 	ADC #$30
 	JSR $FFD2
@@ -514,4 +538,18 @@ MOD16:
 	INX
 	INX
 	RTS
+MALLOC:
+	CLC
+	ADC HEAPTOP
+	STA HEAPTOP
+	BCC NOCARRY
+	INC HEAPTOP+1
+NOCARRY:
+	LDA HEAPTOP
+	STA STACKACCESS
+	LDA HEAPTOP + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	RTS
 V_i DS 2
+HEAPSTART:

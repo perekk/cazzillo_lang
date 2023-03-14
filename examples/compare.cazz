@@ -1,4 +1,4 @@
-print 12365 + 20 < 30 + 10 < 15 + 30 < 10  // should print "C"
-print 1064 + 1 = 0 + 255 = 255            // should print "A"
-print 90 - 32 > 33                      // should print "Z"
-print 0 - 255 > 1                      // should print "Z"
+prin 20 < 30 print 40 <  50                // should print YY
+prin 1 = 0   print 255 = 255               // should print NY
+print 90 - 32 > 33                         // should print Y
+print [255 > 1] !                          // should print N

@@ -1,0 +1,19 @@
+struct Coord [
+  'x Number
+  'y Number
+]
+
+struct Point [
+  'label String
+  'loc Coord
+]
+
+'p new Point [
+  'label "P1" 
+  'loc new Coord [
+    'x 1 
+    'y 2
+  ]
+]
+
+print "DONE"

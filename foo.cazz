@@ -1,66 +1,9 @@
-struct Point [
-  'label String
-  'x Number
-  'y Number
+
+[
+  'i 0
+  while [ i: i + 1 i < 10] [
+    print i  
+  ]
 ]
 
-'pt1 new Point [
-  'label "POINT 1"
-  'x 1
-  'y 2
-]
-
-struct Not_point [
-  'x Number
-  'y Number
-]
-
-print pt1
-
-'a new Not_point [
-  'x 69
-  'y 240
-]
-
-print "NOT POINT"
-print a
-
-'scale_x 2
-'get_point :['xx Number 'yy Number
-    'scale_y 3    
-    new Point [
-      'label "POINT 2"
-      'x xx * scale_x
-      'y yy * scale_y
-    ]
-    
-]
-
-'pt2 get_point 1 2
-print pt2
-
-'print_point :['p Point 
-  print "POINT IS:"
-  print p
-]
-
-print_point pt2
-
-
-; 'f :[ 'p Point
-;   print p
-;   'q new Point [
-;     'label ""
-;     'x 0
-;     'y 0
-;   ]
-; ]
-
-
-;print pt -> z
-
-;nome 0
-;eta 4
-;Persona 6
-
-;davide . eta
+print "DONE"

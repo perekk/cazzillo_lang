@@ -1,3 +1,5 @@
+	; Prelude for:
+	; 1: 1 PROG [prog] type: ()=>void
 	processor 6502 ; TEH BEAST
 	ORG $0801 ; BASIC STARTS HERE
 	HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00
@@ -8,6 +10,8 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
+	; Prelude for:
+	; 1: 4 REF_BLOCK :[print 69] type: ()=>void
 	JMP AFTER_0
 CALL_0:
 	; no stack memory to reserve
@@ -16,9 +20,9 @@ CALL_0:
 	STA STACKACCESS+1
 	LDA #69
 	STA STACKACCESS
-	JSR PUSH16
+	; JSR PUSH16
 	; 1: 6 PRINT print type: (number)=>void
-	JSR POP16
+	; JSR POP16
 	JSR PRINT_INT
 	LDA #13
 	JSR $FFD2
@@ -30,13 +34,15 @@ AFTER_0:
 	STA STACKACCESS
 	LDA #>CALL_0
 	STA STACKACCESS + 1
-	JSR PUSH16
+	; JSR PUSH16
 	; 1: 1 LIT_WORD a type: (addr)=>void
-	JSR POP16
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_a
 	LDA STACKACCESS + 1
 	STA V_a + 1
+	; Prelude for:
+	; 3: 8 REF_BLOCK :[69] type: ()=>number
 	JMP AFTER_1
 CALL_1:
 	; no stack memory to reserve
@@ -54,13 +60,15 @@ AFTER_1:
 	STA STACKACCESS
 	LDA #>CALL_1
 	STA STACKACCESS + 1
-	JSR PUSH16
+	; JSR PUSH16
 	; 3: 1 LIT_WORD const type: (addr)=>void
-	JSR POP16
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_const
 	LDA STACKACCESS + 1
 	STA V_const + 1
+	; Prelude for:
+	; 4: 9 REF_BLOCK :[false] type: ()=>boolean
 	JMP AFTER_2
 CALL_2:
 	; no stack memory to reserve
@@ -78,38 +86,24 @@ AFTER_2:
 	STA STACKACCESS
 	LDA #>CALL_2
 	STA STACKACCESS + 1
-	JSR PUSH16
+	; JSR PUSH16
 	; 4: 1 LIT_WORD const2 type: (addr)=>void
-	JSR POP16
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_const2
 	LDA STACKACCESS + 1
 	STA V_const2 + 1
+	; Prelude for:
+	; 5: 9 REF_BLOCK :[2 + 3 * 4] type: ()=>number
 	JMP AFTER_3
 CALL_3:
 	; no stack memory to reserve
-	; 5:11 NUMBER 2
+	; 5:13 NUMBER 14
 	LDA #0
 	STA STACKACCESS+1
-	LDA #2
+	LDA #14
 	STA STACKACCESS
 	JSR PUSH16
-	; 5:15 NUMBER 3
-	LDA #0
-	STA STACKACCESS+1
-	LDA #3
-	STA STACKACCESS
-	JSR PUSH16
-	; 5:19 NUMBER 4
-	LDA #0
-	STA STACKACCESS+1
-	LDA #4
-	STA STACKACCESS
-	JSR PUSH16
-	; 5: 17 MULT * type: (number,number)=>number
-	JSR MUL16
-	; 5: 13 PLUS + type: (number,number)=>number
-	JSR ADD16
 	; 5: 9 REF_BLOCK :[2 + 3 * 4] type: ()=>number
 	; no stack memory to release
 	RTS
@@ -118,13 +112,15 @@ AFTER_3:
 	STA STACKACCESS
 	LDA #>CALL_3
 	STA STACKACCESS + 1
-	JSR PUSH16
+	; JSR PUSH16
 	; 5: 1 LIT_WORD const3 type: (addr)=>void
-	JSR POP16
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_const3
 	LDA STACKACCESS + 1
 	STA V_const3 + 1
+	; Prelude for:
+	; 6: 9 REF_BLOCK :[CAZZ . ILLO] type: ()=>string
 	JMP AFTER_4
 CALL_4:
 	; no stack memory to reserve
@@ -207,22 +203,24 @@ AFTER_4:
 	STA STACKACCESS
 	LDA #>CALL_4
 	STA STACKACCESS + 1
-	JSR PUSH16
+	; JSR PUSH16
 	; 6: 1 LIT_WORD const4 type: (addr)=>void
-	JSR POP16
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_const4
 	LDA STACKACCESS + 1
 	STA V_const4 + 1
+	; Prelude for:
+	; 7: 6 REF_BLOCK :[print const print const2 print const3 print const4 prin LOG  prin SI  print FUNGE!] type: ()=>void
 	JMP AFTER_5
 CALL_5:
 	; no stack memory to reserve
 	; 8: 11 WORD const type: ()=>number
 	LDA V_const
-	STA CALL_FUN_22 + 1
+	STA CALL_FUN_18 + 1
 	LDA V_const + 1
-	STA CALL_FUN_22 + 2
-CALL_FUN_22:
+	STA CALL_FUN_18 + 2
+CALL_FUN_18:
 	JSR $1111 ; will be overwritten
 	; 8: 5 PRINT print type: (number)=>void
 	JSR POP16
@@ -231,31 +229,31 @@ CALL_FUN_22:
 	JSR $FFD2
 	; 9: 11 WORD const2 type: ()=>boolean
 	LDA V_const2
-	STA CALL_FUN_24 + 1
+	STA CALL_FUN_20 + 1
 	LDA V_const2 + 1
-	STA CALL_FUN_24 + 2
-CALL_FUN_24:
+	STA CALL_FUN_20 + 2
+CALL_FUN_20:
 	JSR $1111 ; will be overwritten
 	; 9: 5 PRINT print type: (boolean)=>void
 	JSR POP16
 	LDA STACKACCESS
-	BNE print_true25
+	BNE print_true21
 	LDA STACKACCESS + 1
-	BNE print_true25
+	BNE print_true21
 	LDA #78 ; 'N'
-	JMP print_bool25
-print_true25:
+	JMP print_bool21
+print_true21:
 	LDA #89 ; 'Y'
-print_bool25:
+print_bool21:
 	JSR $FFD2
 	LDA #13
 	JSR $FFD2
 	; 10: 11 WORD const3 type: ()=>number
 	LDA V_const3
-	STA CALL_FUN_26 + 1
+	STA CALL_FUN_22 + 1
 	LDA V_const3 + 1
-	STA CALL_FUN_26 + 2
-CALL_FUN_26:
+	STA CALL_FUN_22 + 2
+CALL_FUN_22:
 	JSR $1111 ; will be overwritten
 	; 10: 5 PRINT print type: (number)=>void
 	JSR POP16
@@ -264,10 +262,10 @@ CALL_FUN_26:
 	JSR $FFD2
 	; 11: 11 WORD const4 type: ()=>string
 	LDA V_const4
-	STA CALL_FUN_28 + 1
+	STA CALL_FUN_24 + 1
 	LDA V_const4 + 1
-	STA CALL_FUN_28 + 2
-CALL_FUN_28:
+	STA CALL_FUN_24 + 2
+CALL_FUN_24:
 	JSR $1111 ; will be overwritten
 	; 11: 5 PRINT print type: (string)=>void
 	JSR PRINT_STRING
@@ -322,13 +320,15 @@ AFTER_5:
 	STA STACKACCESS
 	LDA #>CALL_5
 	STA STACKACCESS + 1
-	JSR PUSH16
+	; JSR PUSH16
 	; 7: 1 LIT_WORD log type: (addr)=>void
-	JSR POP16
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_log
 	LDA STACKACCESS + 1
 	STA V_log + 1
+	; Prelude for:
+	; 17: 7 REF_BLOCK :[drawline :[print -------] i 0 while i < 10 [drawline i i + 1] log] type: ()=>void
 	JMP AFTER_6
 CALL_6:
 	; reserve 4 on the stack for: drawline (addr offset 0), i (number offset 2)
@@ -338,6 +338,8 @@ CALL_6:
 	SBC #4
 	TAX
 	TXS
+	; Prelude for:
+	; 18: 15 REF_BLOCK :[print -------] type: ()=>void
 	JMP AFTER_7
 CALL_7:
 	; no stack memory to reserve
@@ -364,9 +366,9 @@ AFTER_7:
 	STA STACKACCESS
 	LDA #>CALL_7
 	STA STACKACCESS + 1
-	JSR PUSH16
+	; JSR PUSH16
 	; 18: 5 LIT_WORD drawline type: (addr)=>void
-	JSR POP16
+	; JSR POP16
 	TSX
 	TXA
 	CLC
@@ -381,9 +383,9 @@ AFTER_7:
 	STA STACKACCESS+1
 	LDA #0
 	STA STACKACCESS
-	JSR PUSH16
+	; JSR PUSH16
 	; 19: 5 LIT_WORD i type: (number)=>void
-	JSR POP16
+	; JSR POP16
 	TSX
 	TXA
 	CLC
@@ -393,7 +395,7 @@ AFTER_7:
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-startloop53:
+startloop49:
 	; 20: 11 WORD i type: ()=>number
 	TSX
 	TXA
@@ -415,17 +417,17 @@ startloop53:
 	LDX SP16
 	LDA STACKBASE + 4,X
 	CMP STACKBASE + 2,X
-	BCC less46
-	BNE greaterorequal46
+	BCC less42
+	BNE greaterorequal42
 	LDA STACKBASE + 3,X
 	CMP STACKBASE + 1,X
-	BCC less46
-greaterorequal46:
+	BCC less42
+greaterorequal42:
 	LDA #00
-	JMP store46
-less46:
+	JMP store42
+less42:
 	LDA #01
-store46:
+store42:
 	INX
 	INX
 	STA STACKBASE + 1,X
@@ -434,11 +436,13 @@ store46:
 	STX SP16
 	JSR POP16
 	LDA STACKACCESS
-	BNE trueblock53
+	BNE trueblock49
 	LDA STACKACCESS + 1
-	BNE trueblock53
-	JMP endblock53 ; if all zero
-trueblock53:
+	BNE trueblock49
+	JMP endblock49 ; if all zero
+trueblock49:
+	; Prelude for:
+	; 20: 18 BLOCK [drawline i i + 1] type: ()=>void
 	; no stack memory to reserve
 	; 21: 9 WORD drawline type: ()=>void
 	TSX
@@ -447,10 +451,10 @@ trueblock53:
 	ADC #1
 	TAX
 	LDA $0100,X
-	STA CALL_FUN_47 + 1
+	STA CALL_FUN_43 + 1
 	LDA $0101,X
-	STA CALL_FUN_47 + 2
-CALL_FUN_47:
+	STA CALL_FUN_43 + 2
+CALL_FUN_43:
 	JSR $1111 ; will be overwritten
 	; 22: 12 WORD i type: ()=>number
 	TSX
@@ -485,14 +489,14 @@ CALL_FUN_47:
 	; 20: 18 BLOCK [drawline i i + 1] type: ()=>void
 	; no stack memory to release
 	; 20: 5 WHILE while type: (boolean,void)=>void
-	JMP startloop53
-endblock53:
+	JMP startloop49
+endblock49:
 	; 24: 5 WORD log type: ()=>void
 	LDA V_log
-	STA CALL_FUN_54 + 1
+	STA CALL_FUN_50 + 1
 	LDA V_log + 1
-	STA CALL_FUN_54 + 2
-CALL_FUN_54:
+	STA CALL_FUN_50 + 2
+CALL_FUN_50:
 	JSR $1111 ; will be overwritten
 	; 17: 7 REF_BLOCK :[drawline :[print -------] i 0 while i < 10 [drawline i i + 1] log] type: ()=>void
 	; release 4 on the stack
@@ -508,27 +512,28 @@ AFTER_6:
 	STA STACKACCESS
 	LDA #>CALL_6
 	STA STACKACCESS + 1
-	JSR PUSH16
+	; JSR PUSH16
 	; 17: 1 LIT_WORD test type: (addr)=>void
-	JSR POP16
+	; JSR POP16
 	LDA STACKACCESS
 	STA V_test
 	LDA STACKACCESS + 1
 	STA V_test + 1
 	; 27: 1 WORD test type: ()=>void
 	LDA V_test
-	STA CALL_FUN_57 + 1
+	STA CALL_FUN_53 + 1
 	LDA V_test + 1
-	STA CALL_FUN_57 + 2
-CALL_FUN_57:
+	STA CALL_FUN_53 + 2
+CALL_FUN_53:
 	JSR $1111 ; will be overwritten
-	; 1: 1 BLOCK [prog] type: ()=>void
+	; 1: 1 PROG [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
 HEAPSAVE DS 3 ; USED IN COPYSTRING
 AUXMUL DS 2
 HEAPTOP DS 2
 TEST_UPPER_BIT: BYTE $80
+AUX = $7D
 SP16 = $7F
 STACKACCESS = $0080
 STACKBASE = $0000
@@ -672,11 +677,12 @@ CNVBIT: ASL STACKACCESS + 0
 	CLD
 	RTS
 PRINT_INT:
+	LDY #0
 	JSR BINBCD16
 	LDA BCD+2
-	TAY
-	BEQ DIGIT2
 	AND #$0F
+	BEQ DIGIT2
+	TAY
 	CLC
 	ADC #$30
 	JSR $FFD2
@@ -686,22 +692,22 @@ DIGIT2:
 	LSR
 	LSR
 	LSR
-	BNE PRINT_DIGIT_2
+	BNE DO_DIGIT_2
 	CPY #00
 	BEQ DIGIT_3
-PRINT_DIGIT_2:
-	TAY
+DO_DIGIT_2:
+	LDY #1
 	CLC
 	ADC #$30
 	JSR $FFD2
 DIGIT_3:
 	LDA BCD+1
 	AND #$0F
-	BNE PRINT_DIGIT_3
+	BNE DO_DIGIT_3
 	CPY #00
 	BEQ DIGIT_4
-PRINT_DIGIT_3:
-	TAY
+DO_DIGIT_3:
+	LDY #1
 	CLC
 	ADC #$30
 	JSR $FFD2
@@ -711,11 +717,10 @@ DIGIT_4:
 	LSR
 	LSR
 	LSR
-	BNE PRINT_DIGIT_4
+	BNE DO_DIGIT_4
 	CPY #00
 	BEQ DIGIT_5
-PRINT_DIGIT_4:
-	TAY
+DO_DIGIT_4:
 	CLC
 	ADC #$30
 	JSR $FFD2

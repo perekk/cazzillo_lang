@@ -1,3 +1,3 @@
-if 1 < 2 print "@@@@ CAZZ-ILLO @@@@"
+if 1 < 2 [print "@@@@ CAZZ-ILLO @@@@"]
 
 print either 2 < 3 [69] [420]

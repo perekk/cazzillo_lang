@@ -289,7 +289,7 @@ function sizeOfContext(context: Context): number {
         } else {
             size += 2;
         }
-        
+
     });
     return size;
 }
@@ -1454,7 +1454,11 @@ function createVocabulary(): Vocabulary {
             for (const [key, varDef] of Object.entries(token.context.varsDefinition)) {
                 varDef.offset = sizeToReserve;
                 const valueType = varDef.internalType;
-                sizeToReserve += sizeForValueType(token.context, valueType);
+                if (typeof valueType === "string") {
+                    sizeToReserve += sizeForValueType(token.context, varDef.internalType);
+                } else {
+                    sizeToReserve += 2;
+                }
             }
 
             const strVariables = Object.values(token.context.varsDefinition).map(varDef => varDef.token.txt + " (" + humanReadableType(varDef.out) + " offset " + varDef.offset + ")").join(", ");
@@ -2794,7 +2798,11 @@ function createVocabulary(): Vocabulary {
             for (const [key, varDef] of Object.entries(token.context.varsDefinition)) {
                 varDef.offset = sizeToReserve;
                 const valueType = varDef.internalType;
-                sizeToReserve += sizeForValueType(token.context, valueType);
+                if (typeof valueType === "string") {
+                    sizeToReserve += sizeForValueType(token.context, varDef.internalType);
+                } else {
+                    sizeToReserve += 2;
+                }
             }
 
             const strVariables = Object.values(token.context.varsDefinition).map(varDef => varDef.token.txt + " (" + humanReadableType(varDef.out) + " offset " + varDef.offset + ")").join(", ");
@@ -3336,17 +3344,13 @@ function typeCheck(token: Token) {
                     logError(recordDef.token.loc, `the word at position ${i + 1} should be '${structDef.name}' but it is '${recordDef.name}'`);
                     Deno.exit(1);
                 }
-                if (structDef.type !== recordDef.type) {
+                if (!areTypesEqual(structDef.type, recordDef.type)) {
                     logError(recordDef.token.loc, `'${recordDef.name}' should be ${humanReadableType(structDef.type)} but it is ${humanReadableType(recordDef.type)}`);
                     Deno.exit(1);
                 }
             }
-
-
         }
     } // end check struct
-
-
 
 }
 
@@ -3601,7 +3605,7 @@ function groupByExpectedArityOutZero(sequence: AST) {
             if (j < sequence.length - 1) {
                 if (sequence[j + 1].position === InstructionPosition.INFIX || sequence[j + 1].position === InstructionPosition.POSTFIX) {
                     endOfBlock = false;
-                } else if (ins > 0) {
+                } else if (ins > 0 && token.position !== InstructionPosition.POSTFIX) {
                     endOfBlock = false;
                 }
 
