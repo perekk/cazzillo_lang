@@ -10,93 +10,34 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
-	; 1:15 NUMBER 0
+	; Prelude for:
+	; 1: 4 BLOCK [2 + 3] type: ()=>number
+	; no stack memory to reserve
+	; 1:7 NUMBER 5
 	LDA #0
 	STA STACKACCESS+1
-	LDA #0
+	LDA #5
 	STA STACKACCESS
 	; JSR PUSH16
-	; 1: 12 LIT_WORD i type: (number)=>void
+	; 1: 4 BLOCK [2 + 3] type: ()=>number
+	; no stack memory to release
+	; 1: 1 LIT_WORD f type: (number)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_i
+	STA V_f
 	LDA STACKACCESS + 1
-	STA V_i + 1
-startloop10:
-	; Prelude for:
-	; 1: 23 BLOCK [inc i i < 5 + 1] type: ()=>boolean
-	; no stack memory to reserve
-	; no child generation for 'inc'
-	; 1: 25 INC inc type: (number)=>void
-	INC V_i
-	BNE not_carry_2
-	INC V_i + 1
-not_carry_2:
-	; 1: 31 WORD i type: ()=>number
-	LDA V_i
+	STA V_f + 1
+	; 2: 7 WORD f type: ()=>number
+	LDA V_f
 	STA STACKACCESS
-	LDA V_i + 1
+	LDA V_f + 1
 	STA STACKACCESS + 1
-	JSR PUSH16
-	; 2:9 NUMBER 6
-	LDA #0
-	STA STACKACCESS+1
-	LDA #6
-	STA STACKACCESS
-	JSR PUSH16
-	; 1: 33 LT < type: (number,number)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BCC less5
-	BNE greaterorequal5
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BCC less5
-greaterorequal5:
-	LDA #00
-	JMP store5
-less5:
-	LDA #01
-store5:
-	INX
-	INX
-	STA STACKBASE + 1,X
-	LDA #00
-	STA STACKBASE + 2,X
-	STX SP16
-	; 1: 23 BLOCK [inc i i < 5 + 1] type: ()=>boolean
-	; no stack memory to release
-	JSR POP16
-	LDA STACKACCESS
-	BNE trueblock10
-	LDA STACKACCESS + 1
-	BNE trueblock10
-	JMP endblock10 ; if all zero
-trueblock10:
-	; Prelude for:
-	; 3: 11 BLOCK [print CIAO] type: ()=>void
-	; no stack memory to reserve
-	; 3:18 STRING "CIAO"
-	LDA #0
-	STA STACKACCESS+1
-	LDA #4
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str0
-	STA STACKACCESS+1
-	LDA #<str0
-	STA STACKACCESS
-	JSR PUSH16
-	; 3: 12 PRINT print type: (string)=>void
-	JSR PRINT_STRING
+	; JSR PUSH16
+	; 2: 1 PRINT print type: (number)=>void
+	; JSR POP16
+	JSR PRINT_INT
 	LDA #13
 	JSR $FFD2
-	; 3: 11 BLOCK [print CIAO] type: ()=>void
-	; no stack memory to release
-	; 1: 17 WHILE while type: (boolean,void)=>void
-	JMP startloop10
-endblock10:
 	; 1: 1 PROG [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
@@ -474,6 +415,5 @@ NOCARRY:
 	STA STACKACCESS + 1
 	JSR PUSH16
 	RTS
-str0: BYTE 67,73,65,79
-V_i DS 2
+V_f DS 2
 HEAPSTART:

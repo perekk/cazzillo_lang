@@ -1,3 +1,2 @@
-def loop [ 'i 0 while ( inc i i < ]
-def do [+ 1 )]
-loop 5 do [print "CIAO"]
+'f [2 + 3]
+print f 

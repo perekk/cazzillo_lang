@@ -13,6 +13,7 @@ enum TokenType {
     LT,
     EQ,
     GT,
+    AND,
     OPEN_BRACKETS,
     OPEN_REF_BRACKETS,
     CLOSE_BRACKETS,
@@ -71,7 +72,7 @@ function sizeForValueType(context: Context, t: ValueType): number {
 
 function humanReadableToken(t: TokenType | undefined): string {
     if (t === undefined) return "undefined";
-    console.assert(TokenType.TOKEN_COUNT === 43, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 44, "Exaustive token types count");
     switch (t) {
         case TokenType.LITERAL: return "LITERAL";
         case TokenType.PLUS: return "PLUS";
@@ -87,6 +88,7 @@ function humanReadableToken(t: TokenType | undefined): string {
         case TokenType.LT: return "LT";
         case TokenType.EQ: return "EQ";
         case TokenType.GT: return "GT";
+        case TokenType.AND: return "AND";
         case TokenType.OPEN_BRACKETS: return "OPEN_BRACKETS";
         case TokenType.OPEN_REF_BRACKETS: return "OPEN_REF_BRACKETS";
         case TokenType.CLOSE_BRACKETS: return "CLOSE_BRACKETS";
@@ -643,7 +645,7 @@ function assertChildNumber(token: Token, spec: number | Array<ValueType | "any">
 }
 
 function createVocabulary(): Vocabulary {
-    console.assert(TokenType.TOKEN_COUNT === 43, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 44, "Exaustive token types count");
     const voc: Vocabulary = {};
     voc[TokenType.PRINT] = {
         txt: "print",        
@@ -1278,6 +1280,37 @@ function createVocabulary(): Vocabulary {
             "STX SP16",
         ]
     };
+    voc[TokenType.AND] = {
+        txt: "and",
+        expectedArity: 2,
+        expectedArityOut: 1,
+        grabFromStack: false,
+        position: InstructionPosition.INFIX,
+        priority: 60,
+        userFunction: false,
+        ins: token => {
+            assertChildNumber(token, ["bool", "bool"]);
+            return ["bool", "bool"];
+        },
+        out: () => "bool",
+        generateAsm: (token) => [
+            "LDX SP16",
+            "LDA STACKBASE + 1,X",
+            "AND STACKBASE + 3,X",
+            "BEQ and_zero@",
+            "LDA #1",
+            "JMP result@",
+            "and_zero@:",
+            "LDA #0",
+            "result@:",
+            "INX",
+            "INX",
+            "STA STACKBASE + 1,X",
+            "LDA #00",
+            "STA STACKBASE + 2,X",
+            "STX SP16",
+        ]
+    };
     voc[TokenType.IF] = {
         txt: "if",
         expectedArity: 2,
@@ -1406,22 +1439,15 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.PREFIX,
         priority: 150,
         userFunction: false,
-        ins: token => {
-            const childNumber = token.childs.length;
-            if (childNumber === 0) return [];
-            //return new Array(childNumber).fill("void");
-            return token.childs.map((child, index) => index === childNumber - 1 ? getReturnTypeOfAWord(child) : "void");
-        },
-        out: token => {
-            if (token.childs.length === 0) return "void";
-            const lastChild = token.childs[token.childs.length - 1];
-            const valueType = getReturnTypeOfAWord(lastChild);
-            if (valueType === undefined) {
-                logError(lastChild.loc, `cannot determine the type of '${lastChild.txt}'`);
-                Deno.exit(1);
-            }
-            return valueType;
-        },
+        ins: () => {
+            // const childNumber = token.childs.length;
+            // if (childNumber === 0) return [];
+            // //return new Array(childNumber).fill("void");
+            // return token.childs.map((child, index) => index === childNumber - 1 ? getReturnTypeOfAWord(child) : "void");
+            console.log("should not be called ever!");
+            Deno.exit(1);
+        },        
+        out: getReturnValueByBlock,
         generateAsm: token => {
             if (token.context === undefined) {
                 logError(token.loc, `can't find context for ${token.txt}, compiler error`);
@@ -1482,7 +1508,10 @@ function createVocabulary(): Vocabulary {
         position: InstructionPosition.PREFIX,
         priority: 10,
         userFunction: true,
-        ins: getParametersRequestedByBlock,
+        ins: () => {
+            console.log("should not be called ever!");
+            Deno.exit(1);
+        },
         out: getReturnValueByBlock,
         generatePreludeAsm: token => {
             // at the start we make some space on the stack, for variables
@@ -1505,7 +1534,6 @@ function createVocabulary(): Vocabulary {
                     // user types in stack are always 2 byte
                     sizeToReserve += 2;
                 }
-
             }
 
             const strVariables = Object.values(token.context.varsDefinition).map(varDef => varDef.token.txt + " (" + humanReadableType(varDef.internalType) + " offset " + varDef.offset + ")").join(", ");
@@ -1813,7 +1841,7 @@ function createVocabulary(): Vocabulary {
             assertChildNumber(token, 1);
             const type = getReturnTypeOfAWord(token.childs[0]);
             if (type === "addr" || type === "string" || type === "symbol" || type === "void") {
-                logError(token.loc, `expected Number, Byte or Boolean, but '${token.txt}' returns a ${humanReadableType(type)}`);
+                logError(token.childs[0].loc, `expected Number, Byte or Boolean, but '${token.childs[0].txt}' is a ${humanReadableType(type)}`);
                 Deno.exit(1);
             }
             return [type];
@@ -1911,8 +1939,8 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: token => {
             assertChildNumber(token, 1);
-            if (typeof token.childs[0].out === "string") {
-                logError(token.childs[0].loc, `the return type of '${token.childs[0].txt}' is ${humanReadableType(token.childs[0].out)} but it should be a struct type`);
+            if (typeof token.childs[0].out === "string" && token.childs[0].out !== "string") {
+                logError(token.childs[0].loc, `the return type of '${token.childs[0].txt}' is ${humanReadableType(token.childs[0].out)} but it should be a struct type or a string`);
                 Deno.exit(1);
             }
             if (token.childs[0].out === undefined) {
@@ -1922,13 +1950,23 @@ function createVocabulary(): Vocabulary {
             return [token.childs[0].out];
         },
         out: () => "number",
-        generateAsm: () => [
-            // "LDA #0",
-            // "STA STACKACCESS",
-            // "STA STACKACCESS+1",
-            // "JSR PUSH16",
-            "; DO NOTHING"
-        ]
+        generateAsm: token => {
+            assertChildNumber(token, 1);
+            const child = token.childs[0];
+            if (child.out !== "string") {
+                return [
+                    "LDX SP16",
+                    "LDA STACKBASE,X",
+                    "STA STACKBASE + 2,X",
+                    "INX",
+                    "LDA STACKBASE,X",
+                    "STA STACKBASE + 2,X",
+                    "INX",
+                    "STX SP16",
+                ];
+            }
+            return [];
+        },
     };
     voc[TokenType.STR_JOIN] = {
         txt: ".",
@@ -2736,10 +2774,12 @@ function createVocabulary(): Vocabulary {
         priority: 150,
         userFunction: false,
         ins: token => {
-            const childNumber = token.childs.length;
-            if (childNumber === 0) return [];
-            //return new Array(childNumber).fill("void");
-            return token.childs.map(() => "void");
+            // const childNumber = token.childs.length;
+            // if (childNumber === 0) return [];
+            // //return new Array(childNumber).fill("void");
+            // return token.childs.map(() => "void");
+            console.log("should not be called ever!");
+            Deno.exit(1);
         },
         out: () => "record",
         generateAsm: token => {
@@ -2771,11 +2811,8 @@ function createVocabulary(): Vocabulary {
                 "JSR COPYMEM",
                 "CLC",
                 "LDA HEAPTOP",
-                `ADC #<${sizeToRelease}`,
+                `ADC #${sizeToRelease}`,
                 "STA HEAPTOP",
-                "LDA HEAPTOP+1",
-                `ADC #0`,
-                "STA HEAPTOP+1",
                 `; release ${sizeToRelease} on the stack`,
                 "TSX",
                 "TXA",
