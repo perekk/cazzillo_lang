@@ -45,8 +45,6 @@ print pt2
 ]
 
 print_point pt2
-
-
 ;print pt -> z
 
 ;nome 0

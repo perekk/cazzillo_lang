@@ -1,0 +1,30 @@
+struct Point [
+  'label String
+  'x Number  
+  'y Number  
+]
+
+'pt1 new Point [
+  'label "POINT 1"
+  'x 69
+  'y 420  
+]
+
+'print_point :['p Point
+  prin p -> label prin "<" prin p -> x prin "," prin p -> y print ">"
+]
+
+'reset_coord :['p Point 
+  p -> x: 0
+  p -> y: 0
+]
+
+print stack
+print_point pt1
+pt1 -> label: "CHANGED!"
+pt1 -> x: 1
+pt1 -> y: 2
+print_point pt1
+reset_coord pt1
+print_point pt1
+print stack
