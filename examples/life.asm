@@ -68,7 +68,7 @@ AFTER_0:
 	; 9: 1 LIT_WORD time type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_time
+	STA V_time + 0
 	LDA STACKACCESS + 1
 	STA V_time + 1
 	; Prelude for:
@@ -222,7 +222,7 @@ AFTER_1:
 	; 11: 1 LIT_WORD fill type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_fill
+	STA V_fill + 0
 	LDA STACKACCESS + 1
 	STA V_fill + 1
 	; Prelude for:
@@ -350,7 +350,7 @@ AFTER_2:
 	; 19: 1 LIT_WORD init type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_init
+	STA V_init + 0
 	LDA STACKACCESS + 1
 	STA V_init + 1
 	; Prelude for:
@@ -653,7 +653,7 @@ AFTER_3:
 	; 30: 1 LIT_WORD show type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_show
+	STA V_show + 0
 	LDA STACKACCESS + 1
 	STA V_show + 1
 	; Prelude for:
@@ -1376,7 +1376,7 @@ AFTER_4:
 	; 43: 1 LIT_WORD get_num_alive_old type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_get_num_alive_old
+	STA V_get_num_alive_old + 0
 	LDA STACKACCESS + 1
 	STA V_get_num_alive_old + 1
 	; 70:6 BYTE 0
@@ -1388,7 +1388,7 @@ AFTER_4:
 	; 70: 1 LIT_WORD n type: (byte)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_n
+	STA V_n + 0
 	; Prelude for:
 ; 72: 16 REF_BLOCK :[index Number n 0 !< index index - 41 if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] index index + 38 if 81 !< = peek index [inc n] inc index inc index if 81 !< = peek index [inc n] index index + 38 if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] inc index if 81 !< = peek index [inc n] n] type: ()=>byte
 	JMP AFTER_5
@@ -1422,7 +1422,7 @@ CALL_5:
 	; 73: 5 SET_WORD n type: (byte)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_n
+	STA V_n + 0
 	; 74: 12 WORD index type: ()=>number
 	TSX
 	TXA
@@ -2059,7 +2059,7 @@ AFTER_5:
 	; 72: 1 LIT_WORD get_num_alive type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_get_num_alive
+	STA V_get_num_alive + 0
 	LDA STACKACCESS + 1
 	STA V_get_num_alive + 1
 	; Prelude for:
@@ -2737,7 +2737,7 @@ AFTER_6:
 	; 96: 1 LIT_WORD step type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_step
+	STA V_step + 0
 	LDA STACKACCESS + 1
 	STA V_step + 1
 	; 127: 8 WORD time type: ()=>number
@@ -2750,7 +2750,7 @@ CALL_FUN_311:
 	; 127: 1 LIT_WORD start type: (number)=>void
 	JSR POP16
 	LDA STACKACCESS
-	STA V_start
+	STA V_start + 0
 	LDA STACKACCESS + 1
 	STA V_start + 1
 	; 128: 1 WORD init type: ()=>void
@@ -2769,7 +2769,7 @@ CALL_FUN_313:
 	; 130: 1 LIT_WORD i type: (number)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_i
+	STA V_i + 0
 	LDA STACKACCESS + 1
 	STA V_i + 1
 startloop323:
@@ -2851,7 +2851,7 @@ CALL_FUN_324:
 	; 136: 1 LIT_WORD end type: (number)=>void
 	JSR POP16
 	LDA STACKACCESS
-	STA V_end
+	STA V_end + 0
 	LDA STACKACCESS + 1
 	STA V_end + 1
 	; 137: 7 WORD start type: ()=>number

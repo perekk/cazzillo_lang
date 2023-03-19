@@ -781,8 +781,16 @@ function getAsmPushValuePointedByAux(type: ValueType): Assembly {
                 "JSR PUSH16",
             ]
         default:
-            console.log(`Impossible to push onto the stack the type: '${humanReadableType(type)}'`);
-            Deno.exit(1);
+            // struct should be pushed as address
+            return [
+                "LDY #0",
+                "LDA (AUX),Y",
+                "STA STACKACCESS",
+                "INY",
+                "LDA (AUX),Y",
+                "STA STACKACCESS+1",
+                "JSR PUSH16",
+            ]                        
     }
 }
 
@@ -2826,30 +2834,35 @@ function createVocabulary(): Vocabulary {
         ins: token => {
             assertChildNumber(token, 2);
             const structChild = token.childs[0];
-            const wordDef = getWordDefinition(structChild.context, structChild.txt);
-            if (wordDef?.type !== "value" || typeof wordDef?.out !== "object") {
+            if (structChild.out === undefined) {
+                logError(structChild.loc, `'${structChild.txt}' type is undefined`);
+                Deno.exit(1);
+            }
+            if (typeof structChild.out === "string") {
                 logError(structChild.loc, `'${structChild.txt}' is not a struct`);
                 Deno.exit(1);
             }
-            const structName = wordDef.out[1];
-            return [["usertype", structName], "symbol"];
+            return [structChild.out, "symbol"];
         },
         out: token => {
             assertChildNumber(token, 2);
-            const firstChild = token.childs[0];
-            const secondChild = token.childs[1];
-            const wordDef = getWordDefinition(firstChild.context, firstChild.txt);
-            if (wordDef?.type !== "value" || typeof wordDef?.out !== "object") {
-                logError(firstChild.loc, `'${firstChild.txt}' is not a struct`);
+            const structChild = token.childs[0];
+            if (structChild.out === undefined) {
+                logError(structChild.loc, `'${structChild.txt}' type is undefined`);
                 Deno.exit(1);
             }
-            const structName = wordDef.out[1];
-            const structDef = getWordDefinition(firstChild.context, structName);
+            if (typeof structChild.out === "string") {
+                logError(structChild.loc, `'${structChild.txt}' is not a struct`);
+                Deno.exit(1);
+            }
+            const structName = structChild.out[1];
+            const structDef = getWordDefinition(structChild.context, structName);
             if (structDef?.type !== "struct") {
-                logError(firstChild.loc, `'${firstChild.txt}' cannot find struct definition`);
+                logError(structChild.loc, `'${structChild.txt}' cannot find struct definition`);
                 Deno.exit(1);
             }
 
+            const secondChild = token.childs[1];
             const componentName = secondChild.txt;
             let type;
             for (let i = 0; i < structDef.elements.length; i++) {
@@ -2859,39 +2872,41 @@ function createVocabulary(): Vocabulary {
                 }
             }
             if (type === undefined) {
-                logError(secondChild.loc, `'${secondChild.txt}' is not part of ${firstChild.txt}`);
+                logError(secondChild.loc, `'${secondChild.txt}' is not part of ${structChild.txt}`);
                 Deno.exit(1);
             }
 
             return type;
         },
-        generateChildPreludeAsm: (token, n) => {
-            // childs does not generate asm
+        generateChildPreludeAsm: (token, n) => {            
             if (n === 1) return undefined;
             return [];
         },
         generateAsm: token => {
 
-            const firstChild = token.childs[0];
+            const structChild = token.childs[0];
+            if (structChild.out === undefined) {
+                logError(structChild.loc, `'${structChild.txt}' type is undefined`);
+                Deno.exit(1);
+            }
+            if (typeof structChild.out === "string") {
+                logError(structChild.loc, `'${structChild.txt}' is not a struct`);
+                Deno.exit(1);
+            }
+
+            const structName = structChild.out[1];
+            const structDef = getWordDefinition(structChild.context, structName);
+            if (structDef?.type !== "struct") {
+                logError(structChild.loc, `'${structChild.txt}' cannot find struct definition`);
+                Deno.exit(1);
+            }
+
+            if (structDef?.type !== "struct") {
+                logError(structChild.loc, `'${structChild.txt}' is not a struct`);
+                Deno.exit(1);
+            }
+
             const secondChild = token.childs[1];
-
-            const wordDef = getWordDefinition(firstChild.context, firstChild.txt);
-            if (wordDef?.type !== "value" || typeof wordDef?.out !== "object") {
-                logError(firstChild.loc, `'${firstChild.txt}' is not a struct`);
-                Deno.exit(1);
-            }
-            const structName = wordDef.out[1];
-            const structDef = getWordDefinition(firstChild.context, structName);
-            if (structDef?.type !== "struct") {
-                logError(firstChild.loc, `'${firstChild.txt}' cannot find struct definition`);
-                Deno.exit(1);
-            }
-
-            if (structDef?.type !== "struct") {
-                logError(firstChild.loc, `'${firstChild.txt}' is not a struct`);
-                Deno.exit(1);
-            }
-
             if (secondChild.out !== "symbol") {
                 logError(secondChild.loc, `'${secondChild.txt}' is not a symbol`);
                 Deno.exit(1);
@@ -2907,7 +2922,7 @@ function createVocabulary(): Vocabulary {
                 }
             }
             if (offset === -1 || type === undefined) {
-                logError(secondChild.loc, `'${secondChild.txt}' is not part of ${firstChild.txt}`);
+                logError(secondChild.loc, `'${secondChild.txt}' is not part of ${structChild.txt}`);
                 Deno.exit(1);
             }
 
@@ -2946,12 +2961,16 @@ function createVocabulary(): Vocabulary {
         ins: token => {
             assertChildNumber(token, 3);
             const structChild = token.childs[0];
-            const wordDef = getWordDefinition(structChild.context, structChild.txt);
-            if (wordDef?.type !== "value" || typeof wordDef?.out !== "object") {
+            if (structChild.out === undefined) {
+                logError(structChild.loc, `'${structChild.txt}' type is undefined`);
+                Deno.exit(1);
+            }
+            if (typeof structChild.out === "string") {
                 logError(structChild.loc, `'${structChild.txt}' is not a struct`);
                 Deno.exit(1);
             }
-            const structName = wordDef.out[1];
+
+            const structName = structChild.out[1];
             const structDef = getWordDefinition(structChild.context, structName);
             if (structDef?.type !== "struct") {
                 logError(structChild.loc, `'${structChild.txt}' cannot find struct definition`);
@@ -2974,8 +2993,7 @@ function createVocabulary(): Vocabulary {
 
             return [["usertype", structName], "symbol", type];
         },
-        out: token => {
-            assertChildNumber(token, 3);
+        out: () => {
             return "void";
         },
         generateChildPreludeAsm: (token, n) => {
@@ -2994,19 +3012,22 @@ function createVocabulary(): Vocabulary {
         generateAsm: token => {
 
             const structChild = token.childs[0];
-            const componentChild = token.childs[1];
-
-            const wordDef = getWordDefinition(structChild.context, structChild.txt);
-            if (wordDef?.type !== "value" || typeof wordDef?.out !== "object") {
+            if (structChild.out === undefined) {
+                logError(structChild.loc, `'${structChild.txt}' type is undefined`);
+                Deno.exit(1);
+            }
+            if (typeof structChild.out === "string") {
                 logError(structChild.loc, `'${structChild.txt}' is not a struct`);
                 Deno.exit(1);
             }
-            const structName = wordDef.out[1];
+            const structName = structChild.out[1];
             const structDef = getWordDefinition(structChild.context, structName);
             if (structDef?.type !== "struct") {
                 logError(structChild.loc, `'${structChild.txt}' is not a struct`);
                 Deno.exit(1);
             }
+
+            const componentChild = token.childs[1];
             if (componentChild.out !== "symbol") {
                 logError(componentChild.loc, `'${componentChild.txt}' is not a symbol`);
                 Deno.exit(1);
@@ -3160,7 +3181,6 @@ function createVocabulary(): Vocabulary {
             ];
         }
     };
-
 
     return voc;
 }
@@ -3376,10 +3396,16 @@ function groupFunctionToken(ast: AST, index: number): Token {
             Deno.exit(1);
         }        
         childs = [ast[index - 1]].concat(ast.slice(index + 1, index + arity));
-        // const secondParameterArity = getArity(ast[index + 1]);
-        // if (secondParameterArity > 0 && ast[index + 1].childs.length !== secondParameterArity) {
-        //     groupFunctionToken(ast, index + 1);
-        // }
+        const lastChild = childs.at(-1);
+        if (lastChild === undefined) {
+            logError(functionElement.loc, `cannot find childs of '${functionElement.txt}'`);
+            Deno.exit(1);
+        }
+
+        const lastParameterArity = getArity(lastChild);
+        if (lastParameterArity > 0 && lastChild.childs.length !== lastParameterArity) {
+            groupFunctionToken(ast, index + 1);
+        }
         if (childs.length !== arity) {
             logError(functionElement.loc, `the operator ${humanReadableFunction(functionElement)} expects ${arity} parameters, but got only ${childs.length}!`);
             dumpAst(functionElement);
@@ -3655,7 +3681,8 @@ function typeCheck(token: Token) {
     const ins = getInputParametersValue(token);
     for (let i = 0; i < ins.length; i++) {
         if (!areTypesEqual(ins[i], getReturnTypeOfAWord(token.childs[i]))) {
-            logError(token.childs[i].loc, `the word '${token.txt}' expects parameter in position ${i + 1} to be ${humanReadableType(ins[i])}, but it is ${humanReadableType(token.childs[i].out)}`);
+            logError(token.loc, `the word '${token.txt}' expects parameter in position ${i + 1} to be ${humanReadableType(ins[i])}, but it is ${humanReadableType(token.childs[i].out)}`);
+            logError(token.childs[i].loc, `here is the parameter '${token.childs[i].txt}'`);
             dumpAst(token);
             Deno.exit(1);
         }
@@ -3937,7 +3964,7 @@ function groupByExpectedArityOutZero(sequence: AST) {
 
             } else if (token.position === InstructionPosition.INFIX) {
                 // 2 in 1 out
-                ins = token.expectedArity - 1; // 1 child is already in sequence
+                ins = token.expectedArity; // - 1 ? one child is already in sequence
                 out = token.expectedArityOut;
             } else if (token.position === InstructionPosition.POSTFIX) {
                 // 1 in 1 out
@@ -3947,11 +3974,9 @@ function groupByExpectedArityOutZero(sequence: AST) {
         }
 
         // at the start of a new sequence, we dont count out values
-        childLeft = childLeft + ins - (startingNewSequence ? 0 : out);
-        startingNewSequence = false;
+        childLeft = childLeft + ins - out;
 
-        if (childLeft <= 0 || j === sequence.length - 1) {
-            childLeft = 0;
+        if ((childLeft <= 0 && !startingNewSequence) || j === sequence.length - 1) {
             let endOfBlock = true;
             if (j < sequence.length - 1) {
                 if (sequence[j + 1].position === InstructionPosition.INFIX || sequence[j + 1].position === InstructionPosition.POSTFIX) {
@@ -3962,6 +3987,7 @@ function groupByExpectedArityOutZero(sequence: AST) {
 
             }
             if (endOfBlock) {
+                childLeft = 0;
                 const toParse = sequence.slice(lastPointer, j + 1);
                 const numberToParse = toParse.length;
                 //dumpSequence(toParse, `from ${lastPointer} to ${j} :`);
@@ -3975,8 +4001,9 @@ function groupByExpectedArityOutZero(sequence: AST) {
                 lastPointer = lastPointer + toParse.length;
                 startingNewSequence = true;
             }
+        } else {
+            startingNewSequence = false;
         }
-
     }
 }
 
@@ -4061,10 +4088,10 @@ function groupSequence(vocabulary: Vocabulary, program: AST): Token {
                 createLiteralFromToken(token, token.internalValueType);
                 ast.push(token);
             } else {
-                token.context = currentContext;
-                //token.childs = [];
-                addInstrData(token);
-                ast.push(token);
+                const tokenToPush = { ...token };
+                tokenToPush.context = currentContext;
+                addInstrData(tokenToPush);
+                ast.push(tokenToPush);
             }
         }
     }
@@ -4400,5 +4427,3 @@ const emu = Deno.run({ opt: { stdout: "null" }, cmd: ["x64", "-silent", basename
 const emuStatus = await emu.status();
 
 console.log("Done");
-
-

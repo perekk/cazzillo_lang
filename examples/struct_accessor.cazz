@@ -1,30 +1,52 @@
 struct Point [
   'label String
-  'x Number  
-  'y Number  
+  'x Number
+  'y Number
 ]
 
 'pt1 new Point [
   'label "POINT 1"
   'x 69
-  'y 420  
+  'y 420
 ]
 
 'print_point :['p Point
   prin p -> label prin "<" prin p -> x prin "," prin p -> y print ">"
+  print ""
 ]
 
-'reset_coord :['p Point 
+'reset_coord :['p Point
   p -> x: 0
   p -> y: 0
+  p -> label: "ZEROED"
 ]
 
-print stack
+prin "STACK:" print stack
 print_point pt1
+
 pt1 -> label: "CHANGED!"
 pt1 -> x: 1
 pt1 -> y: 2
 print_point pt1
+
 reset_coord pt1
 print_point pt1
-print stack
+
+struct Couple_of_point [
+  'p1 Point
+  'p2 Point  
+]
+
+'pt2 new Point [
+  'label "SECOND"
+  'x 1234
+  'y 4321
+]
+
+'points new Couple_of_point [
+  'p1 pt1
+  'p2 pt2
+]
+
+prin "P2->X=" print [points -> p2] -> x
+prin "STACK:" print stack
