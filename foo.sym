@@ -1,82 +1,58 @@
 --- Symbol List (sorted by symbol)
-ADD16                    0e68                  
-AFTER_0                  09eb              (R )
-AFTER_1                  0abb              (R )
+ADD16                    0947                  
+AFTER_0                  087a              (R )
 AUX                      007d                  
-AUXMUL                   0dd9              (R )
-BCD                      0dd3              (R )
-BINBCD16                 0e90              (R )
-CALL_0                   08ca              (R )
-CALL_1                   0a00              (R )
-CALL_FUN_49              0b0f              (R )
-CALL_FUN_60              0bb2              (R )
-CALL_FUN_62              0bce              (R )
-CALL_FUN_64              0bea              (R )
-CNVBIT                   0e9e              (R )
-COPY_NO_CARRY1           0def              (R )
-COPY_NO_CARRY2           0df7              (R )
-COPYMEM                  0dde              (R )
-DIGIT2                   0ed5              (R )
-DIGIT_3                  0eea              (R )
-DIGIT_4                  0efd              (R )
-DIGIT_5                  0f10              (R )
-DIV16                    0fe7                  
-DIV16WITHMOD             0f59              (R )
-DIVMODLOOP1              0f86              (R )
-DIVMODLOOP2              0f96              (R )
-DO_DIGIT_2               0ee2              (R )
-DO_DIGIT_3               0ef5              (R )
-DO_DIGIT_4               0f0a              (R )
-DUP16                    0e38                  
-EARLYEXIT                0f7b              (R )
-END                      0f96              (R )
-ENDCOPY                  0dfa              (R )
-EXIT                     0fd2              (R )
-EXIT_PRINT_STR           0e14              (R )
-FROMADD                  0de1              (R )
-HEAPSAVE                 0dd6                  
-HEAPSTART                106a              (R )
-HEAPTOP                  0ddb              (R )
-INITSTACK                0e15              (R )
-LOOP_PRINT_STRING        0e0b              (R )
-MALLOC                   0ffb                  
-MOD16                    0fed                  
-MUL16                    0f1c                  
-NOCARRY                  1007              (R )
-POP16                    0e29              (R )
-PRINT_INT                0ec2              (R )
-PRINT_STRING             0dfb              (R )
-PUSH16                   0e1a              (R )
-SAVE_HEAP_7              0888                  
-SAVE_HEAP_72             0c58                  
-SAVE_HEAP_79             0cd2                  
-shift_loop               0f32              (R )
-SKIP                     0fcc              (R )
-skip_add                 0f51              (R )
+AUXMUL                   08b8              (R )
+BCD                      08b2              (R )
+BINBCD16                 096f              (R )
+CALL_0                   0820              (R )
+CALL_FUN_12              08a3              (R )
+CNVBIT                   097d              (R )
+COPY_NO_CARRY1           08ce              (R )
+COPY_NO_CARRY2           08d6              (R )
+COPYMEM                  08bd              (R )
+DIGIT2                   09b4              (R )
+DIGIT_3                  09c9              (R )
+DIGIT_4                  09dc              (R )
+DIGIT_5                  09ef              (R )
+DIV16                    0ac6                  
+DIV16WITHMOD             0a38              (R )
+DIVMODLOOP1              0a65              (R )
+DIVMODLOOP2              0a75              (R )
+DO_DIGIT_2               09c1              (R )
+DO_DIGIT_3               09d4              (R )
+DO_DIGIT_4               09e9              (R )
+DUP16                    0917                  
+EARLYEXIT                0a5a              (R )
+END                      0a75              (R )
+ENDCOPY                  08d9              (R )
+EXIT                     0ab1              (R )
+EXIT_PRINT_STR           08f3              (R )
+FROMADD                  08c0              (R )
+HEAPSAVE                 08b5                  
+HEAPSTART                0af8              (R )
+HEAPTOP                  08ba              (R )
+INITSTACK                08f4              (R )
+LOOP_PRINT_STRING        08ea              (R )
+MALLOC                   0ada                  
+MOD16                    0acc                  
+MUL16                    09fb                  
+NOCARRY                  0ae6              (R )
+POP16                    0908              (R )
+PRINT_INT                09a1              (R )
+PRINT_STRING             08da                  
+PUSH16                   08f9              (R )
+shift_loop               0a11              (R )
+SKIP                     0aab              (R )
+skip_add                 0a30              (R )
 SP16                     007f              (R )
 STACKACCESS              0080              (R )
 STACKBASE                0000              (R )
-str0                     1015              (R )
-str1                     101c              (R )
-str10                    1040              (R )
-str2                     101d              (R )
-str3                     101e              (R )
-str4                     101f              (R )
-str5                     1020              (R )
-str6                     1026              (R )
-str7                     102c              (R )
-str8                     1034              (R )
-str9                     103a              (R )
-SUB16                    0e7c                  
-SUBTRACT                 0fbd              (R )
-SWAP16                   0e47                  
-TEST_UPPER_BIT           0ddd              (R )
-TOADD                    0de4              (R )
-V_Couple_of_point        105a                  
-V_Point                  1046                  
-V_points                 1066              (R )
-V_print_point            1056              (R )
-V_pt1                    104e              (R )
-V_pt2                    105e              (R )
-V_reset_coord            1058              (R )
+SUB16                    095b                  
+SUBTRACT                 0a9c              (R )
+SWAP16                   0926                  
+TEST_UPPER_BIT           08bc              (R )
+TOADD                    08c3              (R )
+V_f                      0af6              (R )
+V_P                      0af4                  
 --- End of Symbol List.

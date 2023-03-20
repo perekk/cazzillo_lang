@@ -26,11 +26,13 @@ def DEAD_CHAR [32 !<]
     poke BUFFER_START + WIDTH + WIDTH + 2 LIFE_CHAR
 ]
 
+
 // copy the buffer on the screen
 'show :[
     'buffer BUFFER_START
     'screen SCREEN_START
     'col 0
+
     while buffer < BUFFER_START + CELL_COUNT [
         poke screen peek buffer
         inc buffer
@@ -68,23 +70,23 @@ def DEAD_CHAR [32 !<]
 def addOneIfAlive [if LIFE_CHAR = peek index [inc n]]
 
 'n 0 !<
-
-'get_num_alive :['index Number
-    n: 0 !<    
-    index: index - 41
+'index 0
+'get_num_alive :['index_to_check Number
+    n: 0 !<
+    index: index_to_check - 41
     addOneIfAlive
     inc index
     addOneIfAlive
     inc index
     addOneIfAlive
     
-    index: index + 38
+    index: 38 + index
     addOneIfAlive
     inc index
     inc index
     addOneIfAlive
 
-    index: index + 38
+    index: 38 + index
     addOneIfAlive
     inc index
     addOneIfAlive
@@ -120,14 +122,14 @@ def addOneIfAlive [if LIFE_CHAR = peek index [inc n]]
         inc from_loc
         inc to_loc
         inc col 
-        if col = WIDTH [from_loc: from_loc + 40 - WIDTH col: 0]        
+        if col = WIDTH [from_loc: 40 + from_loc - WIDTH col: 0]
     ]
 ]
 
 'start time
 init
 
-'i 0
+'i 0 !<
 while i < 10 [
     show
     step
@@ -152,8 +154,8 @@ prin "ELAPSED: " print end - start
 ; 294 optimizing EQ for byte
 ; 291 using global variable n in alive counter
 ; 287 use poke in either
-
-
-
-
-
+; 283 using push in '<' (it will be erased during optimization)
+; 277 avoid calling ADD16, using push in sum
+; 233 index global
+; 222 optimized EQ with literal (as first child)
+; 220 optimized SUM with literal (as first child)
