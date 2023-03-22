@@ -1,5 +1,5 @@
 	; Prelude for:
-	; 1: 1 PROG [prog] type: ()=>number
+	; 1: 1 PROG [prog] type: ()=>void
 	processor 6502 ; TEH BEAST
 	ORG $0801 ; BASIC STARTS HERE
 	HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00
@@ -12,22 +12,30 @@
 	JSR INITSTACK
 	; no child generation for 'struct'
 	; no child generation for 'struct'
-	; 1: 1 STRUCT struct type: (symbol,record)=>void
+	; 6: 1 STRUCT struct type: (symbol,record)=>void
 	; Prelude for:
-	; 2: 4 REF_BLOCK :[x Number print stack print stack print x] type: ()=>addr
+	; 7: 12 REF_BLOCK :[new Point [y 1]] type: ()=>addr
 	JMP AFTER_0
 CALL_0:
-	; reserve 2 on the stack for: x (number offset 0)
+	; no stack memory to reserve
+	; no child generation for 'new'
+	; Prelude for:
+	; 8: 15 RECORD [y 1] type: ()=>void
+	; reserve 2 on the stack for: y (number offset 0)
 	TSX
 	TXA
 	SEC
 	SBC #2
 	TAX
 	TXS
-	; 3: 6 NUMBER Number type: ()=>number
-	; DO NOTHING
-	; 3: 3 LIT_WORD x type: (number)=>void
-	JSR POP16
+	; 8:19 NUMBER 1
+	LDA #0
+	STA STACKACCESS+1
+	LDA #1
+	STA STACKACCESS
+	; JSR PUSH16
+	; 8: 16 LIT_WORD y type: (number)=>void
+	; JSR POP16
 	TSX
 	TXA
 	CLC
@@ -37,45 +45,28 @@ CALL_0:
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-	; 4: 7 STACK stack type: ()=>number
-	LDA SP16
+	; 8: 15 RECORD [y 1] type: ()=>void
+	; push the heap
+SAVE_HEAP_3:
+	LDA HEAPTOP
 	STA STACKACCESS
-	LDA #0
+	STA TOADD+1
+	LDA HEAPTOP+1
 	STA STACKACCESS+1
-	; JSR PUSH16
-	; 4: 1 PRINT print type: (number)=>void
-	; JSR POP16
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	; 6: 7 STACK stack type: ()=>number
-	LDA SP16
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS+1
-	; JSR PUSH16
-	; 6: 1 PRINT print type: (number)=>void
-	; JSR POP16
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	; 7: 7 WORD x type: ()=>number
+	STA TOADD+2
+	JSR PUSH16
+	; copy mem
 	TSX
-	TXA
+	INX
+	STX FROMADD+1
+	LDA #01
+	STA FROMADD+2
+	LDY #2
+	JSR COPYMEM
 	CLC
-	ADC #1
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	; JSR PUSH16
-	; 7: 1 PRINT print type: (number)=>void
-	; JSR POP16
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	; 2: 4 REF_BLOCK :[x Number print stack print stack print x] type: ()=>addr
+	LDA HEAPTOP
+	ADC #2
+	STA HEAPTOP
 	; release 2 on the stack
 	TSX
 	TXA
@@ -83,6 +74,10 @@ CALL_0:
 	ADC #2
 	TAX
 	TXS
+	; 8: 5 NEW new type: (symbol,record)=>Point
+	; do heap malloc for size of structure and return back the address
+	; 7: 12 REF_BLOCK :[new Point [y 1]] type: ()=>addr
+	; no stack memory to release
 	RTS
 AFTER_0:
 	LDA #<CALL_0
@@ -90,32 +85,13 @@ AFTER_0:
 	LDA #>CALL_0
 	STA STACKACCESS + 1
 	; JSR PUSH16
-	; 2: 1 LIT_WORD f type: (addr)=>void
+	; 7: 1 LIT_WORD get_point type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_f + 0
+	STA V_get_point + 0
 	LDA STACKACCESS + 1
-	STA V_f + 1
-	; 10: 3 STACK stack type: ()=>number
-	LDA SP16
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS+1
-	JSR PUSH16
-	; 10: 1 WORD f type: ()=>void
-	LDA V_f
-	STA CALL_FUN_12 + 1
-	LDA V_f + 1
-	STA CALL_FUN_12 + 2
-CALL_FUN_12:
-	JSR $1111 ; will be overwritten
-	; 11:1 NUMBER 1
-	LDA #0
-	STA STACKACCESS+1
-	LDA #1
-	STA STACKACCESS
-	JSR PUSH16
-	; 1: 1 PROG [prog] type: ()=>number
+	STA V_get_point + 1
+	; 1: 1 PROG [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
 HEAPSAVE DS 3 ; USED IN COPYSTRING
@@ -492,6 +468,6 @@ NOCARRY:
 	STA STACKACCESS + 1
 	JSR PUSH16
 	RTS
-V_P DS 2
-V_f DS 2
+V_Point DS 2
+V_get_point DS 2
 HEAPSTART:

@@ -11,7 +11,7 @@
 	STA HEAPTOP+1
 	JSR INITSTACK
 	; Prelude for:
-	; 1: 10 REF_BLOCK :[x Number [x + 1]] type: ()=>number
+	; 1: 10 REF_BLOCK :[x Number [x + 1]] type: ()=>addr
 	JMP AFTER_0
 CALL_0:
 	; reserve 2 on the stack for: x (number offset 0)
@@ -55,10 +55,23 @@ CALL_0:
 	STA STACKACCESS
 	JSR PUSH16
 	; 1: 25 PLUS + type: (number,number)=>number
-	JSR ADD16
+	LDX SP16
+	CLC
+	LDA STACKBASE + 1,X
+	ADC STACKBASE + 3,X
+	STA STACKACCESS
+	LDA STACKBASE + 2,X
+	ADC STACKBASE + 4,X
+	STA STACKACCESS+1
+	INX
+	INX
+	INX
+	INX
+	STX SP16
+	JSR PUSH16
 	; 1: 22 BLOCK [x + 1] type: ()=>number
 	; no stack memory to release
-	; 1: 10 REF_BLOCK :[x Number [x + 1]] type: ()=>number
+	; 1: 10 REF_BLOCK :[x Number [x + 1]] type: ()=>addr
 	; release 2 on the stack
 	TSX
 	TXA
@@ -76,7 +89,7 @@ AFTER_0:
 	; 1: 1 LIT_WORD plusone type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_plusone
+	STA V_plusone + 0
 	LDA STACKACCESS + 1
 	STA V_plusone + 1
 	; 2:15 NUMBER 1

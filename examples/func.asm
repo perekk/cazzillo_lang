@@ -11,7 +11,7 @@
 	STA HEAPTOP+1
 	JSR INITSTACK
 	; Prelude for:
-	; 1: 4 REF_BLOCK :[print 69] type: ()=>void
+	; 1: 4 REF_BLOCK :[print 69] type: ()=>addr
 	JMP AFTER_0
 CALL_0:
 	; no stack memory to reserve
@@ -26,7 +26,7 @@ CALL_0:
 	JSR PRINT_INT
 	LDA #13
 	JSR $FFD2
-	; 1: 4 REF_BLOCK :[print 69] type: ()=>void
+	; 1: 4 REF_BLOCK :[print 69] type: ()=>addr
 	; no stack memory to release
 	RTS
 AFTER_0:
@@ -38,11 +38,11 @@ AFTER_0:
 	; 1: 1 LIT_WORD a type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_a
+	STA V_a + 0
 	LDA STACKACCESS + 1
 	STA V_a + 1
 	; Prelude for:
-	; 3: 8 REF_BLOCK :[69] type: ()=>number
+	; 3: 8 REF_BLOCK :[69] type: ()=>addr
 	JMP AFTER_1
 CALL_1:
 	; no stack memory to reserve
@@ -52,7 +52,7 @@ CALL_1:
 	LDA #69
 	STA STACKACCESS
 	JSR PUSH16
-	; 3: 8 REF_BLOCK :[69] type: ()=>number
+	; 3: 8 REF_BLOCK :[69] type: ()=>addr
 	; no stack memory to release
 	RTS
 AFTER_1:
@@ -64,11 +64,11 @@ AFTER_1:
 	; 3: 1 LIT_WORD const type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_const
+	STA V_const + 0
 	LDA STACKACCESS + 1
 	STA V_const + 1
 	; Prelude for:
-	; 4: 9 REF_BLOCK :[false] type: ()=>boolean
+	; 4: 9 REF_BLOCK :[false] type: ()=>addr
 	JMP AFTER_2
 CALL_2:
 	; no stack memory to reserve
@@ -78,7 +78,7 @@ CALL_2:
 	LDA #0
 	STA STACKACCESS+1
 	JSR PUSH16
-	; 4: 9 REF_BLOCK :[false] type: ()=>boolean
+	; 4: 9 REF_BLOCK :[false] type: ()=>addr
 	; no stack memory to release
 	RTS
 AFTER_2:
@@ -90,11 +90,11 @@ AFTER_2:
 	; 4: 1 LIT_WORD const2 type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_const2
+	STA V_const2 + 0
 	LDA STACKACCESS + 1
 	STA V_const2 + 1
 	; Prelude for:
-	; 5: 9 REF_BLOCK :[2 + 3 * 4] type: ()=>number
+	; 5: 9 REF_BLOCK :[2 + 3 * 4] type: ()=>addr
 	JMP AFTER_3
 CALL_3:
 	; no stack memory to reserve
@@ -104,7 +104,7 @@ CALL_3:
 	LDA #14
 	STA STACKACCESS
 	JSR PUSH16
-	; 5: 9 REF_BLOCK :[2 + 3 * 4] type: ()=>number
+	; 5: 9 REF_BLOCK :[2 + 3 * 4] type: ()=>addr
 	; no stack memory to release
 	RTS
 AFTER_3:
@@ -116,11 +116,11 @@ AFTER_3:
 	; 5: 1 LIT_WORD const3 type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_const3
+	STA V_const3 + 0
 	LDA STACKACCESS + 1
 	STA V_const3 + 1
 	; Prelude for:
-	; 6: 9 REF_BLOCK :[CAZZ . ILLO] type: ()=>string
+	; 6: 9 REF_BLOCK :[CAZZ . ILLO] type: ()=>addr
 	JMP AFTER_4
 CALL_4:
 	; no stack memory to reserve
@@ -195,7 +195,7 @@ CALL_4:
 	LDA HEAPSAVE+1
 	STA STACKACCESS+1
 	JSR PUSH16
-	; 6: 9 REF_BLOCK :[CAZZ . ILLO] type: ()=>string
+	; 6: 9 REF_BLOCK :[CAZZ . ILLO] type: ()=>addr
 	; no stack memory to release
 	RTS
 AFTER_4:
@@ -207,11 +207,11 @@ AFTER_4:
 	; 6: 1 LIT_WORD const4 type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_const4
+	STA V_const4 + 0
 	LDA STACKACCESS + 1
 	STA V_const4 + 1
 	; Prelude for:
-	; 7: 6 REF_BLOCK :[print const print const2 print const3 print const4 prin LOG  prin SI  print FUNGE!] type: ()=>void
+	; 7: 6 REF_BLOCK :[print const print const2 print const3 print const4 prin LOG  prin SI  print FUNGE!] type: ()=>addr
 	JMP AFTER_5
 CALL_5:
 	; no stack memory to reserve
@@ -312,7 +312,7 @@ CALL_FUN_24:
 	JSR PRINT_STRING
 	LDA #13
 	JSR $FFD2
-	; 7: 6 REF_BLOCK :[print const print const2 print const3 print const4 prin LOG  prin SI  print FUNGE!] type: ()=>void
+	; 7: 6 REF_BLOCK :[print const print const2 print const3 print const4 prin LOG  prin SI  print FUNGE!] type: ()=>addr
 	; no stack memory to release
 	RTS
 AFTER_5:
@@ -324,11 +324,11 @@ AFTER_5:
 	; 7: 1 LIT_WORD log type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_log
+	STA V_log + 0
 	LDA STACKACCESS + 1
 	STA V_log + 1
 	; Prelude for:
-	; 17: 7 REF_BLOCK :[drawline :[print -------] i 0 while i < 10 [drawline i i + 1] log] type: ()=>void
+	; 17: 7 REF_BLOCK :[drawline :[print -------] i 0 while i < 10 [drawline i i + 1] log] type: ()=>addr
 	JMP AFTER_6
 CALL_6:
 	; reserve 4 on the stack for: drawline (addr offset 0), i (number offset 2)
@@ -339,7 +339,7 @@ CALL_6:
 	TAX
 	TXS
 	; Prelude for:
-	; 18: 15 REF_BLOCK :[print -------] type: ()=>void
+	; 18: 15 REF_BLOCK :[print -------] type: ()=>addr
 	JMP AFTER_7
 CALL_7:
 	; no stack memory to reserve
@@ -358,7 +358,7 @@ CALL_7:
 	JSR PRINT_STRING
 	LDA #13
 	JSR $FFD2
-	; 18: 15 REF_BLOCK :[print -------] type: ()=>void
+	; 18: 15 REF_BLOCK :[print -------] type: ()=>addr
 	; no stack memory to release
 	RTS
 AFTER_7:
@@ -428,16 +428,17 @@ greaterorequal42:
 less42:
 	LDA #01
 store42:
-	INX
-	INX
-	STA STACKBASE + 1,X
+	STA STACKACCESS
 	LDA #00
-	STA STACKBASE + 2,X
+	STA STACKACCESS + 1
+	INX
+	INX
+	INX
+	INX
 	STX SP16
-	JSR POP16
+	; JSR PUSH16
+	; JSR POP16
 	LDA STACKACCESS
-	BNE trueblock49
-	LDA STACKACCESS + 1
 	BNE trueblock49
 	JMP endblock49 ; if all zero
 trueblock49:
@@ -474,9 +475,22 @@ CALL_FUN_43:
 	STA STACKACCESS
 	JSR PUSH16
 	; 22: 14 PLUS + type: (number,number)=>number
-	JSR ADD16
+	LDX SP16
+	CLC
+	LDA STACKBASE + 1,X
+	ADC STACKBASE + 3,X
+	STA STACKACCESS
+	LDA STACKBASE + 2,X
+	ADC STACKBASE + 4,X
+	STA STACKACCESS+1
+	INX
+	INX
+	INX
+	INX
+	STX SP16
+	; JSR PUSH16
 	; 22: 9 SET_WORD i type: (number)=>void
-	JSR POP16
+	; JSR POP16
 	TSX
 	TXA
 	CLC
@@ -498,7 +512,7 @@ endblock49:
 	STA CALL_FUN_50 + 2
 CALL_FUN_50:
 	JSR $1111 ; will be overwritten
-	; 17: 7 REF_BLOCK :[drawline :[print -------] i 0 while i < 10 [drawline i i + 1] log] type: ()=>void
+	; 17: 7 REF_BLOCK :[drawline :[print -------] i 0 while i < 10 [drawline i i + 1] log] type: ()=>addr
 	; release 4 on the stack
 	TSX
 	TXA
@@ -516,7 +530,7 @@ AFTER_6:
 	; 17: 1 LIT_WORD test type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_test
+	STA V_test + 0
 	LDA STACKACCESS + 1
 	STA V_test + 1
 	; 27: 1 WORD test type: ()=>void

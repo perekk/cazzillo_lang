@@ -15,16 +15,16 @@ while a < 11 [
 print "------------------------------"
 
 a: 7 * 8
-print a
+prin "7 * 8 = " print a
 
 a: 100 * 111
-print a
+prin "100 * 111 = " print a
 
 a: 16 / 2
-print a
+prin "16 / 2 = " print a
 
 a: 256 % 50
-print a
+prin "256 % 50 = " print a
 
 'b 256 / 4
-print b
+prin "256 / 4 = " print b

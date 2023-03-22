@@ -1,7 +1,7 @@
-// this is the problem:
-// first try : first parse, then typecheck, the rebalance the ast with user definition 
-// second try : with bottom up parsing we encounter a before it's definition
-
+; this is the problem:
+; first try : first parse, then typecheck, the rebalance the ast with user definition 
+; second try : with bottom up parsing we encounter a before it's definition
+; third try: parsing from left to right, in depth in case of blocks
 'a 1064 
-[ print a]
+[print a]
 

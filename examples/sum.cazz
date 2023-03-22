@@ -1,4 +1,5 @@
 emit 147 !<                 // clear screen
+print "CLEARED THE SCREEN. THIS IS NOT A BUG!"
 emit [10 + 22 + 35] !<      // C
 emit [30 + 35] !<           // A
 emit [30 + 34 + 26] !<      // Z

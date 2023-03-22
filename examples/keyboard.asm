@@ -19,7 +19,7 @@
 	; 1: 1 LIT_WORD keyboard_loc type: (number)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_keyboard_loc
+	STA V_keyboard_loc + 0
 	LDA STACKACCESS + 1
 	STA V_keyboard_loc + 1
 	; 2:7 BOOL false
@@ -31,7 +31,7 @@
 	; 2: 1 LIT_WORD quit type: (boolean)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_quit
+	STA V_quit + 0
 	; 3:7 STRING "PRESS KEY - Q TO QUIT"
 	LDA #0
 	STA STACKACCESS+1
@@ -63,8 +63,6 @@ startloop39:
 	INC STACKBASE + 1,X
 	JSR POP16
 	LDA STACKACCESS
-	BNE trueblock39
-	LDA STACKACCESS + 1
 	BNE trueblock39
 	JMP endblock39 ; if all zero
 trueblock39:
@@ -120,15 +118,25 @@ trueblock39:
 	STA STACKACCESS
 	JSR PUSH16
 	; 6: 15 PLUS + type: (byte,number)=>number
-	JSR ADD16
+	LDX SP16
+	CLC
+	LDA STACKBASE + 1,X
+	ADC STACKBASE + 3,X
+	STA STACKACCESS
+	LDA STACKBASE + 2,X
+	ADC STACKBASE + 4,X
+	STA STACKACCESS+1
+	INX
+	INX
+	INX
+	INX
+	STX SP16
+	; JSR PUSH16
 	; 6: 10 BLOCK [key + 64] type: ()=>number
 	; no stack memory to release
 	; 6: 21 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
 	; 6: 5 SET_WORD key type: (byte)=>void
-	JSR POP16
+	; JSR POP16
 	TSX
 	TXA
 	CLC
@@ -166,16 +174,19 @@ trueblock39:
 notequal19:
 	LDA #00
 store19:
-	INX
-	INX
-	STA STACKBASE + 1,X
+	STA STACKACCESS
 	LDA #00
-	STA STACKBASE + 2,X
+	STA STACKACCESS + 1
+	INX
+	INX
+	INX
+	INX
 	STX SP16
+	; JSR PUSH16
 	; 7: 5 SET_WORD quit type: (boolean)=>void
-	JSR POP16
+	; JSR POP16
 	LDA STACKACCESS
-	STA V_quit
+	STA V_quit + 0
 	; Prelude for:
 ; 8: 8 BLOCK [key = 128] type: ()=>boolean
 	; no stack memory to reserve
@@ -209,12 +220,15 @@ store19:
 notequal23:
 	LDA #00
 store23:
-	INX
-	INX
-	STA STACKBASE + 1,X
+	STA STACKACCESS
 	LDA #00
-	STA STACKBASE + 2,X
+	STA STACKACCESS + 1
+	INX
+	INX
+	INX
+	INX
 	STX SP16
+	JSR PUSH16
 ; 8: 8 BLOCK [key = 128] type: ()=>boolean
 	; no stack memory to release
 	; 8: 20 NOT ! type: (boolean)=>boolean
@@ -226,8 +240,6 @@ store23:
 	INC STACKBASE + 1,X
 	JSR POP16
 	LDA STACKACCESS
-	BNE trueblock37
-	LDA STACKACCESS + 1
 	BNE trueblock37
 	JMP endblock37 ; if all zero
 trueblock37:

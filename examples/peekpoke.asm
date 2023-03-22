@@ -19,10 +19,10 @@
 	; 1: 1 LIT_WORD i type: (number)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_i
+	STA V_i + 0
 	LDA STACKACCESS + 1
 	STA V_i + 1
-startloop25:
+startloop23:
 	; 2: 7 WORD i type: ()=>number
 	LDA V_i
 	STA STACKACCESS
@@ -50,19 +50,20 @@ greaterorequal4:
 less4:
 	LDA #01
 store4:
-	INX
-	INX
-	STA STACKBASE + 1,X
+	STA STACKACCESS
 	LDA #00
-	STA STACKBASE + 2,X
+	STA STACKACCESS + 1
+	INX
+	INX
+	INX
+	INX
 	STX SP16
-	JSR POP16
+	; JSR PUSH16
+	; JSR POP16
 	LDA STACKACCESS
-	BNE trueblock25
-	LDA STACKACCESS + 1
-	BNE trueblock25
-	JMP endblock25 ; if all zero
-trueblock25:
+	BNE trueblock23
+	JMP endblock23 ; if all zero
+trueblock23:
 	; Prelude for:
 	; 2: 16 BLOCK [poke 53281 i !< poke 53280 i !< poke 1024 + i [1 + peek i] !< inc i] type: ()=>void
 	; no stack memory to reserve
@@ -77,13 +78,10 @@ trueblock25:
 	STA STACKACCESS
 	LDA V_i + 1
 	STA STACKACCESS + 1
-	JSR PUSH16
+	; JSR PUSH16
 	; 3: 18 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
 	; 3: 5 POKE poke type: (number,byte)=>void
-	JSR POP16
+	; JSR POP16
 	LDY STACKACCESS
 	JSR POP16
 	TYA
@@ -100,24 +98,16 @@ trueblock25:
 	STA STACKACCESS
 	LDA V_i + 1
 	STA STACKACCESS + 1
-	JSR PUSH16
+	; JSR PUSH16
 	; 4: 18 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
 	; 4: 5 POKE poke type: (number,byte)=>void
-	JSR POP16
+	; JSR POP16
 	LDY STACKACCESS
 	JSR POP16
 	TYA
 	LDY #0
 	STA (STACKACCESS),Y
-	; 5:10 NUMBER 1024
-	LDA #4
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
+	; no child generation for '+'
 	; 5: 17 WORD i type: ()=>number
 	LDA V_i
 	STA STACKACCESS
@@ -125,16 +115,19 @@ trueblock25:
 	STA STACKACCESS + 1
 	JSR PUSH16
 	; 5: 15 PLUS + type: (number,number)=>number
-	JSR ADD16
+	; add number with 1024
+	LDX SP16
+	CLC
+	LDA STACKBASE + 1,X
+	ADC #<1024
+	STA STACKBASE + 1,X
+	LDA STACKBASE + 2,X
+	ADC #>1024
+	STA STACKBASE + 2,X
 	; Prelude for:
 	; 5: 19 BLOCK [1 + peek i] type: ()=>number
 	; no stack memory to reserve
-	; 5:20 NUMBER 1
-	LDA #0
-	STA STACKACCESS+1
-	LDA #1
-	STA STACKACCESS
-	JSR PUSH16
+	; no child generation for '+'
 	; 5: 29 WORD i type: ()=>number
 	LDA V_i
 	STA STACKACCESS
@@ -149,13 +142,18 @@ trueblock25:
 	STY STACKACCESS+1
 	JSR PUSH16
 	; 5: 22 PLUS + type: (number,byte)=>number
-	JSR ADD16
+	; add number with 1
+	LDX SP16
+	CLC
+	LDA STACKBASE + 1,X
+	ADC #<1
+	STA STACKBASE + 1,X
+	LDA STACKBASE + 2,X
+	ADC #>1
+	STA STACKBASE + 2,X
 	; 5: 19 BLOCK [1 + peek i] type: ()=>number
 	; no stack memory to release
 	; 5: 32 CAST_BYTE !< type: (number)=>byte
-	LDX SP16
-	LDA #0
-	STA STACKBASE + 2,X
 	; 5: 5 POKE poke type: (number,byte)=>void
 	JSR POP16
 	LDY STACKACCESS
@@ -166,14 +164,14 @@ trueblock25:
 	; no child generation for 'inc'
 	; 6: 5 INC inc type: (number)=>void
 	INC V_i
-	BNE not_carry_23
+	BNE not_carry_21
 	INC V_i + 1
-not_carry_23:
+not_carry_21:
 	; 2: 16 BLOCK [poke 53281 i !< poke 53280 i !< poke 1024 + i [1 + peek i] !< inc i] type: ()=>void
 	; no stack memory to release
 	; 2: 1 WHILE while type: (boolean,void)=>void
-	JMP startloop25
-endblock25:
+	JMP startloop23
+endblock23:
 	; 1: 1 PROG [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD

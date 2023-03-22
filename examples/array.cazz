@@ -1,0 +1,38 @@
+'arr1 array 10 Number
+'i 0
+while i < 10 [
+  change arr1 i i * 2 
+  prin i prin ") " print arr1 at i
+  inc i
+]
+
+struct Point [
+  'label String
+  'x Number
+  'y Number  
+]
+
+'init_points :['n Number
+  'points array n Point 
+  'i 0
+  while i < n [
+    change points i new Point [
+      'label "POINT"
+      'x i * i
+      'y i * 2
+    ]    
+    inc i
+  ]
+  points
+]
+
+'print_points :['arr array Point 'n Number
+  'i 0
+  while i < n [
+    prin arr at i print " !"
+    inc i
+  ]
+]
+
+'arr2 init_points 10
+print_points arr2 10

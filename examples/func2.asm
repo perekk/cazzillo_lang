@@ -11,7 +11,7 @@
 	STA HEAPTOP+1
 	JSR INITSTACK
 	; Prelude for:
-	; 1: 8 REF_BLOCK :[SHOULD RETURN: 7 INFACT IS] type: ()=>string
+	; 1: 8 REF_BLOCK :[SHOULD RETURN: 7 INFACT IS] type: ()=>addr
 	JMP AFTER_0
 CALL_0:
 	; no stack memory to reserve
@@ -26,7 +26,7 @@ CALL_0:
 	LDA #<str0
 	STA STACKACCESS
 	JSR PUSH16
-	; 1: 8 REF_BLOCK :[SHOULD RETURN: 7 INFACT IS] type: ()=>string
+	; 1: 8 REF_BLOCK :[SHOULD RETURN: 7 INFACT IS] type: ()=>addr
 	; no stack memory to release
 	RTS
 AFTER_0:
@@ -38,11 +38,11 @@ AFTER_0:
 	; 1: 1 LIT_WORD const type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_const
+	STA V_const + 0
 	LDA STACKACCESS + 1
 	STA V_const + 1
 	; Prelude for:
-	; 2: 9 REF_BLOCK :[x Number y Number [x + y * y]] type: ()=>number
+	; 2: 9 REF_BLOCK :[x Number y Number [x + y * y]] type: ()=>addr
 	JMP AFTER_1
 CALL_1:
 	; reserve 4 on the stack for: x (number offset 0), y (number offset 2)
@@ -117,10 +117,23 @@ CALL_1:
 	; 2: 42 MULT * type: (number,number)=>number
 	JSR MUL16
 	; 2: 38 PLUS + type: (number,number)=>number
-	JSR ADD16
+	LDX SP16
+	CLC
+	LDA STACKBASE + 1,X
+	ADC STACKBASE + 3,X
+	STA STACKACCESS
+	LDA STACKBASE + 2,X
+	ADC STACKBASE + 4,X
+	STA STACKACCESS+1
+	INX
+	INX
+	INX
+	INX
+	STX SP16
+	JSR PUSH16
 	; 2: 35 BLOCK [x + y * y] type: ()=>number
 	; no stack memory to release
-	; 2: 9 REF_BLOCK :[x Number y Number [x + y * y]] type: ()=>number
+	; 2: 9 REF_BLOCK :[x Number y Number [x + y * y]] type: ()=>addr
 	; release 4 on the stack
 	TSX
 	TXA
@@ -138,11 +151,11 @@ AFTER_1:
 	; 2: 1 LIT_WORD double type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_double
+	STA V_double + 0
 	LDA STACKACCESS + 1
 	STA V_double + 1
 	; Prelude for:
-; 3: 9 REF_BLOCK :[msg String num Number [prin msg prin = print num]] type: ()=>void
+; 3: 9 REF_BLOCK :[msg String num Number [prin msg prin = print num]] type: ()=>addr
 	JMP AFTER_2
 CALL_2:
 	; reserve 6 on the stack for: msg (string offset 0), num (number offset 4)
@@ -242,7 +255,7 @@ CALL_2:
 	JSR $FFD2
 ; 3: 35 BLOCK [prin msg prin = print num] type: ()=>void
 	; no stack memory to release
-; 3: 9 REF_BLOCK :[msg String num Number [prin msg prin = print num]] type: ()=>void
+; 3: 9 REF_BLOCK :[msg String num Number [prin msg prin = print num]] type: ()=>addr
 	; release 6 on the stack
 	TSX
 	TXA
@@ -260,7 +273,7 @@ AFTER_2:
 	; 3: 1 LIT_WORD log type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_log
+	STA V_log + 0
 	LDA STACKACCESS + 1
 	STA V_log + 1
 	; 4: 5 WORD const type: ()=>string

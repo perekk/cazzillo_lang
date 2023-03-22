@@ -1,0 +1,52 @@
+struct Point ['y Number]
+'pt1 new Point ['y 420]
+     pt1 -> y: 2   print ""
+;IN  0   3  0  0   1
+;OUT 1   0  1  1   0
+
+'test1 :[
+     new Point ['y 1]
+;IN  2   0     0
+;OUT 1   1     1
+]
+
+'test2 :[
+     'p new Point ['y 1]
+;IN  1  2   0     0
+;OUT 0  1   1     1
+]
+
+'test3 :[
+     pt1 -> y: 2
+;IN  0   3  0  0
+;OUT 1   0  1  1
+]
+
+'test4 :[
+     pt1 -> y
+;IN  0   2  0  
+;OUT 1   1  1  
+]
+
+'test5 :[
+     print pt1 pt1
+;IN  1     0   0
+;OUT 0     1   1    
+]
+
+'a 1 'b 1 'c 1
+'test6 :[
+     print a + b + c a
+;IN  1     0 2 0 2 0 0
+;OUT 0     1 1 1 1 1 1  
+]
+
+[
+     'cazz 1064 [print cazz]
+;IN  1     0    0 
+;OUT 0     1    1 
+]
+
+'s stack
+prin "STACK:" print s
+print either s = 255 ["LOOKS GOOD TO ME!"] ["NO BUENO"]

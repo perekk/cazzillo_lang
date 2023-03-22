@@ -19,7 +19,7 @@
 	; 1: 1 LIT_WORD a type: (number)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_a
+	STA V_a + 0
 	LDA STACKACCESS + 1
 	STA V_a + 1
 	; 2:4 STRING "CAZZ"
@@ -41,7 +41,7 @@
 	STA V_b + 3
 	JSR POP16
 	LDA STACKACCESS
-	STA V_b
+	STA V_b + 0
 	LDA STACKACCESS + 1
 	STA V_b + 1
 	; 3:4 BOOL true
@@ -53,7 +53,7 @@
 	; 3: 1 LIT_WORD c type: (boolean)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_c
+	STA V_c + 0
 	; 4:4 NUMBER 420
 	LDA #1
 	STA STACKACCESS+1
@@ -63,7 +63,7 @@
 	; 4: 1 LIT_WORD d type: (number)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_d
+	STA V_d + 0
 	LDA STACKACCESS + 1
 	STA V_d + 1
 	; Prelude for:
