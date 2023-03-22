@@ -47,6 +47,6 @@ struct Point ['y Number]
 ;OUT 0     1    1 
 ]
 
-'s stack
-prin "STACK:" print s
-print either s = 255 ["LOOKS GOOD TO ME!"] ["NO BUENO"]
+'stk stack
+prin "STACK:" print stk
+print either stk = 255 ["LOOKS GOOD TO ME!"] ["NO BUENO"]

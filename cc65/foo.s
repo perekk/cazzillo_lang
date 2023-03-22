@@ -16,8 +16,9 @@
 
 .segment	"RODATA"
 
-L000F:
-	.byte	$44,$4F,$4E,$45,$0A,$00
+L001A:
+	.byte	$C4,$CF,$CE,$C5,$20,$C9,$CE,$20,$25,$44,$20,$CA,$C9,$C6,$C6,$D9
+	.byte	$0D,$00
 
 ; ---------------------------------------------------------------
 ; int __near__ main (void)
@@ -29,58 +30,72 @@ L000F:
 
 .segment	"CODE"
 
-	ldx     #$00
-	lda     #$64
-	jsr     pushax
-	ldx     #$00
-	lda     #$01
-	jsr     pushax
-	jsr     decsp2
-	ldx     #$00
+	ldx     $00A1
 	lda     #$00
-	ldy     #$00
+	clc
+	adc     $00A2
+	bcc     L001E
+	inx
+L001E:	jsr     pushax
+	lda     #$64
+	jsr     pusha0
+	lda     #$01
+	jsr     pusha0
+	jsr     decsp4
+	lda     #$00
+L0022:	ldy     #$02
 	jsr     staxysp
-L0004:	ldy     #$01
-	jsr     ldaxysp
 	cmp     #$10
 	txa
 	sbc     #$27
-	bvc     L000B
+	bvc     L0010
 	eor     #$80
-L000B:	asl     a
-	lda     #$00
-	ldx     #$00
-	rol     a
-	jne     L0007
-	jmp     L0005
-L0007:	ldy     #$05
-	jsr     ldaxysp
-	jsr     pushax
+L0010:	bpl     L0020
 	ldy     #$05
 	jsr     ldaxysp
-	jsr     tosaddax
+	clc
+	ldy     #$06
+	adc     (sp),y
+	pha
+	txa
+	iny
+	adc     (sp),y
+	tax
+	pla
 	jsr     pushax
 	jsr     incsp2
-	ldy     #$01
+	ldy     #$03
 	jsr     ldaxysp
-	sta     regsave
-	stx     regsave+1
 	jsr     incax1
-	ldy     #$00
-	jsr     staxysp
-	lda     regsave
-	ldx     regsave+1
-	jmp     L0004
-L0005:	lda     #<(L000F)
-	ldx     #>(L000F)
+	jmp     L0022
+L0020:	ldx     $00A1
+	lda     #$00
+	clc
+	adc     $00A2
+	bcc     L001F
+	inx
+L001F:	jsr     stax0sp
+	lda     #<(L001A)
+	ldx     #>(L001A)
 	jsr     pushax
-	ldy     #$02
+	ldy     #$03
+	jsr     ldaxysp
+	sec
+	ldy     #$0A
+	sbc     (sp),y
+	pha
+	txa
+	iny
+	sbc     (sp),y
+	tax
+	pla
+	jsr     pushax
+	ldy     #$04
 	jsr     _printf
 	ldx     #$00
-	lda     #$00
-	jmp     L0001
-L0001:	jsr     incsp6
-	rts
+	txa
+	ldy     #$0A
+	jmp     addysp
 
 .endproc
 

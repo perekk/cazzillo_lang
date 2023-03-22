@@ -10,31 +10,136 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
-	; no child generation for 'struct'
-	; no child generation for 'struct'
-	; 6: 1 STRUCT struct type: (symbol,record)=>void
 	; Prelude for:
-	; 7: 12 REF_BLOCK :[new Point [y 1]] type: ()=>addr
-	JMP AFTER_0
-CALL_0:
+	; 3: 11 BLOCK [256 * peek 161] type: ()=>number
 	; no stack memory to reserve
-	; no child generation for 'new'
+	; 3:13 NUMBER 256
+	LDA #1
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	JSR PUSH16
+	; 3:24 NUMBER 161
+	LDA #0
+	STA STACKACCESS+1
+	LDA #161
+	STA STACKACCESS
+	; JSR PUSH16
+	; 3: 19 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+	; 3: 17 MULT * type: (number,byte)=>number
+	JSR MUL16
+	; 3: 11 BLOCK [256 * peek 161] type: ()=>number
+	; no stack memory to release
+	; 3:36 NUMBER 162
+	LDA #0
+	STA STACKACCESS+1
+	LDA #162
+	STA STACKACCESS
+	; JSR PUSH16
+	; 3: 31 PEEK peek type: (number)=>byte
+	; JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+	; 3: 29 PLUS + type: (number,byte)=>number
+	LDX SP16
+	CLC
+	LDA STACKBASE + 1,X
+	ADC STACKBASE + 3,X
+	STA STACKACCESS
+	LDA STACKBASE + 2,X
+	ADC STACKBASE + 4,X
+	STA STACKACCESS+1
+	INX
+	INX
+	INX
+	INX
+	STX SP16
+	; JSR PUSH16
+	; 4: 1 LIT_WORD start type: (number)=>void
+	; JSR POP16
+	LDA STACKACCESS
+	STA V_start + 0
+	LDA STACKACCESS + 1
+	STA V_start + 1
+	; 5:4 NUMBER 0
+	LDA #0
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	; JSR PUSH16
+	; 5: 1 LIT_WORD i type: (number)=>void
+	; JSR POP16
+	LDA STACKACCESS
+	STA V_i + 0
+	LDA STACKACCESS + 1
+	STA V_i + 1
+startloop18:
+	; 6: 7 WORD i type: ()=>number
+	LDA V_i
+	STA STACKACCESS
+	LDA V_i + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 6:11 NUMBER 10000
+	LDA #39
+	STA STACKACCESS+1
+	LDA #16
+	STA STACKACCESS
+	JSR PUSH16
+	; 6: 9 LT < type: (number,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BCC less13
+	BNE greaterorequal13
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BCC less13
+greaterorequal13:
+	LDA #00
+	JMP store13
+less13:
+	LDA #01
+store13:
+	STA STACKACCESS
+	LDA #00
+	STA STACKACCESS + 1
+	INX
+	INX
+	INX
+	INX
+	STX SP16
+	; JSR PUSH16
+	; JSR POP16
+	LDA STACKACCESS
+	BNE trueblock18
+	JMP endblock18 ; if all zero
+trueblock18:
 	; Prelude for:
-	; 8: 15 RECORD [y 1] type: ()=>void
-	; reserve 2 on the stack for: y (number offset 0)
+	; 6: 17 BLOCK [d 100 + 1 inc i] type: ()=>void
+	; reserve 2 on the stack for: d (number offset 0)
 	TSX
 	TXA
 	SEC
 	SBC #2
 	TAX
 	TXS
-	; 8:19 NUMBER 1
+	; 7:10 NUMBER 101
 	LDA #0
 	STA STACKACCESS+1
-	LDA #1
+	LDA #101
 	STA STACKACCESS
 	; JSR PUSH16
-	; 8: 16 LIT_WORD y type: (number)=>void
+	; 7: 5 LIT_WORD d type: (number)=>void
 	; JSR POP16
 	TSX
 	TXA
@@ -45,28 +150,13 @@ CALL_0:
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-	; 8: 15 RECORD [y 1] type: ()=>void
-	; push the heap
-SAVE_HEAP_3:
-	LDA HEAPTOP
-	STA STACKACCESS
-	STA TOADD+1
-	LDA HEAPTOP+1
-	STA STACKACCESS+1
-	STA TOADD+2
-	JSR PUSH16
-	; copy mem
-	TSX
-	INX
-	STX FROMADD+1
-	LDA #01
-	STA FROMADD+2
-	LDY #2
-	JSR COPYMEM
-	CLC
-	LDA HEAPTOP
-	ADC #2
-	STA HEAPTOP
+	; no child generation for 'inc'
+	; 8: 5 INC inc type: (number)=>void
+	INC V_i
+	BNE not_carry_16
+	INC V_i + 1
+not_carry_16:
+	; 6: 17 BLOCK [d 100 + 1 inc i] type: ()=>void
 	; release 2 on the stack
 	TSX
 	TXA
@@ -74,23 +164,102 @@ SAVE_HEAP_3:
 	ADC #2
 	TAX
 	TXS
-	; 8: 5 NEW new type: (symbol,record)=>Point
-	; do heap malloc for size of structure and return back the address
-	; 7: 12 REF_BLOCK :[new Point [y 1]] type: ()=>addr
-	; no stack memory to release
-	RTS
-AFTER_0:
-	LDA #<CALL_0
+	; 6: 1 WHILE while type: (boolean,void)=>void
+	JMP startloop18
+endblock18:
+	; 10:6 STRING "DONE IN "
+	LDA #0
+	STA STACKACCESS+1
+	LDA #8
 	STA STACKACCESS
-	LDA #>CALL_0
-	STA STACKACCESS + 1
+	JSR PUSH16
+	LDA #>str0
+	STA STACKACCESS+1
+	LDA #<str0
+	STA STACKACCESS
+	JSR PUSH16
+	; 10: 1 PRIN prin type: (string)=>void
+	JSR PRINT_STRING
+	; Prelude for:
+	; 3: 11 BLOCK [256 * peek 161] type: ()=>number
+	; no stack memory to reserve
+	; 3:13 NUMBER 256
+	LDA #1
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	JSR PUSH16
+	; 3:24 NUMBER 161
+	LDA #0
+	STA STACKACCESS+1
+	LDA #161
+	STA STACKACCESS
 	; JSR PUSH16
-	; 7: 1 LIT_WORD get_point type: (addr)=>void
+	; 3: 19 PEEK peek type: (number)=>byte
 	; JSR POP16
-	LDA STACKACCESS
-	STA V_get_point + 0
-	LDA STACKACCESS + 1
-	STA V_get_point + 1
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+	; 3: 17 MULT * type: (number,byte)=>number
+	JSR MUL16
+	; 3: 11 BLOCK [256 * peek 161] type: ()=>number
+	; no stack memory to release
+	; 3:36 NUMBER 162
+	LDA #0
+	STA STACKACCESS+1
+	LDA #162
+	STA STACKACCESS
+	JSR PUSH16
+	; 10: 29 WORD start type: ()=>number
+	LDA V_start
+	STA STACKACCESS
+	LDA V_start + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 10: 27 MINUS - type: (number,number)=>number
+	JSR SUB16
+	; 3: 31 PEEK peek type: (number)=>byte
+	JSR POP16
+	LDY #0
+	LDA (STACKACCESS),Y
+	STA STACKACCESS
+	STY STACKACCESS+1
+	JSR PUSH16
+	; 3: 29 PLUS + type: (number,byte)=>number
+	LDX SP16
+	CLC
+	LDA STACKBASE + 1,X
+	ADC STACKBASE + 3,X
+	STA STACKACCESS
+	LDA STACKBASE + 2,X
+	ADC STACKBASE + 4,X
+	STA STACKACCESS+1
+	INX
+	INX
+	INX
+	INX
+	STX SP16
+	; JSR PUSH16
+	; 10: 17 PRIN prin type: (number)=>void
+	; JSR POP16
+	JSR PRINT_INT
+	; 10:41 STRING " JIFFY"
+	LDA #0
+	STA STACKACCESS+1
+	LDA #6
+	STA STACKACCESS
+	JSR PUSH16
+	LDA #>str1
+	STA STACKACCESS+1
+	LDA #<str1
+	STA STACKACCESS
+	JSR PUSH16
+	; 10: 35 PRINT print type: (string)=>void
+	JSR PRINT_STRING
+	LDA #13
+	JSR $FFD2
 	; 1: 1 PROG [prog] type: ()=>void
 	RTS
 BCD DS 3 ; USED IN BIN TO BCD
@@ -468,6 +637,8 @@ NOCARRY:
 	STA STACKACCESS + 1
 	JSR PUSH16
 	RTS
-V_Point DS 2
-V_get_point DS 2
+str0: BYTE 68,79,78,69,32,73,78,32
+str1: BYTE 32,74,73,70,70,89
+V_start DS 2
+V_i DS 2
 HEAPSTART:

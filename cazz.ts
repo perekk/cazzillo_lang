@@ -481,7 +481,6 @@ function getAsmForGetWordPointedByAUX(varType: ValueType, offset: number): Assem
 
 }
 
-
 function getAsmForSetWordGlobal(varType: ValueType, asmVarName: string, offset: number): Assembly {
 
     switch (varType) {
@@ -4381,6 +4380,20 @@ function getInsOutArity(token: Token): { ins: number, out: number } {
 
 }
 
+function getTokensByTypeRecur(token: Token, type: TokenType): string[] {
+    const wordUsed = token.childs.filter(child => child.type === type).map(child => child.txt);
+    const wordUsedByChild = token.childs.filter(child => child.type === TokenType.BLOCK).map(child => getTokensByTypeRecur(child, type));
+    return wordUsed.concat(wordUsedByChild.flat());
+}
+
+function getWordUsedButNotDefinedInABlock(token: Token): string[] {
+    const wordsUsed = getTokensByTypeRecur(token, TokenType.WORD);
+    const wordsDefined = getTokensByTypeRecur(token, TokenType.LIT_WORD);
+    const wordsUsedButNotDefined = wordsUsed.filter(x => !wordsDefined.includes(x));
+    const freeWords = wordsUsedButNotDefined.filter(name => getWordDefinition(token.context, name) === undefined);
+    return freeWords;
+}
+
 function groupByExpectedArityOutZero(sequence: AST) {
 
     let childLeft = 0;
@@ -4407,7 +4420,7 @@ function groupByExpectedArityOutZero(sequence: AST) {
         // at the start of a new sequence, we dont count out values
         //childLeft = childLeft + ins - (startingNewSequence ? 0 : out);
         childLeft = childLeft + ins - out;
-        if ((childLeft === 0 && !startingNewSequence) || j === sequence.length - 1) {
+        if ((childLeft <= 0 && !startingNewSequence) || j === sequence.length - 1) {
             let endOfBlock = true;
             if (j < sequence.length - 1) {
                 if (sequence[j + 1].position === InstructionPosition.INFIX || sequence[j + 1].position === InstructionPosition.POSTFIX) {
@@ -4419,8 +4432,24 @@ function groupByExpectedArityOutZero(sequence: AST) {
             // if there is one more token that give one result on the stack before the end
             // this could be part of current sequence as return value of the block
             if (j === sequence.length - 2) {
-                const { ins, out } = getInsOutArity(sequence[j + 1]);
-                if (ins === 0 && out === 1) endOfBlock = false
+                const nextToken = sequence[j + 1];
+                if (nextToken.type === TokenType.REF_BLOCK || nextToken.type === TokenType.BLOCK || nextToken.type === TokenType.RECORD) {
+                    const freeWords = getWordUsedButNotDefinedInABlock(nextToken);
+                    const currentlyDefinedWords = sequence.slice(lastPointer, j + 1)
+                        .filter(token => token.type === TokenType.LIT_WORD)
+                        .map(token => token.txt);
+                    const wordsInBlockDefinedCurrently = freeWords.filter(x => currentlyDefinedWords.includes(x));
+
+                    // If there are words in the block that are defined in the current sequence
+                    // we must parse it before the block. 
+                    // If there are not such words we can grab the last item in the sequence as child
+                    if (wordsInBlockDefinedCurrently.length === 0) {
+                        endOfBlock = false;
+                    }
+                } else {
+                    const { ins, out } = getInsOutArity(sequence[j + 1]);
+                    if (ins === 0 && out === 1) endOfBlock = false
+                }
             }
 
             if (endOfBlock) {

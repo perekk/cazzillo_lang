@@ -1,10 +1,10 @@
-'a 11
+'a 0
 'b "CAZZILLO"
 
 while a < 100 [
     'c 0    
     a: a + 1
     c: a
-    print c
+    prin c prin ", "
 ]
 print b

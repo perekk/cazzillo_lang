@@ -1,13 +1,10 @@
-struct Point ['y Number]
-'pt1 new Point ['y 420]
-     pt1 -> y: 2   print ""
-;IN  0   3  0  0   1
-;OUT 1   0  1  1   0
-
-struct Point ['y Number]
-'get_point :[
-     new Point ['y 1]
-;IN  2   0     0
-;OUT 1   1     1
+def b 100
+def c 1
+def time [[ 256 * peek 161] + peek 162]
+'start time
+'i 0
+while i < 10000 [
+    'd b + c
+    inc i
 ]
-
+prin "DONE IN " prin time - start print " JIFFY"

@@ -10,16 +10,16 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
-	; 1:4 NUMBER 11
+	; 1:4 NUMBER 0
 	LDA #0
 	STA STACKACCESS+1
-	LDA #11
+	LDA #0
 	STA STACKACCESS
 	; JSR PUSH16
 	; 1: 1 LIT_WORD a type: (number)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_a
+	STA V_a + 0
 	LDA STACKACCESS + 1
 	STA V_a + 1
 	; 2:4 STRING "CAZZILLO"
@@ -41,10 +41,10 @@
 	STA V_b + 3
 	JSR POP16
 	LDA STACKACCESS
-	STA V_b
+	STA V_b + 0
 	LDA STACKACCESS + 1
 	STA V_b + 1
-startloop18:
+startloop20:
 	; 4: 7 WORD a type: ()=>number
 	LDA V_a
 	STA STACKACCESS
@@ -72,21 +72,22 @@ greaterorequal6:
 less6:
 	LDA #01
 store6:
-	INX
-	INX
-	STA STACKBASE + 1,X
+	STA STACKACCESS
 	LDA #00
-	STA STACKBASE + 2,X
+	STA STACKACCESS + 1
+	INX
+	INX
+	INX
+	INX
 	STX SP16
-	JSR POP16
+	; JSR PUSH16
+	; JSR POP16
 	LDA STACKACCESS
-	BNE trueblock18
-	LDA STACKACCESS + 1
-	BNE trueblock18
-	JMP endblock18 ; if all zero
-trueblock18:
+	BNE trueblock20
+	JMP endblock20 ; if all zero
+trueblock20:
 	; Prelude for:
-	; 4: 15 BLOCK [c 0 a a + 1 c a print c] type: ()=>void
+	; 4: 15 BLOCK [c 0 a a + 1 c a prin c prin , ] type: ()=>void
 	; reserve 2 on the stack for: c (number offset 0)
 	TSX
 	TXA
@@ -124,11 +125,24 @@ trueblock18:
 	STA STACKACCESS
 	JSR PUSH16
 	; 6: 10 PLUS + type: (number,number)=>number
-	JSR ADD16
+	LDX SP16
+	CLC
+	LDA STACKBASE + 1,X
+	ADC STACKBASE + 3,X
+	STA STACKACCESS
+	LDA STACKBASE + 2,X
+	ADC STACKBASE + 4,X
+	STA STACKACCESS+1
+	INX
+	INX
+	INX
+	INX
+	STX SP16
+	; JSR PUSH16
 	; 6: 5 SET_WORD a type: (number)=>void
-	JSR POP16
+	; JSR POP16
 	LDA STACKACCESS
-	STA V_a
+	STA V_a + 0
 	LDA STACKACCESS + 1
 	STA V_a + 1
 	; 7: 8 WORD a type: ()=>number
@@ -148,7 +162,7 @@ trueblock18:
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-	; 8: 11 WORD c type: ()=>number
+	; 8: 10 WORD c type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -159,12 +173,23 @@ trueblock18:
 	LDA $0101,X
 	STA STACKACCESS + 1
 	; JSR PUSH16
-	; 8: 5 PRINT print type: (number)=>void
+	; 8: 5 PRIN prin type: (number)=>void
 	; JSR POP16
 	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	; 4: 15 BLOCK [c 0 a a + 1 c a print c] type: ()=>void
+	; 8:17 STRING ", "
+	LDA #0
+	STA STACKACCESS+1
+	LDA #2
+	STA STACKACCESS
+	JSR PUSH16
+	LDA #>str1
+	STA STACKACCESS+1
+	LDA #<str1
+	STA STACKACCESS
+	JSR PUSH16
+	; 8: 12 PRIN prin type: (string)=>void
+	JSR PRINT_STRING
+	; 4: 15 BLOCK [c 0 a a + 1 c a prin c prin , ] type: ()=>void
 	; release 2 on the stack
 	TSX
 	TXA
@@ -173,8 +198,8 @@ trueblock18:
 	TAX
 	TXS
 	; 4: 1 WHILE while type: (boolean,void)=>void
-	JMP startloop18
-endblock18:
+	JMP startloop20
+endblock20:
 	; 10: 7 WORD b type: ()=>string
 	LDA V_b
 	STA STACKACCESS
@@ -568,6 +593,7 @@ NOCARRY:
 	JSR PUSH16
 	RTS
 str0: BYTE 67,65,90,90,73,76,76,79
+str1: BYTE 44,32
 V_a DS 2
 V_b DS 4
 HEAPSTART:
