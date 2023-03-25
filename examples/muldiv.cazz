@@ -4,7 +4,7 @@ while a < 11 [
     while b < 11 [
         'c a * b
         if c < 10 [prin " "]
-        prin a * b
+        prin c
         prin " "
         b: b + 1
     ]

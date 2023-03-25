@@ -1,968 +1,322 @@
-	; Prelude for:
-	; 1: 1 PROG [prog] type: ()=>void
-	processor 6502 ; TEH BEAST
-	ORG $0801 ; BASIC STARTS HERE
-	HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00
-	ORG $0810 ; MY PROGRAM STARTS HERE
-	; INIT HEAP
-	LDA #<HEAPSTART
-	STA HEAPTOP
-	LDA #>HEAPSTART
-	STA HEAPTOP+1
-	JSR INITSTACK
-	; 1:4 STRING "CAZZILLI"
-	LDA #0
-	STA STACKACCESS+1
-	LDA #8
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str0
-	STA STACKACCESS+1
-	LDA #<str0
-	STA STACKACCESS
-	; JSR PUSH16
-	; 1: 1 LIT_WORD a type: (string)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_a + 2
-	LDA STACKACCESS + 1
-	STA V_a + 3
-	JSR POP16
-	LDA STACKACCESS
-	STA V_a + 0
-	LDA STACKACCESS + 1
-	STA V_a + 1
-	; 2:4 STRING "BUS"
-	LDA #0
-	STA STACKACCESS+1
-	LDA #3
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str1
-	STA STACKACCESS+1
-	LDA #<str1
-	STA STACKACCESS
-	; JSR PUSH16
-	; 2: 1 LIT_WORD b type: (string)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_b + 2
-	LDA STACKACCESS + 1
-	STA V_b + 3
-	JSR POP16
-	LDA STACKACCESS
-	STA V_b + 0
-	LDA STACKACCESS + 1
-	STA V_b + 1
-	; 3: 4 WORD a type: ()=>string
-	LDA V_a
-	STA STACKACCESS
-	LDA V_a + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA V_a + 2
-	STA STACKACCESS
-	LDA V_a + 3
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 3: 8 WORD b type: ()=>string
-	LDA V_b
-	STA STACKACCESS
-	LDA V_b + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA V_b + 2
-	STA STACKACCESS
-	LDA V_b + 3
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 3: 6 STR_JOIN . type: (string,string)=>string
-	NOP
-	NOP
-	NOP
-	LDA HEAPTOP
-	STA HEAPSAVE
-	LDA HEAPTOP+1
-	STA HEAPSAVE+1
-	LDX SP16
-	LDA STACKBASE + 5,X
-	STA FROMADD + 1
-	LDA STACKBASE + 6,X
-	STA FROMADD + 2
-	LDA HEAPTOP
-	STA TOADD + 1
-	LDA HEAPTOP + 1
-	STA TOADD + 2
-	LDA STACKBASE + 7,X
-	STA HEAPSAVE + 2
-	TAY
-	JSR COPYMEM
-	LDA STACKBASE + 1,X
-	STA FROMADD + 1
-	LDA STACKBASE + 2,X
-	STA FROMADD + 2
-	LDX SP16
-	LDA STACKBASE + 3,X
-	TAY
-	CLC
-	ADC HEAPSAVE + 2
-	STA HEAPSAVE + 2
-	JSR COPYMEM
-	LDA TOADD+1
-	STA HEAPTOP
-	LDA TOADD+2
-	STA HEAPTOP+1
-	LDA SP16
-	ADC #8
-	STA SP16
-	LDA HEAPSAVE+2
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA HEAPSAVE
-	STA STACKACCESS
-	LDA HEAPSAVE+1
-	STA STACKACCESS+1
-	; JSR PUSH16
-	; 3: 1 LIT_WORD c type: (string)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_c + 2
-	LDA STACKACCESS + 1
-	STA V_c + 3
-	JSR POP16
-	LDA STACKACCESS
-	STA V_c + 0
-	LDA STACKACCESS + 1
-	STA V_c + 1
-	; 5:4 STRING "SALTA"
-	LDA #0
-	STA STACKACCESS+1
-	LDA #5
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str2
-	STA STACKACCESS+1
-	LDA #<str2
-	STA STACKACCESS
-	; JSR PUSH16
-	; 5: 1 SET_WORD a type: (string)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_a + 2
-	LDA STACKACCESS + 1
-	STA V_a + 3
-	JSR POP16
-	LDA STACKACCESS
-	STA V_a + 0
-	LDA STACKACCESS + 1
-	STA V_a + 1
-	; 6:4 STRING "FANCHIO"
-	LDA #0
-	STA STACKACCESS+1
-	LDA #7
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str3
-	STA STACKACCESS+1
-	LDA #<str3
-	STA STACKACCESS
-	; JSR PUSH16
-	; 6: 1 SET_WORD b type: (string)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_b + 2
-	LDA STACKACCESS + 1
-	STA V_b + 3
-	JSR POP16
-	LDA STACKACCESS
-	STA V_b + 0
-	LDA STACKACCESS + 1
-	STA V_b + 1
-	; 7: 4 WORD a type: ()=>string
-	LDA V_a
-	STA STACKACCESS
-	LDA V_a + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA V_a + 2
-	STA STACKACCESS
-	LDA V_a + 3
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 7: 8 WORD b type: ()=>string
-	LDA V_b
-	STA STACKACCESS
-	LDA V_b + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA V_b + 2
-	STA STACKACCESS
-	LDA V_b + 3
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 7: 6 STR_JOIN . type: (string,string)=>string
-	NOP
-	NOP
-	NOP
-	LDA HEAPTOP
-	STA HEAPSAVE
-	LDA HEAPTOP+1
-	STA HEAPSAVE+1
-	LDX SP16
-	LDA STACKBASE + 5,X
-	STA FROMADD + 1
-	LDA STACKBASE + 6,X
-	STA FROMADD + 2
-	LDA HEAPTOP
-	STA TOADD + 1
-	LDA HEAPTOP + 1
-	STA TOADD + 2
-	LDA STACKBASE + 7,X
-	STA HEAPSAVE + 2
-	TAY
-	JSR COPYMEM
-	LDA STACKBASE + 1,X
-	STA FROMADD + 1
-	LDA STACKBASE + 2,X
-	STA FROMADD + 2
-	LDX SP16
-	LDA STACKBASE + 3,X
-	TAY
-	CLC
-	ADC HEAPSAVE + 2
-	STA HEAPSAVE + 2
-	JSR COPYMEM
-	LDA TOADD+1
-	STA HEAPTOP
-	LDA TOADD+2
-	STA HEAPTOP+1
-	LDA SP16
-	ADC #8
-	STA SP16
-	LDA HEAPSAVE+2
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA HEAPSAVE
-	STA STACKACCESS
-	LDA HEAPSAVE+1
-	STA STACKACCESS+1
-	; JSR PUSH16
-	; 7: 1 LIT_WORD d type: (string)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_d + 2
-	LDA STACKACCESS + 1
-	STA V_d + 3
-	JSR POP16
-	LDA STACKACCESS
-	STA V_d + 0
-	LDA STACKACCESS + 1
-	STA V_d + 1
-	; 9:4 STRING "PISPOLO"
-	LDA #0
-	STA STACKACCESS+1
-	LDA #7
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str4
-	STA STACKACCESS+1
-	LDA #<str4
-	STA STACKACCESS
-	; JSR PUSH16
-	; 9: 1 SET_WORD a type: (string)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_a + 2
-	LDA STACKACCESS + 1
-	STA V_a + 3
-	JSR POP16
-	LDA STACKACCESS
-	STA V_a + 0
-	LDA STACKACCESS + 1
-	STA V_a + 1
-	; 10:4 STRING ""
-	LDA #0
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str5
-	STA STACKACCESS+1
-	LDA #<str5
-	STA STACKACCESS
-	; JSR PUSH16
-	; 10: 1 SET_WORD b type: (string)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_b + 2
-	LDA STACKACCESS + 1
-	STA V_b + 3
-	JSR POP16
-	LDA STACKACCESS
-	STA V_b + 0
-	LDA STACKACCESS + 1
-	STA V_b + 1
-	; 11: 4 WORD a type: ()=>string
-	LDA V_a
-	STA STACKACCESS
-	LDA V_a + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA V_a + 2
-	STA STACKACCESS
-	LDA V_a + 3
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 11: 8 WORD b type: ()=>string
-	LDA V_b
-	STA STACKACCESS
-	LDA V_b + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA V_b + 2
-	STA STACKACCESS
-	LDA V_b + 3
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 11: 6 STR_JOIN . type: (string,string)=>string
-	NOP
-	NOP
-	NOP
-	LDA HEAPTOP
-	STA HEAPSAVE
-	LDA HEAPTOP+1
-	STA HEAPSAVE+1
-	LDX SP16
-	LDA STACKBASE + 5,X
-	STA FROMADD + 1
-	LDA STACKBASE + 6,X
-	STA FROMADD + 2
-	LDA HEAPTOP
-	STA TOADD + 1
-	LDA HEAPTOP + 1
-	STA TOADD + 2
-	LDA STACKBASE + 7,X
-	STA HEAPSAVE + 2
-	TAY
-	JSR COPYMEM
-	LDA STACKBASE + 1,X
-	STA FROMADD + 1
-	LDA STACKBASE + 2,X
-	STA FROMADD + 2
-	LDX SP16
-	LDA STACKBASE + 3,X
-	TAY
-	CLC
-	ADC HEAPSAVE + 2
-	STA HEAPSAVE + 2
-	JSR COPYMEM
-	LDA TOADD+1
-	STA HEAPTOP
-	LDA TOADD+2
-	STA HEAPTOP+1
-	LDA SP16
-	ADC #8
-	STA SP16
-	LDA HEAPSAVE+2
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA HEAPSAVE
-	STA STACKACCESS
-	LDA HEAPSAVE+1
-	STA STACKACCESS+1
-	; JSR PUSH16
-	; 11: 1 LIT_WORD e type: (string)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_e + 2
-	LDA STACKACCESS + 1
-	STA V_e + 3
-	JSR POP16
-	LDA STACKACCESS
-	STA V_e + 0
-	LDA STACKACCESS + 1
-	STA V_e + 1
-	; 13:4 STRING ""
-	LDA #0
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str6
-	STA STACKACCESS+1
-	LDA #<str6
-	STA STACKACCESS
-	; JSR PUSH16
-	; 13: 1 SET_WORD a type: (string)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_a + 2
-	LDA STACKACCESS + 1
-	STA V_a + 3
-	JSR POP16
-	LDA STACKACCESS
-	STA V_a + 0
-	LDA STACKACCESS + 1
-	STA V_a + 1
-	; 14:4 STRING "BIELLE"
-	LDA #0
-	STA STACKACCESS+1
-	LDA #6
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str7
-	STA STACKACCESS+1
-	LDA #<str7
-	STA STACKACCESS
-	; JSR PUSH16
-	; 14: 1 SET_WORD b type: (string)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_b + 2
-	LDA STACKACCESS + 1
-	STA V_b + 3
-	JSR POP16
-	LDA STACKACCESS
-	STA V_b + 0
-	LDA STACKACCESS + 1
-	STA V_b + 1
-	; 15: 4 WORD a type: ()=>string
-	LDA V_a
-	STA STACKACCESS
-	LDA V_a + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA V_a + 2
-	STA STACKACCESS
-	LDA V_a + 3
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 15: 8 WORD b type: ()=>string
-	LDA V_b
-	STA STACKACCESS
-	LDA V_b + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA V_b + 2
-	STA STACKACCESS
-	LDA V_b + 3
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 15: 6 STR_JOIN . type: (string,string)=>string
-	NOP
-	NOP
-	NOP
-	LDA HEAPTOP
-	STA HEAPSAVE
-	LDA HEAPTOP+1
-	STA HEAPSAVE+1
-	LDX SP16
-	LDA STACKBASE + 5,X
-	STA FROMADD + 1
-	LDA STACKBASE + 6,X
-	STA FROMADD + 2
-	LDA HEAPTOP
-	STA TOADD + 1
-	LDA HEAPTOP + 1
-	STA TOADD + 2
-	LDA STACKBASE + 7,X
-	STA HEAPSAVE + 2
-	TAY
-	JSR COPYMEM
-	LDA STACKBASE + 1,X
-	STA FROMADD + 1
-	LDA STACKBASE + 2,X
-	STA FROMADD + 2
-	LDX SP16
-	LDA STACKBASE + 3,X
-	TAY
-	CLC
-	ADC HEAPSAVE + 2
-	STA HEAPSAVE + 2
-	JSR COPYMEM
-	LDA TOADD+1
-	STA HEAPTOP
-	LDA TOADD+2
-	STA HEAPTOP+1
-	LDA SP16
-	ADC #8
-	STA SP16
-	LDA HEAPSAVE+2
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA HEAPSAVE
-	STA STACKACCESS
-	LDA HEAPSAVE+1
-	STA STACKACCESS+1
-	; JSR PUSH16
-	; 15: 1 LIT_WORD f type: (string)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_f + 2
-	LDA STACKACCESS + 1
-	STA V_f + 3
-	JSR POP16
-	LDA STACKACCESS
-	STA V_f + 0
-	LDA STACKACCESS + 1
-	STA V_f + 1
-	; 17: 7 WORD c type: ()=>string
-	LDA V_c
-	STA STACKACCESS
-	LDA V_c + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA V_c + 2
-	STA STACKACCESS
-	LDA V_c + 3
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 17: 1 PRINT print type: (string)=>void
-	JSR PRINT_STRING
-	LDA #13
-	JSR $FFD2
-	; 18: 7 WORD d type: ()=>string
-	LDA V_d
-	STA STACKACCESS
-	LDA V_d + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA V_d + 2
-	STA STACKACCESS
-	LDA V_d + 3
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 18: 1 PRINT print type: (string)=>void
-	JSR PRINT_STRING
-	LDA #13
-	JSR $FFD2
-	; 19: 7 WORD e type: ()=>string
-	LDA V_e
-	STA STACKACCESS
-	LDA V_e + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA V_e + 2
-	STA STACKACCESS
-	LDA V_e + 3
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 19: 1 PRINT print type: (string)=>void
-	JSR PRINT_STRING
-	LDA #13
-	JSR $FFD2
-	; 20: 7 WORD f type: ()=>string
-	LDA V_f
-	STA STACKACCESS
-	LDA V_f + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	LDA V_f + 2
-	STA STACKACCESS
-	LDA V_f + 3
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 20: 1 PRINT print type: (string)=>void
-	JSR PRINT_STRING
-	LDA #13
-	JSR $FFD2
-	; 1: 1 PROG [prog] type: ()=>void
-	RTS
-BCD DS 3 ; USED IN BIN TO BCD
-HEAPSAVE DS 3 ; USED IN COPYSTRING
-AUXMUL DS 2
-HEAPTOP DS 2
-TEST_UPPER_BIT: BYTE $80
-AUX = $7D
-SP16 = $7F
-STACKACCESS = $0080
-STACKBASE = $0000
-COPYMEM:
-	TYA
-	BEQ ENDCOPY
-FROMADD:
-	LDA $1111
-TOADD:
-	STA $1111
-	INC FROMADD + 1
-	BNE COPY_NO_CARRY1
-	INC FROMADD + 2
-COPY_NO_CARRY1:
-	INC TOADD + 1
-	BNE COPY_NO_CARRY2
-	INC TOADD + 2
-COPY_NO_CARRY2:
-	DEY
-	BNE COPYMEM
-ENDCOPY:
-	RTS
-PRINT_STRING:
-	JSR POP16
-	LDX SP16
-	LDA STACKBASE + 1,X; LEN
-	INX
-	INX
-	STX SP16
-	TAX; NOW IN X WE HAVE THE LEN
-	BEQ EXIT_PRINT_STR
-	LDY #0
-LOOP_PRINT_STRING:
-	LDA (STACKACCESS),Y
-	JSR $FFD2
-	INY
-	DEX
-	BNE LOOP_PRINT_STRING
-EXIT_PRINT_STR:
-	RTS
-	; stack.a65 from https://github.com/dourish/mitemon/blob/master/stack.a65
-INITSTACK:
-	LDX #$FF
-	STX SP16
-	RTS
-PUSH16:
-	LDX SP16
-	LDA STACKACCESS + 1
-	STA STACKBASE,X
-	DEX
-	LDA STACKACCESS
-	STA STACKBASE,X
-	DEX
-	STX SP16
-	RTS
-POP16:
-	LDX SP16
-	LDA STACKBASE + 1,X
-	STA STACKACCESS
-	INX
-	LDA STACKBASE + 1,X
-	STA STACKACCESS + 1
-	INX
-	STX SP16
-	RTS
-DUP16:
-	LDX SP16
-	LDA STACKBASE + 2,X
-	STA STACKBASE,X
-	DEX
-	LDA STACKBASE + 2,X
-	STA STACKBASE,X
-	DEX
-	STX SP16
-	RTS
-SWAP16:
-	LDX SP16
-	LDA STACKBASE + 2,X
-	STA STACKBASE,X
-	DEX
-	LDA STACKBASE + 2,X
-	STA STACKBASE,X
-	DEX
-	LDA STACKBASE + 5,X
-	STA STACKBASE + 3,X
-	LDA STACKBASE + 6,X
-	STA STACKBASE + 4,X
-	LDA STACKBASE + 1,X
-	STA STACKBASE + 5,X
-	LDA STACKBASE + 2,X
-	STA STACKBASE + 6,X
-	INX
-	INX
-	STX SP16
-	RTS
-ADD16:
-	LDX SP16
-	CLC
-	LDA STACKBASE + 1,X;
-	ADC STACKBASE + 3,X
-	STA STACKBASE + 3,X
-	LDA STACKBASE + 2,X
-	ADC STACKBASE + 4,X
-	STA STACKBASE + 4,X
-	INX
-	INX
-	STX SP16
-	RTS
-SUB16:
-	LDX SP16
-	SEC
-	LDA STACKBASE + 3,X
-	SBC STACKBASE + 1,X
-	STA STACKBASE + 3,X
-	LDA STACKBASE + 4,X
-	SBC STACKBASE + 2,X
-	STA STACKBASE + 4,X
-	INX
-	INX
-	STX SP16
-	RTS
-BINBCD16: SED
-	LDA #0
-	STA BCD + 0
-	STA BCD + 1
-	STA BCD + 2
-	LDX #16
-CNVBIT: ASL STACKACCESS + 0
-	ROL STACKACCESS + 1
-	LDA BCD + 0
-	ADC BCD + 0
-	STA BCD + 0
-	LDA BCD + 1
-	ADC BCD + 1
-	STA BCD + 1
-	LDA BCD + 2
-	ADC BCD + 2
-	STA BCD + 2
-	DEX
-	BNE CNVBIT
-	CLD
-	RTS
-PRINT_INT:
-	LDY #0
-	JSR BINBCD16
-	LDA BCD+2
-	AND #$0F
-	BEQ DIGIT2
-	TAY
-	CLC
-	ADC #$30
-	JSR $FFD2
-DIGIT2:
-	LDA BCD+1
-	LSR
-	LSR
-	LSR
-	LSR
-	BNE DO_DIGIT_2
-	CPY #00
-	BEQ DIGIT_3
-DO_DIGIT_2:
-	LDY #1
-	CLC
-	ADC #$30
-	JSR $FFD2
-DIGIT_3:
-	LDA BCD+1
-	AND #$0F
-	BNE DO_DIGIT_3
-	CPY #00
-	BEQ DIGIT_4
-DO_DIGIT_3:
-	LDY #1
-	CLC
-	ADC #$30
-	JSR $FFD2
-DIGIT_4:
-	LDA BCD+0
-	LSR
-	LSR
-	LSR
-	LSR
-	BNE DO_DIGIT_4
-	CPY #00
-	BEQ DIGIT_5
-DO_DIGIT_4:
-	CLC
-	ADC #$30
-	JSR $FFD2
-DIGIT_5:
-	LDA BCD+0
-	AND #$0F
-	CLC
-	ADC #$30
-	JSR $FFD2
-	RTS
-MUL16:
-	LDX SP16
-	LDA STACKBASE + 3,X    ; Get the multiplicand and
-	STA AUXMUL             ; put it in the scratchpad.
-	LDA STACKBASE + 4,X
-	STA AUXMUL + 1
-	PHA
-	LDA #0
-	STA STACKBASE + 3       ; Zero - out the original multiplicand area
-	STA STACKBASE + 4
-	PLA
-	LDY #$10                ; We'll loop 16 times.
-shift_loop:
-	ASL STACKBASE + 3,X     ; Shift the entire 32 bits over one bit position.
-	ROL STACKBASE + 4,X
-	ROL STACKBASE + 1,X
-	ROL STACKBASE + 2,X
-	BCC skip_add            ; Skip the adding -in to the result if the high bit shifted out was 0
-	CLC                     ; Else, add multiplier to intermediate result.
-	LDA AUXMUL
-	ADC STACKBASE + 3,X
-	STA STACKBASE + 3,X
-	LDA AUXMUL + 1
-	ADC STACKBASE + 4,X
-	STA STACKBASE + 4,X
-	LDA #0
-	ADC STACKBASE + 1,X
-	STA STACKBASE + 1,X
-skip_add:
-	DEY                      ; If we haven't done 16 iterations yet,
-	BNE  shift_loop          ; then go around again.
-	INX
-	INX
-	STX SP16
-	RTS
-	; https://www.ahl27.com/posts/2022/12/SIXTH-div/
-DIV16WITHMOD:
-;; MAX ITERATIONS IS 16 = 0X10, SINCE WE HAVE 16 BIT NUMBERS
-	LDX SP16
-	LDY #$10
-	;; ADD TWO SPACES ON STACK
-	DEX
-	DEX
-	DEX
-	DEX
-	LDA #0
-	STA STACKBASE + 1,X; REMAINDER
-	STA STACKBASE + 2,X
-	STA STACKBASE + 3,X; QUOTIENT
-	STA STACKBASE + 4,X
-	; +5 - 6 IS DENOMINATOR
-	; +7 - 8 IS NUMERATOR
-	;; SET UP THE NUMERATOR
-	LDA #0
-	ORA STACKBASE + 8,X
-	ORA STACKBASE + 7,X
-	BEQ EARLYEXIT
-	;; CHECKING IS DENOMINATOR IS ZERO(IF SO WE'LL JUST STORE ZEROS)
-	LDA #0
-	ORA STACKBASE + 6,X
-	ORA STACKBASE + 5,X
-	BNE DIVMODLOOP1
-EARLYEXIT:
-	;; NUMERATOR OR DENOMINATOR ARE ZERO, JUST RETURN
-	LDA #0
-	STA STACKBASE + 6,X
-	STA STACKBASE + 5,X
-	INX
-	INX
-	INX
-	INX
-	RTS
-	;; TRIM DOWN TO LEADING BIT
-DIVMODLOOP1:
-	LDA STACKBASE + 8,X
-	BIT TEST_UPPER_BIT
-	BNE END
-	CLC
-	ASL STACKBASE + 7,X
-	ROL STACKBASE + 8,X
-	DEY
-	JMP DIVMODLOOP1
-END:
-	;; MAIN DIVISION LOOP
-DIVMODLOOP2:
-	;; LEFT - SHIFT THE REMAINDER
-	CLC
-	ASL STACKBASE + 1,X         
-	ROL STACKBASE + 2,X
-	;; LEFT - SHIFT THE QUOTIENT
-	CLC
-	ASL STACKBASE + 3,X
-	ROL STACKBASE + 4,X
-	;; SET LEAST SIGNIFICANT BIT TO BIT I OF NUMERATOR
-	CLC
-	ASL STACKBASE + 7,X
-	ROL STACKBASE + 8,X
-	LDA STACKBASE + 1,X
-	ADC #0
-	STA STACKBASE + 1,X
-	LDA STACKBASE + 2,X
-	ADC #0
-	STA STACKBASE + 2,X
-	;; COMPARE REMAINDER TO DENOMINATOR
-	; UPPER BYTE(STACKBASE + 2 IS ALREADY IN A)
-	CMP STACKBASE + 6,X
-	BMI SKIP; IF R < D, SKIP TO NEXT ITERATION 
-	BNE SUBTRACT; IF R > D, WE CAN SKIP COMPARING LOWER BYTE
-; IF R = D, WE HAVE TO CHECK THE LOWER BYTE
-	; LOWER BYTE
-	LDA STACKBASE + 1,X
-	CMP STACKBASE + 5,X
-	BMI SKIP
-SUBTRACT:
-	;; SUBTRACT DENOMINATOR FROM REMAINDER
-	SEC
-	; SUBTRACT LOWER BYTE
-	LDA STACKBASE + 1,X
-	SBC STACKBASE + 5,X
-	STA STACKBASE + 1,X
-	; SUBTRACT UPPER BYTE
-	LDA STACKBASE + 2,X
-	SBC STACKBASE + 6,X
-	STA STACKBASE + 2,X
-	;; ADD ONE TO QUOTIENT
-	INC STACKBASE + 3,X
-SKIP:
-	DEY
-	BEQ EXIT
-	JMP DIVMODLOOP2
-EXIT:  
-	;; CLEANUP
-	LDA STACKBASE + 1,X
-	STA STACKBASE + 5,X
-	LDA STACKBASE + 2,X
-	STA STACKBASE + 6,X
-	LDA STACKBASE + 3,X
-	STA STACKBASE + 7,X
-	LDA STACKBASE + 4,X
-	STA STACKBASE + 8,X
-	INX
-	INX
-	INX
-	INX
-	RTS
-DIV16:
-	JSR DIV16WITHMOD
-	INX
-	INX
-	RTS
-MOD16:
-	JSR DIV16WITHMOD
-	LDA STACKBASE + 1,X
-	STA STACKBASE + 3,X
-	LDA STACKBASE + 2,X
-	STA STACKBASE + 4,X
-	INX
-	INX
-	RTS
-MALLOC:
-	CLC
-	ADC HEAPTOP
-	STA HEAPTOP
-	BCC NOCARRY
-	INC HEAPTOP+1
-NOCARRY:
-	LDA HEAPTOP
-	STA STACKACCESS
-	LDA HEAPTOP + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	RTS
-str0: BYTE 67,65,90,90,73,76,76,73
-str1: BYTE 66,85,83
-str2: BYTE 83,65,76,84,65
-str3: BYTE 70,65,78,67,72,73,79
-str4: BYTE 80,73,83,80,79,76,79
-str5: BYTE 
-str6: BYTE 
-str7: BYTE 66,73,69,76,76,69
-V_a DS 4
-V_b DS 4
-V_c DS 4
-V_d DS 4
-V_e DS 4
-V_f DS 4
-HEAPSTART:
+; Prelude for:
+; 1: 1 PROG [prog] type: ()=>void
+BITS 64
+section .text
+global	_start
+_start:
+mov rax, ret_stack_end
+mov [ret_stack_rsp], rax
+mov rax, mem
+mov [mem_top], rax
+; 1:4 STRING "CAZZILLI"
+push 8
+push str0
+; 1: 1 LIT_WORD a type: (string)=>void
+pop rax
+mov [V_a], rax
+pop rax
+mov [V_a+8], rax
+; 2:4 STRING "BUS"
+push 3
+push str1
+; 2: 1 LIT_WORD b type: (string)=>void
+pop rax
+mov [V_b], rax
+pop rax
+mov [V_b+8], rax
+; 3: 4 WORD a type: ()=>string
+mov rax, [V_a + 8]
+push rax
+mov rax, [V_a]
+push rax
+; 3: 8 WORD b type: ()=>string
+mov rax, [V_b + 8]
+push rax
+mov rax, [V_b]
+push rax
+; 3: 6 STR_JOIN . type: (string,string)=>string
+pop r8
+pop r9
+pop r10
+pop r11
+mov rax, r9
+add rax, r11
+call allocate
+mov rsi, r10
+mov rdi, rbx
+mov rcx, r11
+rep movsb
+mov rsi, r8
+mov rcx, r9
+rep movsb
+push rax
+push rbx
+; 3: 1 LIT_WORD c type: (string)=>void
+pop rax
+mov [V_c], rax
+pop rax
+mov [V_c+8], rax
+; 5:4 STRING "SALTA"
+push 5
+push str2
+; 5: 1 SET_WORD a type: (string)=>void
+pop rax
+mov [V_a], rax
+pop rax
+mov [V_a+8], rax
+; 6:4 STRING "FANCHIO"
+push 7
+push str3
+; 6: 1 SET_WORD b type: (string)=>void
+pop rax
+mov [V_b], rax
+pop rax
+mov [V_b+8], rax
+; 7: 4 WORD a type: ()=>string
+mov rax, [V_a + 8]
+push rax
+mov rax, [V_a]
+push rax
+; 7: 8 WORD b type: ()=>string
+mov rax, [V_b + 8]
+push rax
+mov rax, [V_b]
+push rax
+; 7: 6 STR_JOIN . type: (string,string)=>string
+pop r8
+pop r9
+pop r10
+pop r11
+mov rax, r9
+add rax, r11
+call allocate
+mov rsi, r10
+mov rdi, rbx
+mov rcx, r11
+rep movsb
+mov rsi, r8
+mov rcx, r9
+rep movsb
+push rax
+push rbx
+; 7: 1 LIT_WORD d type: (string)=>void
+pop rax
+mov [V_d], rax
+pop rax
+mov [V_d+8], rax
+; 9:4 STRING "PISPOLO"
+push 7
+push str4
+; 9: 1 SET_WORD a type: (string)=>void
+pop rax
+mov [V_a], rax
+pop rax
+mov [V_a+8], rax
+; 10:4 STRING ""
+push 0
+push str5
+; 10: 1 SET_WORD b type: (string)=>void
+pop rax
+mov [V_b], rax
+pop rax
+mov [V_b+8], rax
+; 11: 4 WORD a type: ()=>string
+mov rax, [V_a + 8]
+push rax
+mov rax, [V_a]
+push rax
+; 11: 8 WORD b type: ()=>string
+mov rax, [V_b + 8]
+push rax
+mov rax, [V_b]
+push rax
+; 11: 6 STR_JOIN . type: (string,string)=>string
+pop r8
+pop r9
+pop r10
+pop r11
+mov rax, r9
+add rax, r11
+call allocate
+mov rsi, r10
+mov rdi, rbx
+mov rcx, r11
+rep movsb
+mov rsi, r8
+mov rcx, r9
+rep movsb
+push rax
+push rbx
+; 11: 1 LIT_WORD e type: (string)=>void
+pop rax
+mov [V_e], rax
+pop rax
+mov [V_e+8], rax
+; 13:4 STRING ""
+push 0
+push str6
+; 13: 1 SET_WORD a type: (string)=>void
+pop rax
+mov [V_a], rax
+pop rax
+mov [V_a+8], rax
+; 14:4 STRING "BIELLE"
+push 6
+push str7
+; 14: 1 SET_WORD b type: (string)=>void
+pop rax
+mov [V_b], rax
+pop rax
+mov [V_b+8], rax
+; 15: 4 WORD a type: ()=>string
+mov rax, [V_a + 8]
+push rax
+mov rax, [V_a]
+push rax
+; 15: 8 WORD b type: ()=>string
+mov rax, [V_b + 8]
+push rax
+mov rax, [V_b]
+push rax
+; 15: 6 STR_JOIN . type: (string,string)=>string
+pop r8
+pop r9
+pop r10
+pop r11
+mov rax, r9
+add rax, r11
+call allocate
+mov rsi, r10
+mov rdi, rbx
+mov rcx, r11
+rep movsb
+mov rsi, r8
+mov rcx, r9
+rep movsb
+push rax
+push rbx
+; 15: 1 LIT_WORD f type: (string)=>void
+pop rax
+mov [V_f], rax
+pop rax
+mov [V_f+8], rax
+; 17: 7 WORD c type: ()=>string
+mov rax, [V_c + 8]
+push rax
+mov rax, [V_c]
+push rax
+; 17: 1 PRINT print type: (string)=>void
+pop rax
+mov rsi, rax
+pop rax
+mov rdx, rax
+mov rax, 4
+mov rdi, 1
+syscall
+call print_lf
+; 18: 7 WORD d type: ()=>string
+mov rax, [V_d + 8]
+push rax
+mov rax, [V_d]
+push rax
+; 18: 1 PRINT print type: (string)=>void
+pop rax
+mov rsi, rax
+pop rax
+mov rdx, rax
+mov rax, 4
+mov rdi, 1
+syscall
+call print_lf
+; 19: 7 WORD e type: ()=>string
+mov rax, [V_e + 8]
+push rax
+mov rax, [V_e]
+push rax
+; 19: 1 PRINT print type: (string)=>void
+pop rax
+mov rsi, rax
+pop rax
+mov rdx, rax
+mov rax, 4
+mov rdi, 1
+syscall
+call print_lf
+; 20: 7 WORD f type: ()=>string
+mov rax, [V_f + 8]
+push rax
+mov rax, [V_f]
+push rax
+; 20: 1 PRINT print type: (string)=>void
+pop rax
+mov rsi, rax
+pop rax
+mov rdx, rax
+mov rax, 4
+mov rdi, 1
+syscall
+call print_lf
+; 1: 1 PROG [prog] type: ()=>void
+mov rax, 1
+mov rdi, 0
+syscall
+print_uint:
+; division in 64bit save the quotient into rax and the reminder in rdx
+xor rcx, rcx
+mov r8, 10
+.loop:
+xor rdx, rdx; clearing the register that is going to be used as holder for the reminder
+div r8
+add dl, 0x30; make the reminder printable in ascii conversion 0x30 is '0'
+dec rsp; reduce one byte from the address placed in rsp(freeing one byte of memory)
+mov[rsp], dl; pour one byte into the address pointed
+inc rcx
+test rax, rax
+jnz .loop
+.print_chars_on_stack:
+xor rax, rax
+mov rsi, rsp;
+mov rdx, rcx
+push rcx
+mov rax, 4
+mov rdi, 1
+syscall; rsi e rdx are respectively buffer starting point and length in byte
+; the syscall is going to look at what is in memory at the address loaded in rsi(BE CAREFULL) and not at the content of rdi
+pop rcx
+add rsp, rcx; when printed we can free the stack
+ret
+print_lf:
+dec rsp
+mov[rsp], byte 0x0A;line feed
+mov rsi, rsp;
+mov rdx, 1
+mov rax, 4
+mov rdi, 1
+syscall
+inc rsp
+ret
+allocate:
+mov rbx, [mem_top]
+add [mem_top], rax
+ret
+section .data
+str0 db 67,65,90,90,73,76,76,73
+str1 db 66,85,83
+str2 db 83,65,76,84,65
+str3 db 70,65,78,67,72,73,79
+str4 db 80,73,83,80,79,76,79
+str5 db 
+str6 db 
+str7 db 66,73,69,76,76,69
+section .bss
+V_a: resb 16
+V_b: resb 16
+V_c: resb 16
+V_d: resb 16
+V_e: resb 16
+V_f: resb 16
+mem_top: resb 8
+ret_stack_rsp: resb 8
+ret_stack: resb 655360
+ret_stack_end:
+mem: resb 655360

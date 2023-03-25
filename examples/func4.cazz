@@ -1,8 +1,8 @@
-'plusone :['x Number x + 1]
-print plusone 11
-
 'salute :['name String print "HELLO " . name]
-salute "WORLD"
+salute "CAZZILLERS"
+
+'plusone :['x Number x + 1]
+prin "PLUSONE 11 IS " print plusone 11
 
 'get_num :[69]
 
@@ -10,4 +10,4 @@ salute "WORLD"
 
 // 3 69 Number
 'sumandmult :['x Number 'y Number x + y * y]
-print sumandmult 3 4
+prin "THIS SHOULD BE 4764: " print sumandmult 3 get_num

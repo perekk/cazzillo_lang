@@ -51,7 +51,8 @@ enum TokenType {
     CHANGE,
     TOKEN_COUNT,
 }
-
+const RET_STACK_CAPACITY = 640 * 1024;
+const MEM_CAPACITY = 640 * 1024;
 type ValueTypeUser = ["usertype", string];
 type ArrayType = ["array", ValueType];
 type ValueType = "number" | "byte" | "string" | "bool" | "void" | "addr" | "symbol" | "record" | ValueTypeUser | ArrayType;
@@ -73,17 +74,33 @@ function sizeOfStruct(context: Context, t: ValueType) {
     return structDef.size;
 }
 
-function sizeForValueType(t: ValueType): number {
-    switch (t) {
-        case "addr": return 2;
-        case "bool": return 1;
-        case "byte": return 1;
-        case "number": return 2;
-        case "string": return 4;
-        case "symbol": return 0;
-        case "void": return 0;
-        default: return 2; // usertype is alwaya an address
+function sizeForValueType(t: ValueType, target: Target): number {
+    if (target === "c64") {
+        switch (t) {
+            case "addr": return 2;
+            case "bool": return 1;
+            case "byte": return 1;
+            case "number": return 2;
+            case "string": return 4;
+            case "symbol": return 0;
+            case "void": return 0;
+            default: return 2; // usertype is alwaya an address
+        }
     }
+    if (target === "freebsd") {
+        switch (t) {
+            case "addr": return 8;
+            case "bool": return 8;
+            case "byte": return 8;
+            case "number": return 8;
+            case "string": return 16;
+            case "symbol": return 0;
+            case "void": return 0;
+            default: return 8; // usertype is alwaya an address
+        }
+    }
+    console.log(`target system '${target}' unknown`);
+    exit();
 }
 
 function humanReadableToken(t: TokenType | undefined): string {
@@ -294,9 +311,9 @@ type Instruction = {
     functionIndex?: number,
     ins: (ast: Token) => Array<ValueType>,
     out: (ast: Token) => ValueType,
-    generateAsm: (ast: Token) => Assembly,
-    generatePreludeAsm?: (ast: Token) => Assembly,
-    generateChildPreludeAsm?: (ast: Token, childIndex: number) => Assembly | undefined,
+    generateAsm: (ast: Token, target: Target) => Assembly,
+    generatePreludeAsm?: (ast: Token, target: Target) => Assembly,
+    generateChildPreludeAsm?: (ast: Token, childIndex: number, target: Target) => Assembly | undefined,
     preprocessTokens?: (ast: AST) => void,
 };
 
@@ -306,10 +323,10 @@ type AST = Token[];
 
 type Assembly = Array<string>;
 
-function sizeOfContext(context: Context): number {
+function sizeOfContext(context: Context, target: Target): number {
     let size = 0;
     Object.values(context.varsDefinition).forEach(varDef => {
-        size += sizeForValueType(varDef.internalType);
+        size += sizeForValueType(varDef.internalType, target);
     });
     return size;
 }
@@ -335,420 +352,549 @@ function getAsmVarName(varName: string): string {
     return "V_" + varName;
 }
 
-function getAsmForSetWordPointedByAUX(varType: ValueType, offset: number): Assembly {
+function getAsmForSetWordPointedByAUX(varType: ValueType, offset: number, target: Target): Assembly {
+    if (target === "c64") {
+        switch (varType) {
+            case "bool":
+                return [
+                    `JSR POP16`,
+                    `LDY #${offset}`,
+                    `LDA STACKACCESS`,
+                    `STA (AUX),Y`,
+                ];
+            case "number":
+                return [
+                    `JSR POP16`,
+                    `LDY #${offset}`,
+                    `LDA STACKACCESS`,
+                    `STA (AUX),Y`,
+                    "INY",
+                    `LDA STACKACCESS + 1`,
+                    `STA (AUX),Y`,
+                ];
+            case "byte":
+                return [
+                    `JSR POP16`,
+                    `LDY #${offset}`,
+                    `LDA STACKACCESS`,
+                    `STA (AUX),Y`,
+                ];
+            case "string":
+                return [
+                    `JSR POP16`,
+                    `LDY #${offset} + 3`,
+                    `LDA STACKACCESS + 1`,
+                    `STA (AUX),Y`,
+                    "DEY",
+                    `LDA STACKACCESS`,
+                    `STA (AUX),Y`,
+                    "DEY",
 
-    switch (varType) {
-        case "bool":
-            return [
-                `JSR POP16`,
-                `LDY #${offset}`,
-                `LDA STACKACCESS`,
-                `STA (AUX),Y`,
-            ];
-        case "number":
-            return [
-                `JSR POP16`,
-                `LDY #${offset}`,
-                `LDA STACKACCESS`,
-                `STA (AUX),Y`,
-                "INY",
-                `LDA STACKACCESS + 1`,
-                `STA (AUX),Y`,
-            ];
-        case "byte":
-            return [
-                `JSR POP16`,
-                `LDY #${offset}`,
-                `LDA STACKACCESS`,
-                `STA (AUX),Y`,
-            ];
-        case "string":
-            return [
-                `JSR POP16`,
-                `LDY #${offset} + 3`,
-                `LDA STACKACCESS + 1`,
-                `STA (AUX),Y`,
-                "DEY",
-                `LDA STACKACCESS`,
-                `STA (AUX),Y`,
-                "DEY",
+                    `JSR POP16`,
+                    `LDA STACKACCESS + 1`,
+                    `STA (AUX),Y`,
+                    "DEY",
+                    `LDA STACKACCESS`,
+                    `STA (AUX),Y`,
+                ];
+            case "addr":
+                return [
+                    `JSR POP16`,
+                    `LDY #${offset}`,
+                    `LDA STACKACCESS`,
+                    `STA (AUX),Y`,
+                    "INY",
+                    `LDA STACKACCESS + 1`,
+                    `STA (AUX),Y`,
 
-                `JSR POP16`,
-                `LDA STACKACCESS + 1`,
-                `STA (AUX),Y`,
-                "DEY",
-                `LDA STACKACCESS`,
-                `STA (AUX),Y`,
-            ];
-        case "addr":
-            return [
-                `JSR POP16`,
-                `LDY #${offset}`,
-                `LDA STACKACCESS`,
-                `STA (AUX),Y`,
-                "INY",
-                `LDA STACKACCESS + 1`,
-                `STA (AUX),Y`,
-
-            ];
-        default:
-            return [
-                `JSR POP16`,
-                `LDY #${offset}`,
-                `LDA STACKACCESS`,
-                `STA (AUX),Y`,
-                "INY",
-                `LDA STACKACCESS + 1`,
-                `STA (AUX),Y`,
-            ];
-        //logError(token.loc, `cannot compile asm to retrieve value for '${token.txt}' of '${humanReadableType(varType)}' type`);
-        //exit();
-    }
-
-}
-
-function getAsmForGetWordPointedByAUX(varType: ValueType, offset: number): Assembly {
-
-    switch (varType) {
-        case "bool":
-            return [
-                `LDY #${offset}`,
-                `LDA (AUX),Y`,
-                `STA STACKACCESS`,
-                `LDA #0`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`,
-            ];
-        case "number":
-            return [
-                `LDY #${offset}`,
-                `LDA (AUX),Y`,
-                `STA STACKACCESS`,
-                "INY",
-                `LDA (AUX),Y`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`,
-            ];
-        case "byte":
-            return [
-                `LDY #${offset}`,
-                `LDA (AUX),Y`,
-                `STA STACKACCESS`,
-                `LDA #0`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`,
-            ];
-        case "string":
-            return [
-                `LDY #${offset}`,
-                `LDA (AUX),Y`,
-                `STA STACKACCESS`,
-                "INY",
-                `LDA (AUX),Y`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`,
-                "INY",
-                `LDA (AUX),Y`,
-                `STA STACKACCESS`,
-                "INY",
-                `LDA (AUX),Y`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`,
-            ];
-        case "addr":
-            return [
-                `LDY #${offset}`,
-                `LDA (AUX),Y`,
-                `STA STACKACCESS`,
-                "INY",
-                `LDA (AUX),Y`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`,
-            ];
-        default:
-            return [
-                `LDY #${offset}`,
-                `LDA (AUX),Y`,
-                `STA STACKACCESS`,
-                "INY",
-                `LDA (AUX),Y`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`,
-            ];
-        //logError(token.loc, `cannot compile asm to retrieve value for '${token.txt}' of '${humanReadableType(varType)}' type`);
-        //exit();
-    }
-
-}
-
-function getAsmForSetWordGlobal(varType: ValueType, asmVarName: string, offset: number): Assembly {
-
-    switch (varType) {
-        case "bool":
-            return [
-                `JSR POP16`,
-                `LDA STACKACCESS`,
-                `STA ${asmVarName} + ${offset}`,
-            ];
-        case "number":
-            return [
-                `JSR POP16`,
-                `LDA STACKACCESS`,
-                `STA ${asmVarName} + ${offset}`,
-                `LDA STACKACCESS + 1`,
-                `STA ${asmVarName} + ${offset + 1}`,
-            ];
-        case "byte":
-            return [
-                `JSR POP16`,
-                `LDA STACKACCESS`,
-                `STA ${asmVarName} + ${offset}`,
-            ];
-        case "string":
-            return [
-                `JSR POP16`,
-                `LDA STACKACCESS`,
-                `STA ${asmVarName} + ${offset + 2}`,
-                `LDA STACKACCESS + 1`,
-                `STA ${asmVarName} + ${offset + 3}`,
-
-                `JSR POP16`,
-                `LDA STACKACCESS`,
-                `STA ${asmVarName} + ${offset}`,
-                `LDA STACKACCESS + 1`,
-                `STA ${asmVarName} + ${offset + 1}`,
-            ];
-        case "addr":
-            return [
-                `JSR POP16`,
-                `LDA STACKACCESS`,
-                `STA ${asmVarName} + ${offset}`,
-                `LDA STACKACCESS + 1`,
-                `STA ${asmVarName} + ${offset + 1}`,
-            ];
-        default:
-            return [
-                `JSR POP16`,
-                `LDA STACKACCESS`,
-                `STA ${asmVarName} + ${offset}`,
-                `LDA STACKACCESS + 1`,
-                `STA ${asmVarName} + ${offset + 1}`,
-            ];
+                ];
+            default:
+                return [
+                    `JSR POP16`,
+                    `LDY #${offset}`,
+                    `LDA STACKACCESS`,
+                    `STA (AUX),Y`,
+                    "INY",
+                    `LDA STACKACCESS + 1`,
+                    `STA (AUX),Y`,
+                ];
             //logError(token.loc, `cannot compile asm to retrieve value for '${token.txt}' of '${humanReadableType(varType)}' type`);
             //exit();
+        }
     }
+    if (target === "freebsd") {
+        switch (varType) {
+            case "number":
+            case "byte":
+            case "addr":
+            case "bool":
+                return [
+                    "pop rbx",
+                    "pop rax",
+                    "mov [rax], rbx",
+                ];
+            case "string":
+                return [
+                    "pop rbx",
+                    "pop rcx",
+                    "pop rax",
+                    "mov [rax], rbx",
+                    "mov [rax + 8], rcx",
+                ];
+
+            default:
+                return [
+                    "pop rbx",
+                    "pop rax",
+                    "mov [rax], rbx",
+                ];
+        }
+    }
+    console.log(`target system '${target}' unknown`);
+    exit();
 
 }
 
-function getAsmForSetWordLocal(varType: ValueType, offset: number): Assembly {
-
-    const popAndOffsetStack = [
-        `JSR POP16`,
-        "TSX",
-        "TXA",
-        "CLC",
-        `ADC #${offset + 1}`,
-        "TAX"
-    ];
-
-    switch (varType) {
-        case "number":
-            return popAndOffsetStack.concat([
-                "LDA STACKACCESS",
-                "STA $0100,X",
-                "LDA STACKACCESS + 1",
-                "STA $0101,X"
-            ]);
-        case "string":
-            return popAndOffsetStack.concat([
-                "LDA STACKACCESS",
-                "STA $0102,X",
-                "LDA STACKACCESS + 1",
-                "STA $0103,X",
-                "TXA",
-                "PHA",
-                "JSR POP16",
-                "PLA",
-                "TAX",
-                "LDA STACKACCESS",
-                "STA $0100,X",
-                "LDA STACKACCESS + 1",
-                "STA $0101,X",
-            ]);                
-        case "byte":
-            return popAndOffsetStack.concat([
-                "LDA STACKACCESS",
-                "STA $0100,X",
-            ]);
-        case "bool":
-            return popAndOffsetStack.concat([
-                "LDA STACKACCESS",
-                "STA $0100,X",
-            ]);
-        case "addr":
-            return popAndOffsetStack.concat([
-                "LDA STACKACCESS",
-                "STA $0100,X",
-                "LDA STACKACCESS + 1",
-                "STA $0101,X"
-            ]);
-        default:
-            return popAndOffsetStack.concat([
-                "LDA STACKACCESS",
-                "STA $0100,X",
-                "LDA STACKACCESS + 1",
-                "STA $0101,X"
-            ]);
+function getAsmForGetWordPointedByAUX(varType: ValueType, offset: number, target: Target): Assembly {
+    if (target === "c64") {
+        switch (varType) {
+            case "bool":
+                return [
+                    `LDY #${offset}`,
+                    `LDA (AUX),Y`,
+                    `STA STACKACCESS`,
+                    `LDA #0`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`,
+                ];
+            case "number":
+                return [
+                    `LDY #${offset}`,
+                    `LDA (AUX),Y`,
+                    `STA STACKACCESS`,
+                    "INY",
+                    `LDA (AUX),Y`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`,
+                ];
+            case "byte":
+                return [
+                    `LDY #${offset}`,
+                    `LDA (AUX),Y`,
+                    `STA STACKACCESS`,
+                    `LDA #0`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`,
+                ];
+            case "string":
+                return [
+                    `LDY #${offset}`,
+                    `LDA (AUX),Y`,
+                    `STA STACKACCESS`,
+                    "INY",
+                    `LDA (AUX),Y`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`,
+                    "INY",
+                    `LDA (AUX),Y`,
+                    `STA STACKACCESS`,
+                    "INY",
+                    `LDA (AUX),Y`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`,
+                ];
+            case "addr":
+                return [
+                    `LDY #${offset}`,
+                    `LDA (AUX),Y`,
+                    `STA STACKACCESS`,
+                    "INY",
+                    `LDA (AUX),Y`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`,
+                ];
+            default:
+                return [
+                    `LDY #${offset}`,
+                    `LDA (AUX),Y`,
+                    `STA STACKACCESS`,
+                    "INY",
+                    `LDA (AUX),Y`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`,
+                ];
+            //logError(token.loc, `cannot compile asm to retrieve value for '${token.txt}' of '${humanReadableType(varType)}' type`);
+            //exit();
+        }
     }
+    if (target === "freebsd") {
+        switch (varType) {
+            case "number":
+            case "bool":
+            case "byte":
+            case "addr":
+                return [
+                    `mov rbx, [rax + ${offset}]`,
+                    "push rbx",
+                ];
+            case "string":
+                return [
+                    `mov rbx, [rax + ${offset}]`,
+                    "push rbx",
+                    "add rax, 8",
+                    `mov rbx, [rax + ${offset}]`,
+                    "push rbx",
+                ];
+            default:
+                return [
+                    `mov rbx, [rax + ${offset}]`,
+                    "push rbx",
+                ];
+        }
+
+    }
+    console.log(`target system '${target}' unknown`);
+    exit();
+
+
 }
 
-function getAsmForGetWordGlobal(token: Token, varType: ValueType, asmVarName: string, isFunction: boolean): Assembly {
+function getAsmForSetWordGlobal(varType: ValueType, asmVarName: string, offset: number, target: Target): Assembly {
+    if (target === "c64") {
+        switch (varType) {
+            case "bool":
+                return [
+                    `JSR POP16`,
+                    `LDA STACKACCESS`,
+                    `STA ${asmVarName} + ${offset}`,
+                ];
+            case "number":
+                return [
+                    `JSR POP16`,
+                    `LDA STACKACCESS`,
+                    `STA ${asmVarName} + ${offset}`,
+                    `LDA STACKACCESS + 1`,
+                    `STA ${asmVarName} + ${offset + 1}`,
+                ];
+            case "byte":
+                return [
+                    `JSR POP16`,
+                    `LDA STACKACCESS`,
+                    `STA ${asmVarName} + ${offset}`,
+                ];
+            case "string":
+                return [
+                    `JSR POP16`,
+                    `LDA STACKACCESS`,
+                    `STA ${asmVarName} + ${offset + 2}`,
+                    `LDA STACKACCESS + 1`,
+                    `STA ${asmVarName} + ${offset + 3}`,
 
-    if (isFunction) {
-        return [
-            `LDA ${asmVarName}`,
-            `STA CALL_FUN_@ + 1`,
-            `LDA ${asmVarName} + 1`,
-            `STA CALL_FUN_@ + 2`,
-            "CALL_FUN_@:",
-            `JSR $1111 ; will be overwritten`
+                    `JSR POP16`,
+                    `LDA STACKACCESS`,
+                    `STA ${asmVarName} + ${offset}`,
+                    `LDA STACKACCESS + 1`,
+                    `STA ${asmVarName} + ${offset + 1}`,
+                ];
+            case "addr":
+                return [
+                    `JSR POP16`,
+                    `LDA STACKACCESS`,
+                    `STA ${asmVarName} + ${offset}`,
+                    `LDA STACKACCESS + 1`,
+                    `STA ${asmVarName} + ${offset + 1}`,
+                ];
+            default:
+                return [
+                    `JSR POP16`,
+                    `LDA STACKACCESS`,
+                    `STA ${asmVarName} + ${offset}`,
+                    `LDA STACKACCESS + 1`,
+                    `STA ${asmVarName} + ${offset + 1}`,
+                ];
+            //logError(token.loc, `cannot compile asm to retrieve value for '${token.txt}' of '${humanReadableType(varType)}' type`);
+            //exit();
+        }
+    }
+    if (target === "freebsd") {
+        if (offset > 0) {
+            console.log("cannot store with offset yet");
+            exit();
+        }
+        switch (varType) {
+            case "number":
+                return [
+                    "pop rax",
+                    `mov [${asmVarName}], rax`,
+                ]
+            case "byte":
+                return [
+                    "pop rax",
+                    `mov [${asmVarName}], rax`,
+                ]
+
+            case "string":
+                return [
+                    "pop rax",
+                    `mov [${asmVarName}], rax`,
+                    "pop rax",
+                    `mov [${asmVarName}+8], rax`,
+                ]
+            case "bool":
+                return [
+                    "pop rax",
+                    `mov [${asmVarName}], rax`,
+                ]
+            case "addr":
+                return [
+                    "pop rax",
+                    `mov [${asmVarName}], rax`,
+                ]
+            default:
+                return [
+                    "pop rax",
+                    `mov [${asmVarName}], rax`,
+                ]
+
+        }
+    }
+    console.log(`target system '${target}' unknown`);
+    exit();
+}
+
+function getAsmForSetWordLocal(varType: ValueType, offset: number, target: Target): Assembly {
+
+    if (target === "c64") {
+        const popAndOffsetStack = [
+            `JSR POP16`,
+            "TSX",
+            "TXA",
+            "CLC",
+            `ADC #${offset + 1}`,
+            "TAX"
         ];
-    }
 
-    switch (varType) {
-        case "bool":
-            return [
-                `LDA ${asmVarName}`,
-                `STA STACKACCESS`,
-                `LDA #0`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`
-            ];
-        case "number":
-            return [
-                `LDA ${asmVarName}`,
-                `STA STACKACCESS`,
-                `LDA ${asmVarName} + 1`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`
-            ];
-        case "byte":
-            return [
-                `LDA ${asmVarName}`,
-                `STA STACKACCESS`,
-                `LDA #0`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`
-            ];
-        case "string":
-            return [
-                `LDA ${asmVarName}`,
-                `STA STACKACCESS`,
-                `LDA ${asmVarName} + 1`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`,
-                `LDA ${asmVarName} + 2`,
-                `STA STACKACCESS`,
-                `LDA ${asmVarName} + 3`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`
-            ];
-        case "addr":
-            return [
-                `LDA ${asmVarName}`,
-                `STA CALL_FUN_@ + 1`,
-                `LDA ${asmVarName} + 1`,
-                `STA CALL_FUN_@ + 2`,
-                "CALL_FUN_@:",
-                `JSR $1111 ; will be overwritten`
-            ]
-        case "record":
-            return [
-                `LDA ${asmVarName}`,
-                `STA STACKACCESS`,
-                `LDA ${asmVarName} + 1`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`
-            ];
-        case "void":
-        case "symbol":
-            logError(token.loc, `cannot compile asm to retrieve value for '${token.txt}' of '${humanReadableType(varType)}' type`);
-            exit();            
-        default:
-            return [
-                `LDA ${asmVarName}`,
-                `STA STACKACCESS`,
-                `LDA ${asmVarName} + 1`,
-                `STA STACKACCESS + 1`,
-                `JSR PUSH16`
-            ];
-
+        switch (varType) {
+            case "number":
+                return popAndOffsetStack.concat([
+                    "LDA STACKACCESS",
+                    "STA $0100,X",
+                    "LDA STACKACCESS + 1",
+                    "STA $0101,X"
+                ]);
+            case "string":
+                return popAndOffsetStack.concat([
+                    "LDA STACKACCESS",
+                    "STA $0102,X",
+                    "LDA STACKACCESS + 1",
+                    "STA $0103,X",
+                    "TXA",
+                    "PHA",
+                    "JSR POP16",
+                    "PLA",
+                    "TAX",
+                    "LDA STACKACCESS",
+                    "STA $0100,X",
+                    "LDA STACKACCESS + 1",
+                    "STA $0101,X",
+                ]);
+            case "byte":
+                return popAndOffsetStack.concat([
+                    "LDA STACKACCESS",
+                    "STA $0100,X",
+                ]);
+            case "bool":
+                return popAndOffsetStack.concat([
+                    "LDA STACKACCESS",
+                    "STA $0100,X",
+                ]);
+            case "addr":
+                return popAndOffsetStack.concat([
+                    "LDA STACKACCESS",
+                    "STA $0100,X",
+                    "LDA STACKACCESS + 1",
+                    "STA $0101,X"
+                ]);
+            default:
+                return popAndOffsetStack.concat([
+                    "LDA STACKACCESS",
+                    "STA $0100,X",
+                    "LDA STACKACCESS + 1",
+                    "STA $0101,X"
+                ]);
+        }
     }
+    if (target === "freebsd") {
+        switch (varType) {
+            case "number":
+            case "bool":
+            case "byte":
+            case "addr":
+                return [
+                    "pop rbx",
+                    "mov rax, [ret_stack_rsp]",
+                    `add rax, ${offset}`,
+                    "mov [rax], rbx",
+                ];
+            case "string":
+                return [
+                    "pop rbx",
+                    "mov rax, [ret_stack_rsp]",
+                    `add rax, ${offset}`,
+                    "mov [rax], rbx",
+                    "pop rbx",
+                    "add rax, 8",
+                    "mov [rax], rbx",
+                ];
+            default:
+                return [
+                    "pop rbx",
+                    "mov rax, [ret_stack_rsp]",
+                    `add rax, ${offset}`,
+                    "mov [rax], rbx",
+                ];
+        }
+    }
+    console.log(`target system '${target}' unknown`);
+    exit();
 }
 
-function getAsmForGetWordLocal(varType: ValueType, offset: number, isFunction: boolean): Assembly {
+function getAsmForGetWordGlobal(token: Token, varType: ValueType, asmVarName: string, isFunction: boolean, target: Target): Assembly {
+    if (target === "c64") {
+        if (isFunction) {
+            return [
+                `LDA ${asmVarName}`,
+                `STA CALL_FUN_@ + 1`,
+                `LDA ${asmVarName} + 1`,
+                `STA CALL_FUN_@ + 2`,
+                "CALL_FUN_@:",
+                `JSR $1111 ; will be overwritten`
+            ];
+        }
+        switch (varType) {
+            case "bool":
+                return [
+                    `LDA ${asmVarName}`,
+                    `STA STACKACCESS`,
+                    `LDA #0`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`
+                ];
+            case "number":
+                return [
+                    `LDA ${asmVarName}`,
+                    `STA STACKACCESS`,
+                    `LDA ${asmVarName} + 1`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`
+                ];
+            case "byte":
+                return [
+                    `LDA ${asmVarName}`,
+                    `STA STACKACCESS`,
+                    `LDA #0`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`
+                ];
+            case "string":
+                return [
+                    `LDA ${asmVarName}`,
+                    `STA STACKACCESS`,
+                    `LDA ${asmVarName} + 1`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`,
+                    `LDA ${asmVarName} + 2`,
+                    `STA STACKACCESS`,
+                    `LDA ${asmVarName} + 3`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`
+                ];
+            case "addr":
+                return [
+                    `LDA ${asmVarName}`,
+                    `STA CALL_FUN_@ + 1`,
+                    `LDA ${asmVarName} + 1`,
+                    `STA CALL_FUN_@ + 2`,
+                    "CALL_FUN_@:",
+                    `JSR $1111 ; will be overwritten`
+                ]
+            case "record":
+                return [
+                    `LDA ${asmVarName}`,
+                    `STA STACKACCESS`,
+                    `LDA ${asmVarName} + 1`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`
+                ];
+            case "void":
+            case "symbol":
+                logError(token.loc, `cannot compile asm to retrieve value for '${token.txt}' of '${humanReadableType(varType)}' type`);
+                exit();
+            default:
+                return [
+                    `LDA ${asmVarName}`,
+                    `STA STACKACCESS`,
+                    `LDA ${asmVarName} + 1`,
+                    `STA STACKACCESS + 1`,
+                    `JSR PUSH16`
+                ];
 
-    const asmOffset = [
-        "TSX",
-        "TXA",
-        "CLC",
-        `ADC #${offset + 1}`,
-        "TAX"
-    ];
-    if (isFunction) {
-        return asmOffset.concat([
-            "LDA $0100,X",
-            `STA CALL_FUN_@ + 1`,
-            "LDA $0101,X",
-            `STA CALL_FUN_@ + 2`,
-            "CALL_FUN_@:",
-            `JSR $1111 ; will be overwritten`
-        ]);
+        }
     }
+    if (target === "freebsd") {
+        if (isFunction) {
+            return [
+                `mov rbx, [${asmVarName}]`,
+                "mov rax, rsp",
+                "mov rsp, [ret_stack_rsp]",
+                `call rbx`,
+                "mov [ret_stack_rsp], rsp",
+                "mov rsp, rax",
+            ];
+        }
+        switch (varType) {
+            case "number":
+            case "bool":
+            case "byte":
+                return [
+                    `mov rax, [${asmVarName}]`,
+                    `push rax`,
+                ]
+            case "string":
+                return [
+                    `mov rax, [${asmVarName} + 8]`,
+                    `push rax`,
+                    `mov rax, [${asmVarName}]`,
+                    `push rax`,
+                ]
+            case "void":
+            case "symbol":
+                logError(token.loc, `cannot compile asm to retrieve value for '${token.txt}' of '${humanReadableType(varType)}' type`);
+                exit();
 
-    switch (varType) {
-        case "number":
-            return asmOffset.concat([
-                "LDA $0100,X",
-                "STA STACKACCESS",
-                "LDA $0101,X",
-                "STA STACKACCESS + 1",
-                "JSR PUSH16"
-            ]);            
-        case "string":
-            return asmOffset.concat([
-                "LDA $0100,X",
-                "STA STACKACCESS",
-                "LDA $0101,X",
-                "STA STACKACCESS + 1",
-                "TXA",
-                "PHA",
-                "JSR PUSH16",
-                "PLA",
-                "TAX",
-                "LDA $0102,X",
-                "STA STACKACCESS",
-                "LDA $0103,X",
-                "STA STACKACCESS + 1",
-                "JSR PUSH16"
-            ]);
-        case "byte":
-            return asmOffset.concat([
-                "LDA $0100,X",
-                "STA STACKACCESS",
-                "LDA #0",
-                "STA STACKACCESS + 1",
-                "JSR PUSH16"
-            ]);
-        case "bool":
-            return asmOffset.concat([
-                "LDA $0100,X",
-                "STA STACKACCESS",
-                "LDA #0",
-                "STA STACKACCESS + 1",
-                "JSR PUSH16"
-            ]);
-        case "addr":
+            default:
+                return [
+                    `mov rax, [${asmVarName}]`,
+                    `push rax`,
+                ];
+
+        }
+    }
+    console.log(`target system '${target}' unknown`);
+    exit();
+}
+
+function getAsmForGetWordLocal(varType: ValueType, offset: number, isFunction: boolean, target: Target): Assembly {
+
+    if (target === "c64") {
+        const asmOffset = [
+            "TSX",
+            "TXA",
+            "CLC",
+            `ADC #${offset + 1}`,
+            "TAX"
+        ];
+        if (isFunction) {
             return asmOffset.concat([
                 "LDA $0100,X",
                 `STA CALL_FUN_@ + 1`,
@@ -757,15 +903,114 @@ function getAsmForGetWordLocal(varType: ValueType, offset: number, isFunction: b
                 "CALL_FUN_@:",
                 `JSR $1111 ; will be overwritten`
             ]);
-        default:
-            return asmOffset.concat([
-                "LDA $0100,X",
-                "STA STACKACCESS",
-                "LDA $0101,X",
-                "STA STACKACCESS + 1",
-                "JSR PUSH16",
-            ]);
+        }
+        switch (varType) {
+            case "number":
+                return asmOffset.concat([
+                    "LDA $0100,X",
+                    "STA STACKACCESS",
+                    "LDA $0101,X",
+                    "STA STACKACCESS + 1",
+                    "JSR PUSH16"
+                ]);
+            case "string":
+                return asmOffset.concat([
+                    "LDA $0100,X",
+                    "STA STACKACCESS",
+                    "LDA $0101,X",
+                    "STA STACKACCESS + 1",
+                    "TXA",
+                    "PHA",
+                    "JSR PUSH16",
+                    "PLA",
+                    "TAX",
+                    "LDA $0102,X",
+                    "STA STACKACCESS",
+                    "LDA $0103,X",
+                    "STA STACKACCESS + 1",
+                    "JSR PUSH16"
+                ]);
+            case "byte":
+                return asmOffset.concat([
+                    "LDA $0100,X",
+                    "STA STACKACCESS",
+                    "LDA #0",
+                    "STA STACKACCESS + 1",
+                    "JSR PUSH16"
+                ]);
+            case "bool":
+                return asmOffset.concat([
+                    "LDA $0100,X",
+                    "STA STACKACCESS",
+                    "LDA #0",
+                    "STA STACKACCESS + 1",
+                    "JSR PUSH16"
+                ]);
+            case "addr":
+                return asmOffset.concat([
+                    "LDA $0100,X",
+                    `STA CALL_FUN_@ + 1`,
+                    "LDA $0101,X",
+                    `STA CALL_FUN_@ + 2`,
+                    "CALL_FUN_@:",
+                    `JSR $1111 ; will be overwritten`
+                ]);
+            default:
+                return asmOffset.concat([
+                    "LDA $0100,X",
+                    "STA STACKACCESS",
+                    "LDA $0101,X",
+                    "STA STACKACCESS + 1",
+                    "JSR PUSH16",
+                ]);
+        }
     }
+    if (target === "freebsd") {
+
+        if (isFunction) {
+            return [
+                "mov rax, [ret_stack_rsp]",
+                `add rax, ${offset}`,
+                "mov rbx, [rax]",
+                "mov rax, rsp",
+                "mov rsp, [ret_stack_rsp]",
+                `call rbx`,
+                "mov [ret_stack_rsp], rsp",
+                "mov rsp, rax",
+            ];
+        }
+        switch (varType) {
+            case "number":
+            case "bool":
+            case "byte":
+            case "addr":
+                return [
+                    "mov rax, [ret_stack_rsp]",
+                    `add rax, ${offset}`,
+                    "mov rbx, [rax]",
+                    "push rbx",
+                ];
+            case "string":
+                return [
+                    "mov rax, [ret_stack_rsp]",
+                    `add rax, ${offset}`,
+                    "mov rcx, [rax]",
+                    "add rax, 8",
+                    "mov rbx, [rax]",
+                    "push rbx",
+                    "push rcx",
+                ];
+            default:
+                return [
+                    "mov rax, [ret_stack_rsp]",
+                    `add rax, ${offset}`,
+                    "mov rbx, [rax]",
+                    "push rbx",
+                ];
+        }
+    }
+    console.log(`target system '${target}' unknown`);
+    exit();
 }
 
 function getReturnTypeOfAWord(token: Token): ValueType {
@@ -809,134 +1054,212 @@ function assertChildNumber(token: Token, spec: number | Array<ValueType | "any">
 
 }
 
-function getAsmPushValuePointedByAux(type: ValueType): Assembly {
-    switch (type) {
-        case "number":
-            return [
-                "LDY #0",
-                "LDA (AUX),Y",
-                "STA STACKACCESS",
-                "INY",
-                "LDA (AUX),Y",
-                "STA STACKACCESS+1",
-                "JSR PUSH16",
-            ]
-        case "string":
-            return [
-                // push len                            
-                "LDY #0",
-                "LDA (AUX),Y",
-                "STA STACKACCESS",
-                "INY",
-                "LDA (AUX),Y",
-                "STA STACKACCESS+1",
-                "JSR PUSH16",
+function getAsmPushValuePointedByAux(type: ValueType, target: Target): Assembly {
+    if (target === "c64") {
+        switch (type) {
+            case "number":
+                return [
+                    "LDY #0",
+                    "LDA (AUX),Y",
+                    "STA STACKACCESS",
+                    "INY",
+                    "LDA (AUX),Y",
+                    "STA STACKACCESS+1",
+                    "JSR PUSH16",
+                ]
+            case "string":
+                return [
+                    // push len                            
+                    "LDY #0",
+                    "LDA (AUX),Y",
+                    "STA STACKACCESS",
+                    "INY",
+                    "LDA (AUX),Y",
+                    "STA STACKACCESS+1",
+                    "JSR PUSH16",
 
-                //push address
-                "INY",
-                "LDA (AUX),Y",
-                "STA STACKACCESS",
-                "INY",
-                "LDA (AUX),Y",
-                "STA STACKACCESS+1",
-                "JSR PUSH16",
-            ]
-        case "byte":
-            return [
-                "LDY #0",
-                "LDA (AUX),Y",
-                "STA STACKACCESS",
-                "STY STACKACCESS+1",
-                "JSR PUSH16",
-            ]
-        case "bool":
-            return [
-                "LDY #0",
-                "LDA (AUX),Y",
-                "STA STACKACCESS",
-                "STY STACKACCESS+1",
-                "JSR PUSH16",
-            ]
-        case "addr":
-            return [
-                "LDY #0",
-                "LDA (AUX),Y",
-                "STA STACKACCESS",
-                "INY",
-                "LDA (AUX),Y",
-                "STA STACKACCESS+1",
-                "JSR PUSH16",
-            ]
-        default:
-            // struct should be pushed as address
-            return [
-                "LDY #0",
-                "LDA (AUX),Y",
-                "STA STACKACCESS",
-                "INY",
-                "LDA (AUX),Y",
-                "STA STACKACCESS+1",
-                "JSR PUSH16",
-            ]                        
+                    //push address
+                    "INY",
+                    "LDA (AUX),Y",
+                    "STA STACKACCESS",
+                    "INY",
+                    "LDA (AUX),Y",
+                    "STA STACKACCESS+1",
+                    "JSR PUSH16",
+                ]
+            case "byte":
+                return [
+                    "LDY #0",
+                    "LDA (AUX),Y",
+                    "STA STACKACCESS",
+                    "STY STACKACCESS+1",
+                    "JSR PUSH16",
+                ]
+            case "bool":
+                return [
+                    "LDY #0",
+                    "LDA (AUX),Y",
+                    "STA STACKACCESS",
+                    "STY STACKACCESS+1",
+                    "JSR PUSH16",
+                ]
+            case "addr":
+                return [
+                    "LDY #0",
+                    "LDA (AUX),Y",
+                    "STA STACKACCESS",
+                    "INY",
+                    "LDA (AUX),Y",
+                    "STA STACKACCESS+1",
+                    "JSR PUSH16",
+                ]
+            default:
+                // struct should be pushed as address
+                return [
+                    "LDY #0",
+                    "LDA (AUX),Y",
+                    "STA STACKACCESS",
+                    "INY",
+                    "LDA (AUX),Y",
+                    "STA STACKACCESS+1",
+                    "JSR PUSH16",
+                ]
+        }
     }
+    if (target === "freebsd") {
+        switch (type) {
+            case "number":
+            case "byte":
+            case "bool":
+            case "addr":
+                return [
+                    "mov rbx, [rax]",
+                    "push rbx",
+                ]
+            case "string":
+                return [
+                    "mov rbx, [rax + 8]",
+                    "push rbx",
+                    "mov rbx, [rax]",
+                    "push rbx",
+                ]
+            default:
+                // struct should be pushed as address
+                return [
+                    "mov rbx, [rax]",
+                    "push rbx",
+                ]
+        }
+    }
+    console.log(`target system '${target}' unknown`);
+    exit();
+
 }
 
-function getAsmPrintTopOfStack(type: ValueType, newLine: boolean): Assembly {
+function getAsmPrintTopOfStack(type: ValueType, newLine: boolean, target: Target): Assembly {
 
-    const newLineAsm = newLine ? ["LDA #13", "JSR $FFD2"] : [];
+    if (target === "c64") {
+        const newLineAsm = newLine ? ["LDA #13", "JSR $FFD2"] : [];
 
-    switch (type) {
-        case "number":
-            return [
-                "JSR POP16",
-                "JSR PRINT_INT",
-                ...newLineAsm
-            ]
-        case "string":
-            return [
-                "JSR PRINT_STRING",
-                ...newLineAsm
-            ]
-        case "byte":
-            return [
-                "JSR POP16",
-                "LDA #0",
-                "STA STACKACCESS + 1",
-                "JSR PRINT_INT",
-                ...newLineAsm
-            ]
-        case "bool":
-            return [
-                "JSR POP16",
-                "LDA STACKACCESS",
-                "BNE print_true@",
-                "LDA STACKACCESS + 1",
-                "BNE print_true@",
-                "LDA #78 ; 'N'",
-                "JMP print_bool@",
-                "print_true@:",
-                "LDA #89 ; 'Y'",
-                "print_bool@:",
-                "JSR $FFD2",
-                ...newLineAsm
-            ]
-        case "addr":
-            return [
-                "; print addr ?",
-                "JSR POP16",
-                "JSR PRINT_INT",
-                ...newLineAsm
-            ]
-        case "void":
-        case "symbol":
-        case "record":
-            console.log(`printing '${humanReadableType(type)}' is not implemented`);
-            exit();
-            break;
-        default:
-            console.log(`Impossible to push onto the stack the type: '${humanReadableType(type)}'`);
-            exit();
+        switch (type) {
+            case "number":
+                return [
+                    "JSR POP16",
+                    "JSR PRINT_INT",
+                    ...newLineAsm
+                ]
+            case "string":
+                return [
+                    "JSR PRINT_STRING",
+                    ...newLineAsm
+                ]
+            case "byte":
+                return [
+                    "JSR POP16",
+                    "LDA #0",
+                    "STA STACKACCESS + 1",
+                    "JSR PRINT_INT",
+                    ...newLineAsm
+                ]
+            case "bool":
+                return [
+                    "JSR POP16",
+                    "LDA STACKACCESS",
+                    "BNE print_true@",
+                    "LDA STACKACCESS + 1",
+                    "BNE print_true@",
+                    "LDA #78 ; 'N'",
+                    "JMP print_bool@",
+                    "print_true@:",
+                    "LDA #89 ; 'Y'",
+                    "print_bool@:",
+                    "JSR $FFD2",
+                    ...newLineAsm
+                ]
+            case "addr":
+                return [
+                    "; print addr ?",
+                    "JSR POP16",
+                    "JSR PRINT_INT",
+                    ...newLineAsm
+                ]
+            case "void":
+            case "symbol":
+            case "record":
+                console.log(`printing '${humanReadableType(type)}' is not implemented`);
+                exit();
+                break;
+            default:
+                console.log(`Impossible to push onto the stack the type: '${humanReadableType(type)}'`);
+                exit();
+        }
     }
+    if (target === "freebsd") {
+        const newLineAsm = newLine ? ["call print_lf"] : [];
+        switch (type) {
+            case "number":
+            case "byte":
+                return [
+                    "pop rax",
+                    "call print_uint",
+                    ...newLineAsm
+                ]
+            case "string":
+                return [
+                    "pop rax",
+                    "mov rsi, rax",
+                    "pop rax",
+                    "mov rdx, rax",
+                    "mov rax, 4",
+                    "mov rdi, 1",
+                    "syscall",
+                    ...newLineAsm
+                ];
+            case "bool":
+                return [
+                    "pop rax",
+                    "cmp rax, 0",
+                    "jne .not_zero@",
+                    "push 'N'",
+                    "jmp .print@",
+                    ".not_zero@:",
+                    "push 'Y'",
+                    ".print@:",
+                    "mov rsi, rsp",
+                    "mov rdx, 1",
+                    "mov rax, 4",
+                    "mov rdi, 1",
+                    "syscall",
+                    "pop rax",
+                    ...newLineAsm
+                ]
+            default:
+                console.log(`printing '${humanReadableType(type)}' is not implemented`);
+                exit();
+        }
+    }
+    console.log(`target system '${target}' unknown`);
+    exit();
 }
 
 function createVocabulary(): Vocabulary {
@@ -959,9 +1282,9 @@ function createVocabulary(): Vocabulary {
             return [valueType];
         },
         out: () => "void",
-        generateAsm: (token) => {
+        generateAsm: (token, target) => {
             const valueType = getReturnTypeOfAWord(token.childs[0]);
-            if (typeof valueType === "string") return getAsmPrintTopOfStack(valueType, true);
+            if (typeof valueType === "string") return getAsmPrintTopOfStack(valueType, true, target);
             if (valueType[0] === "array") {
                 logError(token.loc, `'${token.txt}' is an array, can't print array yet`);
                 exit();
@@ -976,38 +1299,65 @@ function createVocabulary(): Vocabulary {
                 logError(token.loc, `'${token.txt}' is not a struct`);
                 exit();
             }
-            let ret: string[] = [
-                "JSR POP16",
-            ];
-            for (let i = 0; i < structDef.elements.length; i++) {
-                const element = structDef.elements[i];
-                if (i > 0) {
-                    const previousElement = structDef.elements[i - 1];
+            // print struct
+            if (target === "c64") {
+                let ret: string[] = [
+                    "JSR POP16",
+                ];
+                for (let i = 0; i < structDef.elements.length; i++) {
+                    const element = structDef.elements[i];
+                    if (i > 0) {
+                        const previousElement = structDef.elements[i - 1];
+                        ret = ret.concat([
+                            // in stackaccess the pointer to the field in the record
+                            "CLC",
+                            "LDA STACKACCESS",
+                            `ADC #${previousElement.size}`,
+                            "STA STACKACCESS",
+                            "LDA STACKACCESS+1",
+                            `ADC #0`,
+                            "STA STACKACCESS+1",
+                        ])
+                    }
                     ret = ret.concat([
-                        // in stackaccess the pointer to the field in the record
-                        "CLC",
+                        "JSR PUSH16",
+                        // save address in aux
                         "LDA STACKACCESS",
-                        `ADC #${previousElement.size}`,
-                        "STA STACKACCESS",
+                        "STA AUX",
                         "LDA STACKACCESS+1",
-                        `ADC #0`,
-                        "STA STACKACCESS+1",
-                    ])
+                        "STA AUX+1",
+                    ]);
+                    ret = ret.concat(getAsmPushValuePointedByAux(element.type, target));
+                    ret = ret.concat(getAsmPrintTopOfStack(element.type, true, target));
+                    ret = ret.concat("JSR POP16");
                 }
-                ret = ret.concat([
-                    "JSR PUSH16",
-                    // save address in aux
-                    "LDA STACKACCESS",
-                    "STA AUX",
-                    "LDA STACKACCESS+1",
-                    "STA AUX+1",
-                ]);
-                ret = ret.concat(getAsmPushValuePointedByAux(element.type));
-                ret = ret.concat(getAsmPrintTopOfStack(element.type, true));
-                ret = ret.concat("JSR POP16");
+                return ret;
             }
-            return ret;
+            if (target === "freebsd") {
 
+                let ret: string[] = [
+                    "pop rax",
+                ];
+                for (let i = 0; i < structDef.elements.length; i++) {
+                    const element = structDef.elements[i];
+                    if (i > 0) {
+                        const previousElement = structDef.elements[i - 1];
+                        ret = ret.concat([
+                            // in stackaccess the pointer to the field in the record
+                            `add rax, ${previousElement.size}`,
+                        ])
+                    }
+                    ret = ret.concat([
+                        "push rax",
+                    ]);
+                    ret = ret.concat(getAsmPushValuePointedByAux(element.type, target));
+                    ret = ret.concat(getAsmPrintTopOfStack(element.type, true, target));
+                    ret = ret.concat("pop rax");
+                }
+                return ret;
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
         }
     };
     voc[TokenType.PRIN] = {
@@ -1027,9 +1377,9 @@ function createVocabulary(): Vocabulary {
             return [valueType]
         },
         out: () => "void",
-        generateAsm: token => {            
+        generateAsm: (token, target) => {            
             const valueType = getReturnTypeOfAWord(token.childs[0]);
-            if (typeof valueType === "string") return getAsmPrintTopOfStack(valueType, false);
+            if (typeof valueType === "string") return getAsmPrintTopOfStack(valueType, false, target);
             if (valueType[0] === "array") {
                 logError(token.loc, `'${token.txt}' is an array, can't prin array yet`);
                 exit();
@@ -1044,40 +1394,69 @@ function createVocabulary(): Vocabulary {
                 logError(token.loc, `'${token.txt}' is not a struct`);
                 exit();
             }
-            let ret: string[] = [
-                "JSR POP16",
-            ];
-            for (let i = 0; i < structDef.elements.length; i++) {
-                const element = structDef.elements[i];
-                if (i > 0) {
-                    const previousElement = structDef.elements[i - 1];
+            if (target === "c64") {
+                let ret: string[] = [
+                    "JSR POP16",
+                ];
+                for (let i = 0; i < structDef.elements.length; i++) {
+                    const element = structDef.elements[i];
+                    if (i > 0) {
+                        const previousElement = structDef.elements[i - 1];
+                        ret = ret.concat([
+                            "LDA #32",
+                            "JSR $FFD2",
+                            // in stackaccess the pointer to the field in the record
+                            "CLC",
+                            "LDA STACKACCESS",
+                            `ADC #${previousElement.size}`,
+                            "STA STACKACCESS",
+                            "LDA STACKACCESS+1",
+                            `ADC #0`,
+                            "STA STACKACCESS+1",
+                        ])
+                    }
                     ret = ret.concat([
-                        "LDA #32",
-                        "JSR $FFD2",
-                        // in stackaccess the pointer to the field in the record
-                        "CLC",
+                        "JSR PUSH16",
+                        // save address in aux
                         "LDA STACKACCESS",
-                        `ADC #${previousElement.size}`,
-                        "STA STACKACCESS",
+                        "STA AUX",
                         "LDA STACKACCESS+1",
-                        `ADC #0`,
-                        "STA STACKACCESS+1",
-                    ])
-                }
-                ret = ret.concat([
-                    "JSR PUSH16",
-                    // save address in aux
-                    "LDA STACKACCESS",
-                    "STA AUX",
-                    "LDA STACKACCESS+1",
-                    "STA AUX+1",
-                ]);
-                ret = ret.concat(getAsmPushValuePointedByAux(element.type));
-                ret = ret.concat(getAsmPrintTopOfStack(element.type, false));
+                        "STA AUX+1",
+                    ]);
+                    ret = ret.concat(getAsmPushValuePointedByAux(element.type, target));
+                    ret = ret.concat(getAsmPrintTopOfStack(element.type, false, target));
 
-                ret = ret.concat("JSR POP16");
+                    ret = ret.concat("JSR POP16");
+                }
+                return ret;
             }
-            return ret;
+
+            if (target === "freebsd") {
+                let ret: string[] = [
+                    "pop rax",
+                ];
+                for (let i = 0; i < structDef.elements.length; i++) {
+                    const element = structDef.elements[i];
+                    if (i > 0) {
+                        const previousElement = structDef.elements[i - 1];
+                        ret = ret.concat([
+                            // in stackaccess the pointer to the field in the record
+                            "mov rcx, 32",
+                            "call emit",
+                            `add rax, ${previousElement.size}`,
+                        ])
+                    }
+                    ret = ret.concat([
+                        "push rax",
+                    ]);
+                    ret = ret.concat(getAsmPushValuePointedByAux(element.type, target));
+                    ret = ret.concat(getAsmPrintTopOfStack(element.type, false, target));
+                    ret = ret.concat("pop rax");
+                }
+                return ret;
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
         }
     };
     voc[TokenType.EMIT] = {
@@ -1090,11 +1469,23 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: () => ["byte"],
         out: () => "void",        
-        generateAsm: (token) => [
-            "JSR POP16",
-            "LDA STACKACCESS",
-            "JSR $FFD2",
-        ],
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return [
+                    "JSR POP16",
+                    "LDA STACKACCESS",
+                    "JSR $FFD2",
+                ];
+            }
+            if (target === "freebsd") {
+                return [
+                    "pop rcx",
+                    "call emit",
+                ]
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        },
     };
     voc[TokenType.NL] = {
         txt: "nl",
@@ -1106,10 +1497,21 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: (token) => [],
         out: () => "void",
-        generateAsm: () => [
-            "LDA #13",
-            "JSR $FFD2",
-        ],
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return [
+                    "LDA #13",
+                    "JSR $FFD2",
+                ];
+            }
+            if (target === "freebsd") {
+                return [
+                    "call print_lf",
+                ]
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        },
     };
     voc[TokenType.PLUS] = {
         txt: "+",
@@ -1135,52 +1537,77 @@ function createVocabulary(): Vocabulary {
             if (type1 === "byte" && type2 === "byte") return "byte";
             return "number";
         },
-        generateChildPreludeAsm: (token, n) => {
-            if (n === 0 && token.childs[0].type === TokenType.LITERAL) {
-                return undefined;
+        generateChildPreludeAsm: (token, n, target) => {
+            if (target === "c64") {
+                if (n === 0 && token.childs[0].type === TokenType.LITERAL) {
+                    return undefined;
+                }
+                return [];
             }
-            return [];
+            if (target === "freebsd") {
+                return []
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
         },
-        generateAsm: token => {
+        generateAsm: (token, target) => {
             console.assert(token.childs.length === 2, "The childs of a plus operand should be 2, compiler error");
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if (token.childs[0].type === TokenType.LITERAL) {
-                const childValue = parseInt(token.childs[0].txt, 10);
-                if (type1 === "byte" && type2 === "byte") {
+
+            if (target === "c64") {
+                if (token.childs[0].type === TokenType.LITERAL) {
+                    const childValue = parseInt(token.childs[0].txt, 10);
+                    if (type1 === "byte" && type2 === "byte") {
+                        return [
+                            `; add byte with ${childValue}`,
+                            "LDX SP16",
+                            "CLC",
+                            "LDA STACKBASE + 1,X",
+                            `ADC #<${childValue}`,
+                            "STA STACKBASE + 1,X",
+                            "LDA #0",
+                            "STA STACKBASE + 2,X",
+                        ];
+                    }
                     return [
-                        `; add byte with ${childValue}`,
+                        `; add number with ${childValue}`,
                         "LDX SP16",
                         "CLC",
                         "LDA STACKBASE + 1,X",
                         `ADC #<${childValue}`,
                         "STA STACKBASE + 1,X",
-                        "LDA #0",
+                        "LDA STACKBASE + 2,X",
+                        `ADC #>${childValue}`,
                         "STA STACKBASE + 2,X",
+                    ];
+
+                }
+                if (type1 === "byte" && type2 === "byte") {
+                    return [
+                        "LDX SP16",
+                        "CLC",
+                        "LDA STACKBASE + 3,X",
+                        "ADC STACKBASE + 1,X",
+                        "STA STACKACCESS",
+                        "LDA #0",
+                        "STA STACKACCESS+1",
+                        "INX",
+                        "INX",
+                        "INX",
+                        "INX",
+                        "STX SP16",
+                        "JSR PUSH16",
                     ];
                 }
                 return [
-                    `; add number with ${childValue}`,
                     "LDX SP16",
                     "CLC",
                     "LDA STACKBASE + 1,X",
-                    `ADC #<${childValue}`,
-                    "STA STACKBASE + 1,X",
-                    "LDA STACKBASE + 2,X",
-                    `ADC #>${childValue}`,
-                    "STA STACKBASE + 2,X",
-                ];
-
-            }
-
-            if (type1 === "byte" && type2 === "byte") {
-                return [
-                    "LDX SP16",
-                    "CLC",
-                    "LDA STACKBASE + 3,X",
-                    "ADC STACKBASE + 1,X",
+                    "ADC STACKBASE + 3,X",
                     "STA STACKACCESS",
-                    "LDA #0",
+                    "LDA STACKBASE + 2,X",
+                    "ADC STACKBASE + 4,X",
                     "STA STACKACCESS+1",
                     "INX",
                     "INX",
@@ -1190,24 +1617,16 @@ function createVocabulary(): Vocabulary {
                     "JSR PUSH16",
                 ];
             }
-
-            return [
-                "LDX SP16",
-                "CLC",
-                "LDA STACKBASE + 1,X",
-                "ADC STACKBASE + 3,X",
-                "STA STACKACCESS",
-                "LDA STACKBASE + 2,X",
-                "ADC STACKBASE + 4,X",
-                "STA STACKACCESS+1",
-                "INX",
-                "INX",
-                "INX",
-                "INX",
-                "STX SP16",
-                "JSR PUSH16",
-            ];
-
+            if (target === "freebsd") {
+                return [
+                    "pop rax",
+                    "pop rbx",
+                    "add rax, rbx",
+                    "push rax",
+                ]
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
         }
     };
     voc[TokenType.MINUS] = {
@@ -1228,9 +1647,21 @@ function createVocabulary(): Vocabulary {
             return ["number", "number"];
         },
         out: () => "number",
-        generateAsm: (token) => [
-            "JSR SUB16"
-        ]
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return ["JSR SUB16"];
+            }
+            if (target === "freebsd") {
+                return [
+                    "pop rbx",
+                    "pop rax",
+                    "sub rbx, rax",
+                    "push rax"
+                ];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        } 
     };
     voc[TokenType.MULT] = {
         txt: "*",
@@ -1250,9 +1681,21 @@ function createVocabulary(): Vocabulary {
             return ["number", "number"];
         },
         out: () => "number",
-        generateAsm: (token) => [
-            "JSR MUL16"
-        ]
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return ["JSR MUL16"];
+            }
+            if (target === "freebsd") {
+                return [
+                    "pop rbx",
+                    "pop rax",
+                    "mul rbx",
+                    "push rax"
+                ];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        }
     };
     voc[TokenType.DIV] = {
         txt: "/",
@@ -1272,9 +1715,22 @@ function createVocabulary(): Vocabulary {
             return ["number", "number"];
         },
         out: () => "number",
-        generateAsm: (token) => [
-            "JSR DIV16"
-        ]
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return ["JSR DIV16"];
+            }
+            if (target === "freebsd") {
+                return [
+                    "pop rbx",
+                    "pop rax",
+                    "mov rdx, 0",
+                    "idiv rbx",
+                    "push rax"
+                ]
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        } 
     };
     voc[TokenType.MOD] = {
         txt: "%",
@@ -1294,9 +1750,22 @@ function createVocabulary(): Vocabulary {
             return ["number", "number"];
         },
         out: () => "number",
-        generateAsm: (token) => [
-            "JSR MOD16"
-        ]
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return ["JSR MOD16"];
+            }
+            if (target === "freebsd") {
+                return [
+                    "pop rbx",
+                    "pop rax",
+                    "mov rdx, 0",
+                    "idiv rbx",
+                    "push rdx", // modulo in rdx
+                ];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        } 
     };
     voc[TokenType.NOT] = {
         txt: "!",
@@ -1318,48 +1787,64 @@ function createVocabulary(): Vocabulary {
             if (valueType === "byte" || valueType === "number" || valueType === "bool") return valueType;
             return "number";
         },
-        generateAsm: (token) => {
+        generateAsm: (token, target) => {
             const valueType = getReturnTypeOfAWord(token.childs[0]);
-            if (valueType === "number") {
-                return [
-                    "LDX SP16",
-                    "LDA STACKBASE + 1,X",
-                    "EOR #$FF",
-                    "STA STACKBASE + 1,X",
-                    "LDA STACKBASE + 2,X",
-                    "EOR #$FF",
-                    "STA STACKBASE + 2,X",
-                    "LDA #2",
-                    "STA STACKACCESS",
-                    "LDA #0",
-                    "STA STACKACCESS + 1",
-                    "JSR PUSH16",
-                    "JSR ADD16",
-                ]
-            } else if (valueType === "byte") {
-                return [
-                    "LDX SP16",
-                    "LDA STACKBASE + 1,X",
-                    "EOR #$FF",
-                    "STA STACKBASE + 1,X",
-                    "INC STACKBASE + 1,X",
-                    "INC STACKBASE + 1,X"
-                ]
-            } else if (valueType === "bool") {
-                return [
-                    "LDX SP16",
-                    "LDA STACKBASE + 1,X",
-                    "EOR #$FF",
-                    "STA STACKBASE + 1,X",
-                    "INC STACKBASE + 1,X",
-                    "INC STACKBASE + 1,X"
-                ]
-            } else {
-                logError(token.loc, `value type for 'not' is ${humanReadableType(valueType)} compiler error`);
-                exit();
+            if (target === "c64") {
+                if (valueType === "number") {
+                    return [
+                        "LDX SP16",
+                        "LDA STACKBASE + 1,X",
+                        "EOR #$FF",
+                        "STA STACKBASE + 1,X",
+                        "LDA STACKBASE + 2,X",
+                        "EOR #$FF",
+                        "STA STACKBASE + 2,X",
+                        "LDA #2",
+                        "STA STACKACCESS",
+                        "LDA #0",
+                        "STA STACKACCESS + 1",
+                        "JSR PUSH16",
+                        "JSR ADD16",
+                    ]
+                } else if (valueType === "byte") {
+                    return [
+                        "LDX SP16",
+                        "LDA STACKBASE + 1,X",
+                        "EOR #$FF",
+                        "STA STACKBASE + 1,X",
+                        "INC STACKBASE + 1,X",
+                        "INC STACKBASE + 1,X"
+                    ]
+                } else if (valueType === "bool") {
+                    return [
+                        "LDX SP16",
+                        "LDA STACKBASE + 1,X",
+                        "EOR #$FF",
+                        "STA STACKBASE + 1,X",
+                        "INC STACKBASE + 1,X",
+                        "INC STACKBASE + 1,X"
+                    ]
+                } else {
+                    logError(token.loc, `'not' operator for value ${humanReadableType(valueType)} is not implemented`);
+                    exit();
+                }
             }
-
-
+            if (target === "freebsd") {
+                if (valueType === "number" || valueType === "byte" || valueType === "bool") {
+                    return [
+                        "pop rax",
+                        "xor rax, 0xFFFFFFFFFFFFFFFF",
+                        "inc rax",
+                        "inc rax",
+                        "push rax"
+                    ]
+                } else {
+                    logError(token.loc, `'not' operator is not implemented for ${humanReadableType(valueType)}`);
+                    exit();
+                }
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
         }
     };
     voc[TokenType.LT] = {
@@ -1380,19 +1865,49 @@ function createVocabulary(): Vocabulary {
             return ["number", "number"];
         },
         out: () => "bool",
-        generateAsm: token => {
+        generateAsm: (token, target) => {
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if (type1 === "byte" && type2 === "byte") {
+            if (target === "c64") {
+                if (type1 === "byte" && type2 === "byte") {
+                    return [
+                        "LDX SP16",
+                        "LDA STACKBASE + 3,X",
+                        "CMP STACKBASE + 1,X",
+                        "BCC less@",
+                        "LDA #00",
+                        "JMP store@",
+                        "less@:",
+                        "LDA #01",
+                        "store@:",
+                        "STA STACKACCESS",
+                        "LDA #00",
+                        "STA STACKACCESS + 1",
+                        "INX",
+                        "INX",
+                        "INX",
+                        "INX",
+                        "STX SP16",
+                        "JSR PUSH16",
+                    ]
+                }
                 return [
                     "LDX SP16",
+                    "LDA STACKBASE + 4,X",
+                    "CMP STACKBASE + 2,X",
+                    "BCC less@",
+                    "BNE greaterorequal@",
                     "LDA STACKBASE + 3,X",
                     "CMP STACKBASE + 1,X",
                     "BCC less@",
+
+                    "greaterorequal@:",
                     "LDA #00",
                     "JMP store@",
+
                     "less@:",
                     "LDA #01",
+
                     "store@:",
                     "STA STACKACCESS",
                     "LDA #00",
@@ -1402,39 +1917,26 @@ function createVocabulary(): Vocabulary {
                     "INX",
                     "INX",
                     "STX SP16",
+
                     "JSR PUSH16",
-                ]
+
+                ];
             }
-            return [
-                "LDX SP16",
-                "LDA STACKBASE + 4,X",
-                "CMP STACKBASE + 2,X",
-                "BCC less@",
-                "BNE greaterorequal@",
-                "LDA STACKBASE + 3,X",
-                "CMP STACKBASE + 1,X",
-                "BCC less@",
-
-                "greaterorequal@:",
-                "LDA #00",
-                "JMP store@",
-
-                "less@:",
-                "LDA #01",
-
-                "store@:",
-                "STA STACKACCESS",
-                "LDA #00",
-                "STA STACKACCESS + 1",
-                "INX",
-                "INX",
-                "INX",
-                "INX",
-                "STX SP16",
-
-                "JSR PUSH16",
-
-            ]
+            if (target === "freebsd") {
+                return [
+                    "pop rbx",
+                    "pop rax",
+                    "cmp rax, rbx",
+                    "jl .less@",
+                    "push 0",
+                    "jmp .end@",
+                    ".less@:",
+                    "push 1",
+                    ".end@:",
+                ];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
         }
     };
     voc[TokenType.EQ] = {
@@ -1455,22 +1957,71 @@ function createVocabulary(): Vocabulary {
             return ["number", "number"];
         },
         out: () => "bool",
-        generateChildPreludeAsm: (token, n) => {
-            if (n === 0 && token.childs[0].type === TokenType.LITERAL) return undefined
-            return [];
+        generateChildPreludeAsm: (token, n, target) => {
+            if (target === "c64") {
+                if (n === 0 && token.childs[0].type === TokenType.LITERAL) return undefined
+                return [];
+            }
+            if (target === "freebsd") {
+                return [];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+
         },
-        generateAsm: (token) => {
+        generateAsm: (token, target) => {
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const isChild1Literal = token.childs[0].type === TokenType.LITERAL;
             const type2 = getReturnTypeOfAWord(token.childs[1]);
-            if (isChild1Literal) {
-                // only the second child on the stack
-                const child1Value = parseInt(token.childs[0].txt, 10);
+            if (target === "c64") {
+                if (isChild1Literal) {
+                    // only the second child on the stack
+                    const child1Value = parseInt(token.childs[0].txt, 10);
+                    if (type1 === "byte" && type2 === "byte") {
+                        return [
+                            "LDX SP16",
+                            "LDA STACKBASE + 1,X",
+                            `CMP #<${child1Value}`,
+                            "BNE notequal@",
+                            "LDA #01",
+                            "JMP store@",
+
+                            "notequal@:",
+                            "LDA #00",
+
+                            "store@:",
+                            "STA STACKBASE + 1,X",
+                            "LDA #00",
+                            "STA STACKBASE + 2,X",
+                        ]
+                    } else {
+                        return [
+                            "LDX SP16",
+                            "LDA STACKBASE + 1,X",
+                            `CMP #<${child1Value}`,
+                            "BNE notequal@",
+                            "LDA STACKBASE + 2,X",
+                            `CMP #>${child1Value}`,
+                            "BNE notequal@",
+                            "LDA #01",
+                            "JMP store@",
+
+                            "notequal@:",
+                            "LDA #00",
+
+                            "store@:",
+                            "STA STACKBASE + 1,X",
+                            "LDA #00",
+                            "STA STACKBASE + 2,X",
+                        ]
+                    }
+                }
+
                 if (type1 === "byte" && type2 === "byte") {
                     return [
                         "LDX SP16",
-                        "LDA STACKBASE + 1,X",
-                        `CMP #<${child1Value}`,
+                        "LDA STACKBASE + 3,X",
+                        "CMP STACKBASE + 1,X",
                         "BNE notequal@",
                         "LDA #01",
                         "JMP store@",
@@ -1479,18 +2030,24 @@ function createVocabulary(): Vocabulary {
                         "LDA #00",
 
                         "store@:",
-                        "STA STACKBASE + 1,X",
+                        "STA STACKACCESS",
                         "LDA #00",
-                        "STA STACKBASE + 2,X",
+                        "STA STACKACCESS + 1",
+                        "INX",
+                        "INX",
+                        "INX",
+                        "INX",
+                        "STX SP16",
+                        "JSR PUSH16",
                     ]
                 } else {
                     return [
                         "LDX SP16",
-                        "LDA STACKBASE + 1,X",
-                        `CMP #<${child1Value}`,
+                        "LDA STACKBASE + 4,X",
+                        "CMP STACKBASE + 2,X",
                         "BNE notequal@",
-                        "LDA STACKBASE + 2,X",
-                        `CMP #>${child1Value}`,
+                        "LDA STACKBASE + 3,X",
+                        "CMP STACKBASE + 1,X",
                         "BNE notequal@",
                         "LDA #01",
                         "JMP store@",
@@ -1499,63 +2056,34 @@ function createVocabulary(): Vocabulary {
                         "LDA #00",
 
                         "store@:",
-                        "STA STACKBASE + 1,X",
+                        "STA STACKACCESS",
                         "LDA #00",
-                        "STA STACKBASE + 2,X",
+                        "STA STACKACCESS + 1",
+                        "INX",
+                        "INX",
+                        "INX",
+                        "INX",
+                        "STX SP16",
+                        "JSR PUSH16",
                     ]
                 }
             }
-
-            if (type1 === "byte" && type2 === "byte") {
+            if (target === "freebsd") {
                 return [
-                    "LDX SP16",
-                    "LDA STACKBASE + 3,X",
-                    "CMP STACKBASE + 1,X",
-                    "BNE notequal@",
-                    "LDA #01",
-                    "JMP store@",
-
-                    "notequal@:",
-                    "LDA #00",
-
-                    "store@:",
-                    "STA STACKACCESS",
-                    "LDA #00",
-                    "STA STACKACCESS + 1",
-                    "INX",
-                    "INX",
-                    "INX",
-                    "INX",
-                    "STX SP16",
-                    "JSR PUSH16",
-                ]
-            } else {
-                return [
-                    "LDX SP16",
-                    "LDA STACKBASE + 4,X",
-                    "CMP STACKBASE + 2,X",
-                    "BNE notequal@",
-                    "LDA STACKBASE + 3,X",
-                    "CMP STACKBASE + 1,X",
-                    "BNE notequal@",
-                    "LDA #01",
-                    "JMP store@",
-
-                    "notequal@:",
-                    "LDA #00",
-
-                    "store@:",
-                    "STA STACKACCESS",
-                    "LDA #00",
-                    "STA STACKACCESS + 1",
-                    "INX",
-                    "INX",
-                    "INX",
-                    "INX",
-                    "STX SP16",
-                    "JSR PUSH16",
+                    "pop rax",
+                    "pop rbx",
+                    "cmp rax, rbx",
+                    "jne .not_equal@",
+                    "push 1",
+                    "jmp .end@",
+                    ".not_equal@:",
+                    "push 0",
+                    ".end@:",
                 ]
             }
+            console.log(`target system '${target}' unknown`);
+            exit();
+
         }
     };
     voc[TokenType.GT] = {
@@ -1576,31 +2104,50 @@ function createVocabulary(): Vocabulary {
             return ["number", "number"];
         },
         out: () => "bool",
-        generateAsm: (token) => [
-            "LDX SP16",
-            "LDA STACKBASE + 2,X",
-            "CMP STACKBASE + 4,X",
-            "BCC greater@",
-            "BNE lessorequal@",
-            "LDA STACKBASE + 1,X",
-            "CMP STACKBASE + 3,X",
-            "BCC greater@",
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return [
+                    "LDX SP16",
+                    "LDA STACKBASE + 2,X",
+                    "CMP STACKBASE + 4,X",
+                    "BCC greater@",
+                    "BNE lessorequal@",
+                    "LDA STACKBASE + 1,X",
+                    "CMP STACKBASE + 3,X",
+                    "BCC greater@",
 
-            "lessorequal@:",
-            "LDA #00",
-            "JMP result@",
+                    "lessorequal@:",
+                    "LDA #00",
+                    "JMP result@",
 
-            "greater@:",
-            "LDA #01",
+                    "greater@:",
+                    "LDA #01",
 
-            "result@:",
-            "INX",
-            "INX",
-            "STA STACKBASE + 1,X",
-            "LDA #00",
-            "STA STACKBASE + 2,X",
-            "STX SP16",
-        ]
+                    "result@:",
+                    "INX",
+                    "INX",
+                    "STA STACKBASE + 1,X",
+                    "LDA #00",
+                    "STA STACKBASE + 2,X",
+                    "STX SP16",
+                ]
+            };
+            if (target === "freebsd") {
+                return [
+                    "pop rbx",
+                    "pop rax",
+                    "cmp rax, rbx",
+                    "jg .greater@",
+                    "push 0",
+                    "jmp .end@",
+                    ".greater@:",
+                    "push 1",
+                    ".end@:",
+                ];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        }
     };
     voc[TokenType.AND] = {
         txt: "and",
@@ -1646,18 +2193,33 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: () => ["bool", "void"],
         out: () => "void",
-        generateChildPreludeAsm: (ast, n) => {
-            // prelude for the true branch
-            if (n === 1) return [
-                "JSR POP16",
-                "LDA STACKACCESS",
-                "BNE trueblock@",
-                // "LDA STACKACCESS + 1",
-                // "BNE trueblock@",
-                "JMP endblock@ ; if all zero",
-                "trueblock@:",
-            ];
-            return [];
+        generateChildPreludeAsm: (ast, n, target) => {
+            if (target === "c64") {
+                // prelude for the true branch
+                if (n === 1) return [
+                    "JSR POP16",
+                    "LDA STACKACCESS",
+                    "BNE trueblock@",
+                    // "LDA STACKACCESS + 1",
+                    // "BNE trueblock@",
+                    "JMP endblock@ ; if all zero",
+                    "trueblock@:",
+                ];
+                return [];
+            }
+            if (target === "freebsd") {
+                if (n === 1) return [
+                    "pop rax",
+                    "cmp rax, 0",
+                    "jne trueblock@",
+                    "jmp endblock@",
+                    "trueblock@:",
+                ];
+                return [];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+
         },
         generateAsm: (token) => [
             "endblock@:"
@@ -1696,25 +2258,46 @@ function createVocabulary(): Vocabulary {
             console.assert(token.childs.length === 3, "'Either' should have 3 childs");
             return getReturnTypeOfAWord(token.childs[1]);
         },
-        generateChildPreludeAsm: (ast, n) => {
-            // no prelude for condition
-            if (n === 0) return [];
+        generateChildPreludeAsm: (ast, n, target) => {
+            if (target === "c64") {
+                // no prelude for condition
+                if (n === 0) return [];
 
-            // prelude for true branch
-            if (n === 1) return [
-                "JSR POP16",
-                "LDA STACKACCESS",
-                "BNE trueblock@",
-                // "LDA STACKACCESS + 1",
-                // "BNE trueblock@",
-                "JMP elseblock@ ; if all zero",
-                "trueblock@:"
-            ]
-            // prelude for else branch
-            return [
-                "JMP endblock@",
-                "elseblock@:"
-            ];
+                // prelude for true branch
+                if (n === 1) return [
+                    "JSR POP16",
+                    "LDA STACKACCESS",
+                    "BNE trueblock@",
+                    // "LDA STACKACCESS + 1",
+                    // "BNE trueblock@",
+                    "JMP elseblock@ ; if all zero",
+                    "trueblock@:"
+                ]
+                // prelude for else branch
+                return [
+                    "JMP endblock@",
+                    "elseblock@:"
+                ];
+            }
+            if (target === "freebsd") {
+                if (n === 0) return [];
+
+                // prelude for true branch
+                if (n === 1) return [
+                    "pop rax",
+                    "jne trueblock@",
+                    "jmp elseblock@",
+                    "trueblock@:"
+                ]
+                // prelude for else branch
+                return [
+                    "jmp endblock@",
+                    "elseblock@:"
+                ];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+
         },
         generateAsm: (token) => [
             "endblock@:",
@@ -1773,26 +2356,39 @@ function createVocabulary(): Vocabulary {
             exit();
         },        
         out: getReturnValueByBlock,
-        generateAsm: token => {
+        generateAsm: (token, target) => {
             if (token.context === undefined) {
                 logError(token.loc, `can't find context for ${token.txt}, compiler error`);
                 exit();
             }
             if (token.context.parent === undefined) return []; // the global context
 
-            let sizeToRelease = sizeOfContext(token.context);
+            let sizeToRelease = sizeOfContext(token.context, target);
             if (sizeToRelease === 0) return ["; no stack memory to release"];
-            return [
-                `; release ${sizeToRelease} on the stack`,
-                "TSX",
-                "TXA",
-                "CLC",
-                `ADC #${sizeToRelease}`,
-                "TAX",
-                "TXS"
-            ];
+            if (target === "c64") {
+                return [
+                    `; release ${sizeToRelease} on the stack`,
+                    "TSX",
+                    "TXA",
+                    "CLC",
+                    `ADC #${sizeToRelease}`,
+                    "TAX",
+                    "TXS"
+                ];
+            }
+            if (target === "freebsd") {
+                return [
+                    `; release ${sizeToRelease} on the stack`,
+                    "mov rax, [ret_stack_rsp]",
+                    `add rax, ${sizeToRelease}`,
+                    "mov [ret_stack_rsp], rax",
+                ];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+
         },
-        generatePreludeAsm: token => {
+        generatePreludeAsm: (token, target) => {
             // at the start we make some space on the stack, for variables
             if (token.context === undefined) {
                 logError(token.loc, `can't find context for ${token.txt}, compiler error`);
@@ -1805,20 +2401,33 @@ function createVocabulary(): Vocabulary {
             for (const [key, varDef] of Object.entries(token.context.varsDefinition)) {
                 varDef.offset = sizeToReserve;
                 const valueType = varDef.internalType;
-                sizeToReserve += sizeForValueType(varDef.internalType);                
+                sizeToReserve += sizeForValueType(varDef.internalType, target);                
             }
 
             const strVariables = Object.values(token.context.varsDefinition).map(varDef => varDef.token.txt + " (" + humanReadableType(varDef.out) + " offset " + varDef.offset + ")").join(", ");
             if (sizeToReserve === 0) return ["; no stack memory to reserve"];
-            return [
-                `; reserve ${sizeToReserve} on the stack for: ${strVariables}`,
-                "TSX",
-                "TXA",
-                "SEC",
-                `SBC #${sizeToReserve}`,
-                "TAX",
-                "TXS"
-            ];
+
+            if (target === "c64") {
+                return [
+                    `; reserve ${sizeToReserve} on the stack for: ${strVariables}`,
+                    "TSX",
+                    "TXA",
+                    "SEC",
+                    `SBC #${sizeToReserve}`,
+                    "TAX",
+                    "TXS"
+                ];
+            }
+            if (target === "freebsd") {
+                return [
+                    "mov rax, [ret_stack_rsp]",
+                    `sub rax, ${sizeToReserve}`,
+                    "mov [ret_stack_rsp], rax",
+                ];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+
         }
     };
     voc[TokenType.REF_BLOCK] = {
@@ -1835,7 +2444,7 @@ function createVocabulary(): Vocabulary {
         },
         //out: getReturnValueByBlock,
         out: () => "addr",
-        generatePreludeAsm: token => {
+        generatePreludeAsm: (token, target) => {
             // at the start we make some space on the stack, for variables
             if (token.context === undefined) {
                 logError(token.loc, `can't find context for ${token.txt}, compiler error`);
@@ -1850,61 +2459,90 @@ function createVocabulary(): Vocabulary {
             for (const [key, varDef] of Object.entries(token.context.varsDefinition)) {
                 varDef.offset = sizeToReserve;
                 const valueType = varDef.internalType;
-                sizeToReserve += sizeForValueType(valueType);
+                sizeToReserve += sizeForValueType(valueType, target);
             }
 
             const strVariables = Object.values(token.context.varsDefinition).map(varDef => varDef.token.txt + " (" + humanReadableType(varDef.internalType) + " offset " + varDef.offset + ")").join(", ");
-
-            const asmReserveStackSpace = sizeToReserve === 0 ? ["; no stack memory to reserve"] : [
-                `; reserve ${sizeToReserve} on the stack for: ${strVariables}`,
-                "TSX",
-                "TXA",
-                "SEC",
-                `SBC #${sizeToReserve}`,
-                "TAX",
-                "TXS"
-            ];
             token.functionIndex = getFunctionIndex();
             const asmFunctionName = getFunctionName(token.functionIndex);
             const asmAfterFunctionName = getAfterFunctionName(token.functionIndex);
-            return [
-                `JMP ${asmAfterFunctionName}`,
-                `${asmFunctionName}:`,
-            ].concat(asmReserveStackSpace);
+
+            if (target === "c64") {
+                const asmReserveStackSpace = sizeToReserve === 0 ? ["; no stack memory to reserve"] : [
+                    `; reserve ${sizeToReserve} on the stack for: ${strVariables}`,
+                    "TSX",
+                    "TXA",
+                    "SEC",
+                    `SBC #${sizeToReserve}`,
+                    "TAX",
+                    "TXS"
+                ];
+                return [
+                    `JMP ${asmAfterFunctionName}`,
+                    `${asmFunctionName}:`,
+                ].concat(asmReserveStackSpace);
+            }
+            if (target === "freebsd") {
+                return [
+                    `jmp ${asmAfterFunctionName}`,
+                    `${asmFunctionName}:`,
+                    `sub rsp, ${sizeToReserve}`,
+                    "mov [ret_stack_rsp], rsp",
+                    "mov rsp, rax", // data stack was in rax before the call
+                ]
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+
         },
-        generateAsm: token => {
+        generateAsm: (token, target) => {
             if (token.context === undefined) {
                 logError(token.loc, `can't find context for ${token.txt}, compiler error`);
                 exit();
             }
             if (token.context.parent === undefined) return []; // the global context
-
-            let sizeToRelease = sizeOfContext(token.context);
-            const asmReleaseSpace = sizeToRelease === 0 ? ["; no stack memory to release"] : [
-                `; release ${sizeToRelease} on the stack`,
-                "TSX",
-                "TXA",
-                "CLC",
-                `ADC #${sizeToRelease}`,
-                "TAX",
-                "TXS"
-            ];
-
             if (token.functionIndex === undefined) {
                 logError(token.loc, `'${token.txt}' function index is not defined`);
                 exit();
             }
+            let sizeToRelease = sizeOfContext(token.context, target);
             const asmFunctionName = getFunctionName(token.functionIndex);
             const asmAfterFunctionName = getAfterFunctionName(token.functionIndex);
-            return asmReleaseSpace.concat([
-                `RTS`,
-                `${asmAfterFunctionName}:`,
-                `LDA #<${asmFunctionName}`,
-                "STA STACKACCESS",
-                `LDA #>${asmFunctionName}`,
-                "STA STACKACCESS + 1",
-                "JSR PUSH16",
-            ]);
+
+            if (target === "c64") {
+                const asmReleaseSpace = sizeToRelease === 0 ? ["; no stack memory to release"] : [
+                    `; release ${sizeToRelease} on the stack`,
+                    "TSX",
+                    "TXA",
+                    "CLC",
+                    `ADC #${sizeToRelease}`,
+                    "TAX",
+                    "TXS"
+                ];
+                return asmReleaseSpace.concat([
+                    `RTS`,
+                    `${asmAfterFunctionName}:`,
+                    `LDA #<${asmFunctionName}`,
+                    "STA STACKACCESS",
+                    `LDA #>${asmFunctionName}`,
+                    "STA STACKACCESS + 1",
+                    "JSR PUSH16",
+                ]);
+            }
+            if (target === "freebsd") {
+                return [
+                    "mov rax, [ret_stack_rsp]",
+                    `add rax, ${sizeToRelease}`,
+                    "mov [ret_stack_rsp], rax",
+                    "mov rax, rsp",
+                    "mov rsp, [ret_stack_rsp]",
+                    "ret",
+                    `${asmAfterFunctionName}:`,
+                    `push ${asmFunctionName}`
+                ]
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
         },
     };
     voc[TokenType.SET_WORD] = {
@@ -1935,20 +2573,20 @@ function createVocabulary(): Vocabulary {
             return [varDef.out];
         },
         out: () => "void",
-        generateAsm: token => {
+        generateAsm: (token, target) => {
             const varName = token.txt;
             const varDef = getWordDefinition(token.context, varName);
             if (varDef === undefined) {
                 logError(token.loc, `cannot find declaration for '${varName}', compiler error`);
                 exit();
             }
-            if (varDef.isGlobalContext) return getAsmForSetWordGlobal(varDef.internalType, getAsmVarName(varName), 0);
+            if (varDef.isGlobalContext) return getAsmForSetWordGlobal(varDef.internalType, getAsmVarName(varName), 0, target);
 
             if (varDef.offset === undefined) {
                 logError(token.loc, `SET_WORD generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
                 exit();
             }
-            return getAsmForSetWordLocal(varDef.internalType, varDef.offset);
+            return getAsmForSetWordLocal(varDef.internalType, varDef.offset, target);
         },
     };
     voc[TokenType.LIT_WORD] = {
@@ -1974,20 +2612,20 @@ function createVocabulary(): Vocabulary {
             return [valueType];
         },
         out: () => "void",
-        generateAsm: token => {
+        generateAsm: (token, target) => {
             const varName = token.txt;
             const varDef = getWordDefinition(token.context, varName);
             if (varDef === undefined) {
                 logError(token.loc, `LIT_WORD generateAsm cannot find declaration for '${varName}', compiler error`);
                 exit();
             }
-            if (varDef.isGlobalContext) return getAsmForSetWordGlobal(varDef.internalType, getAsmVarName(varName), 0);
+            if (varDef.isGlobalContext) return getAsmForSetWordGlobal(varDef.internalType, getAsmVarName(varName), 0, target);
 
             if (varDef.offset === undefined) {
                 logError(token.loc, `LIT_WORD generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
                 exit();
             }
-            return getAsmForSetWordLocal(varDef.internalType, varDef.offset);
+            return getAsmForSetWordLocal(varDef.internalType, varDef.offset, target);
         },
     };
     voc[TokenType.WORD] = {
@@ -2032,7 +2670,7 @@ function createVocabulary(): Vocabulary {
                 exit();
             }
         },
-        generateAsm: token => {
+        generateAsm: (token, target) => {
             const varName = token.txt;                        
             const varDef = getWordDefinition(token.context, varName);
             if (varDef === undefined) {
@@ -2052,13 +2690,13 @@ function createVocabulary(): Vocabulary {
                 exit();
             }
 
-            if (varDef.isGlobalContext) return getAsmForGetWordGlobal(token, valueType, getAsmVarName(varName), varDef.type === "function");
+            if (varDef.isGlobalContext) return getAsmForGetWordGlobal(token, valueType, getAsmVarName(varName), varDef.type === "function", target);
 
             if (varDef.offset === undefined) {
                 logError(token.loc, `WORD generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
                 exit();
             }
-            return getAsmForGetWordLocal(valueType, varDef.offset, varDef.type === "function");
+            return getAsmForGetWordLocal(valueType, varDef.offset, varDef.type === "function", target);
         },
         // preprocessTokens: ast => {
         //     const varName = ast[0].txt;
@@ -2085,28 +2723,60 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: () => ["bool", "void"],
         out: () => "void",
-        generateChildPreludeAsm: (ast, n) => {
-            // prelude for the true branch
-            if (n === 0) {
-                return [
-                    "startloop@:"
-                ];
-            } else {
-                return [
-                    "JSR POP16",
-                    "LDA STACKACCESS",
-                    "BNE trueblock@",
-                    // "LDA STACKACCESS + 1",
-                    // "BNE trueblock@",
-                    "JMP endblock@ ; if all zero",
-                    "trueblock@:",
-                ];
+        generateChildPreludeAsm: (ast, n, target) => {
+            if (target === "c64") {
+                // prelude for the true branch
+                if (n === 0) {
+                    return [
+                        "startloop@:"
+                    ];
+                } else {
+                    return [
+                        "JSR POP16",
+                        "LDA STACKACCESS",
+                        "BNE trueblock@",
+                        // "LDA STACKACCESS + 1",
+                        // "BNE trueblock@",
+                        "JMP endblock@ ; if all zero",
+                        "trueblock@:",
+                    ];
+                }
             }
+            if (target === "freebsd") {
+                // prelude for the true branch
+                if (n === 0) {
+                    return [
+                        "startloop@:"
+                    ];
+                } else {
+                    return [
+                        "pop rax",
+                        "cmp rax, 0",
+                        "jne trueblock@",
+                        "jmp endblock@",
+                        "trueblock@:",
+                    ];
+                }
+            }
+
         },
-        generateAsm: (token) => [
-            "JMP startloop@",
-            "endblock@:",
-        ],
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return [
+                    "JMP startloop@",
+                    "endblock@:",
+                ]
+            }
+            if (target === "freebsd") {
+                return [
+                    "jmp startloop@",
+                    "endblock@:",
+                ]
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        }
+        ,
     };
     voc[TokenType.POKE] = {
         txt: "poke",
@@ -2166,11 +2836,7 @@ function createVocabulary(): Vocabulary {
             return [type];
         },
         out: () => "byte",
-        generateAsm: () => [
-            // "LDX SP16",
-            // "LDA #0",
-            // "STA STACKBASE + 2,X"
-        ]
+        generateAsm: () => []
     };
     voc[TokenType.CAST_NUMBER] = {
         txt: "!n",
@@ -2195,9 +2861,7 @@ function createVocabulary(): Vocabulary {
         ins: () => [],
         out: () => "number",
         generateAsm: token => {
-            return [
-                "; DO NOTHING"
-            ]
+            return []
         }
     };
     voc[TokenType.STRING] = {
@@ -2222,13 +2886,7 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: () => [],
         out: () => "byte",
-        generateAsm: () => [
-            // "LDA #0",
-            // "STA STACKACCESS",
-            // "STA STACKACCESS+1",
-            // "JSR PUSH16",
-            "; DO NOTHING"
-        ]
+        generateAsm: () => []
     };
     voc[TokenType.BOOL] = {
         txt: "Bool",
@@ -2240,13 +2898,7 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: () => [],
         out: () => "bool",
-        generateAsm: () => [
-            // "LDA #0",
-            // "STA STACKACCESS",
-            // "STA STACKACCESS+1",
-            // "JSR PUSH16",
-            "; DO NOTHING"
-        ]
+        generateAsm: () => []
     };
     voc[TokenType.ADDR] = {
         txt: "!addr",
@@ -2269,22 +2921,36 @@ function createVocabulary(): Vocabulary {
             return [token.childs[0].out];
         },
         out: () => "number",
-        generateAsm: token => {
+        generateAsm: (token, target) => {
             assertChildNumber(token, 1);
             const child = token.childs[0];
-            if (child.out === "string") {
-                return [
-                    "LDX SP16",
-                    "LDA STACKBASE + 1,X",
-                    "STA STACKBASE + 3,X",
-                    "INX",
-                    "LDA STACKBASE + 1,X",
-                    "STA STACKBASE + 3,X",
-                    "INX",
-                    "STX SP16",
-                ];
+            if (target === "c64") {
+                if (child.out === "string") {
+                    return [
+                        "LDX SP16",
+                        "LDA STACKBASE + 1,X",
+                        "STA STACKBASE + 3,X",
+                        "INX",
+                        "LDA STACKBASE + 1,X",
+                        "STA STACKBASE + 3,X",
+                        "INX",
+                        "STX SP16",
+                    ];
+                }
+                return [];
             }
-            return [];
+            if (target === "freebsd") {
+                if (child.out === "string") {
+                    return [
+                        "pop rax",
+                        "pop rbx", // get rid of the len
+                        "push rax",
+                    ];
+                }
+                return [];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
         },
     };
     voc[TokenType.STR_JOIN] = {
@@ -2297,84 +2963,98 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: () => ["string", "string"],
         out: () => "string",
-        generateAsm: () => [
-            // 8 0
-            // 7 len1
-            // 6 add1H
-            // 5 add1L
-            // 4 0
-            // 3 len2
-            // 2 add2H
-            // 1 add2L
-            "NOP",
-            "NOP",
-            "NOP",
-            "LDA HEAPTOP",
-            "STA HEAPSAVE",
-            "LDA HEAPTOP+1",
-            "STA HEAPSAVE+1",
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return [
+                    "LDA HEAPTOP",
+                    "STA HEAPSAVE",
+                    "LDA HEAPTOP+1",
+                    "STA HEAPSAVE+1",
+                    "LDX SP16",
 
-            "LDX SP16",
+                    // start of first string in FROMADD
+                    "LDA STACKBASE + 5,X",
+                    "STA FROMADD + 1",
+                    "LDA STACKBASE + 6,X",
+                    "STA FROMADD + 2",
 
-            // start of first string in FROMADD
-            "LDA STACKBASE + 5,X",
-            "STA FROMADD + 1",
-            "LDA STACKBASE + 6,X",
-            "STA FROMADD + 2",
+                    // DESTINATION
+                    "LDA HEAPTOP",
+                    "STA TOADD + 1",
+                    "LDA HEAPTOP + 1",
+                    "STA TOADD + 2",
 
-            // DESTINATION
-            "LDA HEAPTOP",
-            "STA TOADD + 1",
-            "LDA HEAPTOP + 1",
-            "STA TOADD + 2",
+                    // LEN first string (and save first len)            
+                    "LDA STACKBASE + 7,X",
+                    "STA HEAPSAVE + 2",
+                    "TAY",
 
-            // LEN first string (and save first len)            
-            "LDA STACKBASE + 7,X",
-            "STA HEAPSAVE + 2",
-            "TAY",
+                    "JSR COPYMEM",
 
-            "JSR COPYMEM",
+                    // start of second string in FROMADD
+                    "LDA STACKBASE + 1,X",
+                    "STA FROMADD + 1",
+                    "LDA STACKBASE + 2,X",
+                    "STA FROMADD + 2",
 
-            // start of second string in FROMADD
-            "LDA STACKBASE + 1,X",
-            "STA FROMADD + 1",
-            "LDA STACKBASE + 2,X",
-            "STA FROMADD + 2",
+                    // LEN second string ( and save total len )
+                    "LDX SP16",
+                    "LDA STACKBASE + 3,X",
+                    "TAY",
+                    "CLC",
+                    "ADC HEAPSAVE + 2",
+                    "STA HEAPSAVE + 2",
 
-            // LEN second string ( and save total len )
-            "LDX SP16",
-            "LDA STACKBASE + 3,X",
-            "TAY",
-            "CLC",
-            "ADC HEAPSAVE + 2",
-            "STA HEAPSAVE + 2",
+                    "JSR COPYMEM",
 
-            "JSR COPYMEM",
+                    "LDA TOADD+1",
+                    "STA HEAPTOP",
+                    "LDA TOADD+2",
+                    "STA HEAPTOP+1",
 
-            "LDA TOADD+1",
-            "STA HEAPTOP",
-            "LDA TOADD+2",
-            "STA HEAPTOP+1",
+                    // POP 8 BYTE
+                    "LDA SP16",
+                    "ADC #8",
+                    "STA SP16",
 
-            // POP 8 BYTE
-            "LDA SP16",
-            "ADC #8",
-            "STA SP16",
+                    // len on the stack
+                    "LDA HEAPSAVE+2",
+                    "STA STACKACCESS",
+                    "LDA #0",
+                    "STA STACKACCESS + 1",
+                    "JSR PUSH16",
 
-            // len on the stack
-            "LDA HEAPSAVE+2",
-            "STA STACKACCESS",
-            "LDA #0",
-            "STA STACKACCESS + 1",
-            "JSR PUSH16",
-
-            // ADDRESS
-            "LDA HEAPSAVE",
-            "STA STACKACCESS",
-            "LDA HEAPSAVE+1",
-            "STA STACKACCESS+1",
-            "JSR PUSH16",
-        ]
+                    // ADDRESS
+                    "LDA HEAPSAVE",
+                    "STA STACKACCESS",
+                    "LDA HEAPSAVE+1",
+                    "STA STACKACCESS+1",
+                    "JSR PUSH16",
+                ];
+            }
+            if (target === "freebsd") {
+                return [
+                    "pop r8", // add2
+                    "pop r9", // len2
+                    "pop r10", // add1
+                    "pop r11", // len1                    
+                    "mov rax, r9",
+                    "add rax, r11",
+                    "call allocate",
+                    "mov rsi, r10",
+                    "mov rdi, rbx",
+                    "mov rcx, r11",
+                    "rep movsb",
+                    "mov rsi, r8",
+                    "mov rcx, r9",
+                    "rep movsb",
+                    "push rax",
+                    "push rbx",
+                ];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        }        
     };
     voc[TokenType.STACK] = {
         txt: "stack",
@@ -2386,13 +3066,24 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: () => [],
         out: () => "number",
-        generateAsm: () => [
-            "LDA SP16",
-            "STA STACKACCESS",
-            "LDA #0",
-            "STA STACKACCESS+1",
-            "JSR PUSH16",
-        ]
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return [
+                    "LDA SP16",
+                    "STA STACKACCESS",
+                    "LDA #0",
+                    "STA STACKACCESS+1",
+                    "JSR PUSH16",
+                ];
+            }
+            if (target === "freebsd") {
+                return [
+                    "push rsp"
+                ]
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        }
     };
     voc[TokenType.STR_LEN] = {
         txt: "#",
@@ -2404,9 +3095,16 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: () => ["string"],
         out: () => "byte",
-        generateAsm: () => [
-            "JSR POP16",
-        ]
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return ["JSR POP16"];
+            }
+            if (target === "freebsd") {
+                return ["pop rax"];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        } 
     };
     voc[TokenType.PROG] = {
         txt: "",
@@ -2427,465 +3125,569 @@ function createVocabulary(): Vocabulary {
             }
             return valueType;
         },
-        generateAsm: token => {
-            const lib = [
-                "RTS",
-                "BCD DS 3 ; USED IN BIN TO BCD",
-                "HEAPSAVE DS 3 ; USED IN COPYSTRING",
-                "AUXMUL DS 2",
-                "HEAPTOP DS 2",
-                "TEST_UPPER_BIT: BYTE $80",
-                "AUX = $7D",
-                "SP16 = $7F",
-                "STACKACCESS = $0080",
-                "STACKBASE = $0000",
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                const lib = [
+                    "RTS",
+                    "BCD DS 3 ; USED IN BIN TO BCD",
+                    "HEAPSAVE DS 3 ; USED IN COPYSTRING",
+                    "AUXMUL DS 2",
+                    "HEAPTOP DS 2",
+                    "TEST_UPPER_BIT: BYTE $80",
+                    "AUX = $7D",
+                    "SP16 = $7F",
+                    "STACKACCESS = $0080",
+                    "STACKBASE = $0000",
 
-                // FROMADD, TOADD, Y LENGHT
-                "COPYMEM:",
-                "TYA",
-                "BEQ ENDCOPY",
-                "FROMADD:",
-                "LDA $1111",
-                "TOADD:",
-                "STA $1111",
-                "INC FROMADD + 1",
-                "BNE COPY_NO_CARRY1",
-                "INC FROMADD + 2",
-                "COPY_NO_CARRY1:",
-                "INC TOADD + 1",
-                "BNE COPY_NO_CARRY2",
-                "INC TOADD + 2",
-                "COPY_NO_CARRY2:",
-                "DEY",
-                "BNE COPYMEM",
-                "ENDCOPY:",
-                "RTS",
+                    // FROMADD, TOADD, Y LENGHT
+                    "COPYMEM:",
+                    "TYA",
+                    "BEQ ENDCOPY",
+                    "FROMADD:",
+                    "LDA $1111",
+                    "TOADD:",
+                    "STA $1111",
+                    "INC FROMADD + 1",
+                    "BNE COPY_NO_CARRY1",
+                    "INC FROMADD + 2",
+                    "COPY_NO_CARRY1:",
+                    "INC TOADD + 1",
+                    "BNE COPY_NO_CARRY2",
+                    "INC TOADD + 2",
+                    "COPY_NO_CARRY2:",
+                    "DEY",
+                    "BNE COPYMEM",
+                    "ENDCOPY:",
+                    "RTS",
 
-                "PRINT_STRING:",
-                "JSR POP16",
-                "LDX SP16",
-                "LDA STACKBASE + 1,X; LEN",
-                "INX",
-                "INX",
-                "STX SP16",
-                "TAX; NOW IN X WE HAVE THE LEN",
-                "BEQ EXIT_PRINT_STR",
-                "LDY #0",
-                "LOOP_PRINT_STRING:",
-                "LDA (STACKACCESS),Y",
-                "JSR $FFD2",
-                "INY",
-                "DEX",
-                "BNE LOOP_PRINT_STRING",
-                "EXIT_PRINT_STR:",
-                "RTS",
+                    "PRINT_STRING:",
+                    "JSR POP16",
+                    "LDX SP16",
+                    "LDA STACKBASE + 1,X; LEN",
+                    "INX",
+                    "INX",
+                    "STX SP16",
+                    "TAX; NOW IN X WE HAVE THE LEN",
+                    "BEQ EXIT_PRINT_STR",
+                    "LDY #0",
+                    "LOOP_PRINT_STRING:",
+                    "LDA (STACKACCESS),Y",
+                    "JSR $FFD2",
+                    "INY",
+                    "DEX",
+                    "BNE LOOP_PRINT_STRING",
+                    "EXIT_PRINT_STR:",
+                    "RTS",
 
-                "; stack.a65 from https://github.com/dourish/mitemon/blob/master/stack.a65",
-                "INITSTACK:",
-                "LDX #$FF",
-                "STX SP16",
-                "RTS",
+                    "; stack.a65 from https://github.com/dourish/mitemon/blob/master/stack.a65",
+                    "INITSTACK:",
+                    "LDX #$FF",
+                    "STX SP16",
+                    "RTS",
 
-                "PUSH16:",
-                "LDX SP16",
-                "LDA STACKACCESS + 1",
-                "STA STACKBASE,X",
-                "DEX",
-                "LDA STACKACCESS",
-                "STA STACKBASE,X",
-                "DEX",
-                "STX SP16",
-                "RTS",
+                    "PUSH16:",
+                    "LDX SP16",
+                    "LDA STACKACCESS + 1",
+                    "STA STACKBASE,X",
+                    "DEX",
+                    "LDA STACKACCESS",
+                    "STA STACKBASE,X",
+                    "DEX",
+                    "STX SP16",
+                    "RTS",
 
-                "POP16:",
-                "LDX SP16",
-                "LDA STACKBASE + 1,X",
-                "STA STACKACCESS",
-                "INX",
-                "LDA STACKBASE + 1,X",
-                "STA STACKACCESS + 1",
-                "INX",
-                "STX SP16",
-                "RTS",
+                    "POP16:",
+                    "LDX SP16",
+                    "LDA STACKBASE + 1,X",
+                    "STA STACKACCESS",
+                    "INX",
+                    "LDA STACKBASE + 1,X",
+                    "STA STACKACCESS + 1",
+                    "INX",
+                    "STX SP16",
+                    "RTS",
 
-                "DUP16:",
-                "LDX SP16",
-                "LDA STACKBASE + 2,X",
-                "STA STACKBASE,X",
-                "DEX",
-                "LDA STACKBASE + 2,X",
-                "STA STACKBASE,X",
-                "DEX",
-                "STX SP16",
-                "RTS",
+                    "DUP16:",
+                    "LDX SP16",
+                    "LDA STACKBASE + 2,X",
+                    "STA STACKBASE,X",
+                    "DEX",
+                    "LDA STACKBASE + 2,X",
+                    "STA STACKBASE,X",
+                    "DEX",
+                    "STX SP16",
+                    "RTS",
 
-                "SWAP16:",
-                "LDX SP16",
-                "LDA STACKBASE + 2,X",
-                "STA STACKBASE,X",
-                "DEX",
-                "LDA STACKBASE + 2,X",
-                "STA STACKBASE,X",
-                "DEX",
-                "LDA STACKBASE + 5,X",
-                "STA STACKBASE + 3,X",
-                "LDA STACKBASE + 6,X",
-                "STA STACKBASE + 4,X",
-                "LDA STACKBASE + 1,X",
-                "STA STACKBASE + 5,X",
-                "LDA STACKBASE + 2,X",
-                "STA STACKBASE + 6,X",
-                "INX",
-                "INX",
-                "STX SP16",
-                "RTS",
+                    "SWAP16:",
+                    "LDX SP16",
+                    "LDA STACKBASE + 2,X",
+                    "STA STACKBASE,X",
+                    "DEX",
+                    "LDA STACKBASE + 2,X",
+                    "STA STACKBASE,X",
+                    "DEX",
+                    "LDA STACKBASE + 5,X",
+                    "STA STACKBASE + 3,X",
+                    "LDA STACKBASE + 6,X",
+                    "STA STACKBASE + 4,X",
+                    "LDA STACKBASE + 1,X",
+                    "STA STACKBASE + 5,X",
+                    "LDA STACKBASE + 2,X",
+                    "STA STACKBASE + 6,X",
+                    "INX",
+                    "INX",
+                    "STX SP16",
+                    "RTS",
 
-                "ADD16:",
-                "LDX SP16",
-                "CLC",
-                "LDA STACKBASE + 1,X;",
-                "ADC STACKBASE + 3,X",
-                "STA STACKBASE + 3,X",
-                "LDA STACKBASE + 2,X",
-                "ADC STACKBASE + 4,X",
-                "STA STACKBASE + 4,X",
-                "INX",
-                "INX",
-                "STX SP16",
-                "RTS",
+                    "ADD16:",
+                    "LDX SP16",
+                    "CLC",
+                    "LDA STACKBASE + 1,X;",
+                    "ADC STACKBASE + 3,X",
+                    "STA STACKBASE + 3,X",
+                    "LDA STACKBASE + 2,X",
+                    "ADC STACKBASE + 4,X",
+                    "STA STACKBASE + 4,X",
+                    "INX",
+                    "INX",
+                    "STX SP16",
+                    "RTS",
 
-                "SUB16:",
-                "LDX SP16",
-                "SEC",
-                "LDA STACKBASE + 3,X",
-                "SBC STACKBASE + 1,X",
-                "STA STACKBASE + 3,X",
-                "LDA STACKBASE + 4,X",
-                "SBC STACKBASE + 2,X",
-                "STA STACKBASE + 4,X",
-                "INX",
-                "INX",
-                "STX SP16",
-                "RTS",
+                    "SUB16:",
+                    "LDX SP16",
+                    "SEC",
+                    "LDA STACKBASE + 3,X",
+                    "SBC STACKBASE + 1,X",
+                    "STA STACKBASE + 3,X",
+                    "LDA STACKBASE + 4,X",
+                    "SBC STACKBASE + 2,X",
+                    "STA STACKBASE + 4,X",
+                    "INX",
+                    "INX",
+                    "STX SP16",
+                    "RTS",
 
-                "BINBCD16: SED",
-                "LDA #0",
-                "STA BCD + 0",
-                "STA BCD + 1",
-                "STA BCD + 2",
-                "LDX #16",
-                "CNVBIT: ASL STACKACCESS + 0",
-                "ROL STACKACCESS + 1",
-                "LDA BCD + 0",
-                "ADC BCD + 0",
-                "STA BCD + 0",
-                "LDA BCD + 1",
-                "ADC BCD + 1",
-                "STA BCD + 1",
-                "LDA BCD + 2",
-                "ADC BCD + 2",
-                "STA BCD + 2",
-                "DEX",
-                "BNE CNVBIT",
-                "CLD",
-                "RTS",
+                    "BINBCD16: SED",
+                    "LDA #0",
+                    "STA BCD + 0",
+                    "STA BCD + 1",
+                    "STA BCD + 2",
+                    "LDX #16",
+                    "CNVBIT: ASL STACKACCESS + 0",
+                    "ROL STACKACCESS + 1",
+                    "LDA BCD + 0",
+                    "ADC BCD + 0",
+                    "STA BCD + 0",
+                    "LDA BCD + 1",
+                    "ADC BCD + 1",
+                    "STA BCD + 1",
+                    "LDA BCD + 2",
+                    "ADC BCD + 2",
+                    "STA BCD + 2",
+                    "DEX",
+                    "BNE CNVBIT",
+                    "CLD",
+                    "RTS",
 
-                "PRINT_INT:",
-                "LDY #0",
-                "JSR BINBCD16",
-                "LDA BCD+2",
-                "AND #$0F",                
-                "BEQ DIGIT2",
-                "TAY",
-                "CLC",
-                "ADC #$30",
-                "JSR $FFD2",
+                    "PRINT_INT:",
+                    "LDY #0",
+                    "JSR BINBCD16",
+                    "LDA BCD+2",
+                    "AND #$0F",
+                    "BEQ DIGIT2",
+                    "TAY",
+                    "CLC",
+                    "ADC #$30",
+                    "JSR $FFD2",
 
-                "DIGIT2:",
-                "LDA BCD+1",
-                "LSR",
-                "LSR",
-                "LSR",
-                "LSR",
-                "BNE DO_DIGIT_2",
-                "CPY #00",
-                "BEQ DIGIT_3",                 
-                "DO_DIGIT_2:",
-                "LDY #1",
-                "CLC",
-                "ADC #$30",
-                "JSR $FFD2",
+                    "DIGIT2:",
+                    "LDA BCD+1",
+                    "LSR",
+                    "LSR",
+                    "LSR",
+                    "LSR",
+                    "BNE DO_DIGIT_2",
+                    "CPY #00",
+                    "BEQ DIGIT_3",
+                    "DO_DIGIT_2:",
+                    "LDY #1",
+                    "CLC",
+                    "ADC #$30",
+                    "JSR $FFD2",
 
-                "DIGIT_3:",
-                "LDA BCD+1",
-                "AND #$0F",
-                "BNE DO_DIGIT_3",                
-                "CPY #00",
-                "BEQ DIGIT_4",                
-                "DO_DIGIT_3:",
-                "LDY #1",       
-                "CLC",
-                "ADC #$30",
-                "JSR $FFD2",
+                    "DIGIT_3:",
+                    "LDA BCD+1",
+                    "AND #$0F",
+                    "BNE DO_DIGIT_3",
+                    "CPY #00",
+                    "BEQ DIGIT_4",
+                    "DO_DIGIT_3:",
+                    "LDY #1",
+                    "CLC",
+                    "ADC #$30",
+                    "JSR $FFD2",
 
-                "DIGIT_4:",
-                "LDA BCD+0",
-                "LSR",
-                "LSR",
-                "LSR",
-                "LSR",                
-                "BNE DO_DIGIT_4",
-                "CPY #00",
-                "BEQ DIGIT_5", 
-                "DO_DIGIT_4:",
-                "CLC",
-                "ADC #$30",
-                "JSR $FFD2",
+                    "DIGIT_4:",
+                    "LDA BCD+0",
+                    "LSR",
+                    "LSR",
+                    "LSR",
+                    "LSR",
+                    "BNE DO_DIGIT_4",
+                    "CPY #00",
+                    "BEQ DIGIT_5",
+                    "DO_DIGIT_4:",
+                    "CLC",
+                    "ADC #$30",
+                    "JSR $FFD2",
 
-                "DIGIT_5:",
-                "LDA BCD+0",
-                "AND #$0F",
-                "CLC",
-                "ADC #$30",
-                "JSR $FFD2",
-                "RTS",
+                    "DIGIT_5:",
+                    "LDA BCD+0",
+                    "AND #$0F",
+                    "CLC",
+                    "ADC #$30",
+                    "JSR $FFD2",
+                    "RTS",
 
-                "MUL16:",
-                "LDX SP16",
-                "LDA STACKBASE + 3,X    ; Get the multiplicand and",
-                "STA AUXMUL             ; put it in the scratchpad.",
-                "LDA STACKBASE + 4,X",
-                "STA AUXMUL + 1",
-                "PHA",
-                "LDA #0",
-                "STA STACKBASE + 3       ; Zero - out the original multiplicand area",
-                "STA STACKBASE + 4",
-                "PLA",
-                "LDY #$10                ; We'll loop 16 times.",
-                "shift_loop:",
-                "ASL STACKBASE + 3,X     ; Shift the entire 32 bits over one bit position.",
-                "ROL STACKBASE + 4,X",
-                "ROL STACKBASE + 1,X",
-                "ROL STACKBASE + 2,X",
-                "BCC skip_add            ; Skip the adding -in to the result if the high bit shifted out was 0",
-                "CLC                     ; Else, add multiplier to intermediate result.",
-                "LDA AUXMUL",
-                "ADC STACKBASE + 3,X",
-                "STA STACKBASE + 3,X",
-                "LDA AUXMUL + 1",
-                "ADC STACKBASE + 4,X",
-                "STA STACKBASE + 4,X",
-                "LDA #0",
-                "ADC STACKBASE + 1,X",
-                "STA STACKBASE + 1,X",
-                "skip_add:",
-                "DEY                      ; If we haven't done 16 iterations yet,",
-                "BNE  shift_loop          ; then go around again.",
-                "INX",
-                "INX",
-                "STX SP16",
-                "RTS",
+                    "MUL16:",
+                    "LDX SP16",
+                    "LDA STACKBASE + 3,X    ; Get the multiplicand and",
+                    "STA AUXMUL             ; put it in the scratchpad.",
+                    "LDA STACKBASE + 4,X",
+                    "STA AUXMUL + 1",
+                    "PHA",
+                    "LDA #0",
+                    "STA STACKBASE + 3       ; Zero - out the original multiplicand area",
+                    "STA STACKBASE + 4",
+                    "PLA",
+                    "LDY #$10                ; We'll loop 16 times.",
+                    "shift_loop:",
+                    "ASL STACKBASE + 3,X     ; Shift the entire 32 bits over one bit position.",
+                    "ROL STACKBASE + 4,X",
+                    "ROL STACKBASE + 1,X",
+                    "ROL STACKBASE + 2,X",
+                    "BCC skip_add            ; Skip the adding -in to the result if the high bit shifted out was 0",
+                    "CLC                     ; Else, add multiplier to intermediate result.",
+                    "LDA AUXMUL",
+                    "ADC STACKBASE + 3,X",
+                    "STA STACKBASE + 3,X",
+                    "LDA AUXMUL + 1",
+                    "ADC STACKBASE + 4,X",
+                    "STA STACKBASE + 4,X",
+                    "LDA #0",
+                    "ADC STACKBASE + 1,X",
+                    "STA STACKBASE + 1,X",
+                    "skip_add:",
+                    "DEY                      ; If we haven't done 16 iterations yet,",
+                    "BNE  shift_loop          ; then go around again.",
+                    "INX",
+                    "INX",
+                    "STX SP16",
+                    "RTS",
 
-                "; https://www.ahl27.com/posts/2022/12/SIXTH-div/",
-                "DIV16WITHMOD:",
-                ";; MAX ITERATIONS IS 16 = 0X10, SINCE WE HAVE 16 BIT NUMBERS",
-                "LDX SP16",
-                "LDY #$10",
+                    "; https://www.ahl27.com/posts/2022/12/SIXTH-div/",
+                    "DIV16WITHMOD:",
+                    ";; MAX ITERATIONS IS 16 = 0X10, SINCE WE HAVE 16 BIT NUMBERS",
+                    "LDX SP16",
+                    "LDY #$10",
 
-                ";; ADD TWO SPACES ON STACK",
-                "DEX",
-                "DEX",
-                "DEX",
-                "DEX",
+                    ";; ADD TWO SPACES ON STACK",
+                    "DEX",
+                    "DEX",
+                    "DEX",
+                    "DEX",
 
-                "LDA #0",
-                "STA STACKBASE + 1,X; REMAINDER",
-                "STA STACKBASE + 2,X",
-                "STA STACKBASE + 3,X; QUOTIENT",
-                "STA STACKBASE + 4,X",
-                "; +5 - 6 IS DENOMINATOR",
-                "; +7 - 8 IS NUMERATOR",
+                    "LDA #0",
+                    "STA STACKBASE + 1,X; REMAINDER",
+                    "STA STACKBASE + 2,X",
+                    "STA STACKBASE + 3,X; QUOTIENT",
+                    "STA STACKBASE + 4,X",
+                    "; +5 - 6 IS DENOMINATOR",
+                    "; +7 - 8 IS NUMERATOR",
 
-                ";; SET UP THE NUMERATOR",
-                "LDA #0",
-                "ORA STACKBASE + 8,X",
-                "ORA STACKBASE + 7,X",
-                "BEQ EARLYEXIT",
+                    ";; SET UP THE NUMERATOR",
+                    "LDA #0",
+                    "ORA STACKBASE + 8,X",
+                    "ORA STACKBASE + 7,X",
+                    "BEQ EARLYEXIT",
 
-                ";; CHECKING IS DENOMINATOR IS ZERO(IF SO WE'LL JUST STORE ZEROS)",
-                "LDA #0",
-                "ORA STACKBASE + 6,X",
-                "ORA STACKBASE + 5,X",
-                "BNE DIVMODLOOP1",
+                    ";; CHECKING IS DENOMINATOR IS ZERO(IF SO WE'LL JUST STORE ZEROS)",
+                    "LDA #0",
+                    "ORA STACKBASE + 6,X",
+                    "ORA STACKBASE + 5,X",
+                    "BNE DIVMODLOOP1",
 
-                "EARLYEXIT:",
-                ";; NUMERATOR OR DENOMINATOR ARE ZERO, JUST RETURN",
-                "LDA #0",
-                "STA STACKBASE + 6,X",
-                "STA STACKBASE + 5,X",
-                "INX",
-                "INX",
-                "INX",
-                "INX",
-                "RTS",
+                    "EARLYEXIT:",
+                    ";; NUMERATOR OR DENOMINATOR ARE ZERO, JUST RETURN",
+                    "LDA #0",
+                    "STA STACKBASE + 6,X",
+                    "STA STACKBASE + 5,X",
+                    "INX",
+                    "INX",
+                    "INX",
+                    "INX",
+                    "RTS",
 
-                ";; TRIM DOWN TO LEADING BIT",
-                "DIVMODLOOP1:",
-                "LDA STACKBASE + 8,X",
-                "BIT TEST_UPPER_BIT",
-                "BNE END",
-                "CLC",
-                "ASL STACKBASE + 7,X",
-                "ROL STACKBASE + 8,X",
-                "DEY",
-                "JMP DIVMODLOOP1",
-                "END:",
+                    ";; TRIM DOWN TO LEADING BIT",
+                    "DIVMODLOOP1:",
+                    "LDA STACKBASE + 8,X",
+                    "BIT TEST_UPPER_BIT",
+                    "BNE END",
+                    "CLC",
+                    "ASL STACKBASE + 7,X",
+                    "ROL STACKBASE + 8,X",
+                    "DEY",
+                    "JMP DIVMODLOOP1",
+                    "END:",
 
-                ";; MAIN DIVISION LOOP",
-                "DIVMODLOOP2:",
-                ";; LEFT - SHIFT THE REMAINDER",
-                "CLC",
-                "ASL STACKBASE + 1,X         ",
-                "ROL STACKBASE + 2,X",
+                    ";; MAIN DIVISION LOOP",
+                    "DIVMODLOOP2:",
+                    ";; LEFT - SHIFT THE REMAINDER",
+                    "CLC",
+                    "ASL STACKBASE + 1,X         ",
+                    "ROL STACKBASE + 2,X",
 
-                ";; LEFT - SHIFT THE QUOTIENT",
-                "CLC",
-                "ASL STACKBASE + 3,X",
-                "ROL STACKBASE + 4,X",
+                    ";; LEFT - SHIFT THE QUOTIENT",
+                    "CLC",
+                    "ASL STACKBASE + 3,X",
+                    "ROL STACKBASE + 4,X",
 
-                ";; SET LEAST SIGNIFICANT BIT TO BIT I OF NUMERATOR",
-                "CLC",
-                "ASL STACKBASE + 7,X",
-                "ROL STACKBASE + 8,X",
+                    ";; SET LEAST SIGNIFICANT BIT TO BIT I OF NUMERATOR",
+                    "CLC",
+                    "ASL STACKBASE + 7,X",
+                    "ROL STACKBASE + 8,X",
 
-                "LDA STACKBASE + 1,X",
-                "ADC #0",
-                "STA STACKBASE + 1,X",
-                "LDA STACKBASE + 2,X",
-                "ADC #0",
-                "STA STACKBASE + 2,X",
+                    "LDA STACKBASE + 1,X",
+                    "ADC #0",
+                    "STA STACKBASE + 1,X",
+                    "LDA STACKBASE + 2,X",
+                    "ADC #0",
+                    "STA STACKBASE + 2,X",
 
-                ";; COMPARE REMAINDER TO DENOMINATOR",
-                "; UPPER BYTE(STACKBASE + 2 IS ALREADY IN A)",
-                "CMP STACKBASE + 6,X",
-                "BMI SKIP; IF R < D, SKIP TO NEXT ITERATION ",
-                "BNE SUBTRACT; IF R > D, WE CAN SKIP COMPARING LOWER BYTE",
-                "; IF R = D, WE HAVE TO CHECK THE LOWER BYTE",
+                    ";; COMPARE REMAINDER TO DENOMINATOR",
+                    "; UPPER BYTE(STACKBASE + 2 IS ALREADY IN A)",
+                    "CMP STACKBASE + 6,X",
+                    "BMI SKIP; IF R < D, SKIP TO NEXT ITERATION ",
+                    "BNE SUBTRACT; IF R > D, WE CAN SKIP COMPARING LOWER BYTE",
+                    "; IF R = D, WE HAVE TO CHECK THE LOWER BYTE",
 
-                "; LOWER BYTE",
-                "LDA STACKBASE + 1,X",
-                "CMP STACKBASE + 5,X",
-                "BMI SKIP",
+                    "; LOWER BYTE",
+                    "LDA STACKBASE + 1,X",
+                    "CMP STACKBASE + 5,X",
+                    "BMI SKIP",
 
-                "SUBTRACT:",
-                ";; SUBTRACT DENOMINATOR FROM REMAINDER",
-                "SEC",
-                "; SUBTRACT LOWER BYTE",
-                "LDA STACKBASE + 1,X",
-                "SBC STACKBASE + 5,X",
-                "STA STACKBASE + 1,X",
+                    "SUBTRACT:",
+                    ";; SUBTRACT DENOMINATOR FROM REMAINDER",
+                    "SEC",
+                    "; SUBTRACT LOWER BYTE",
+                    "LDA STACKBASE + 1,X",
+                    "SBC STACKBASE + 5,X",
+                    "STA STACKBASE + 1,X",
 
-                "; SUBTRACT UPPER BYTE",
-                "LDA STACKBASE + 2,X",
-                "SBC STACKBASE + 6,X",
-                "STA STACKBASE + 2,X",
+                    "; SUBTRACT UPPER BYTE",
+                    "LDA STACKBASE + 2,X",
+                    "SBC STACKBASE + 6,X",
+                    "STA STACKBASE + 2,X",
 
-                ";; ADD ONE TO QUOTIENT",
-                "INC STACKBASE + 3,X",
+                    ";; ADD ONE TO QUOTIENT",
+                    "INC STACKBASE + 3,X",
 
-                "SKIP:",
-                "DEY",
-                "BEQ EXIT",
-                "JMP DIVMODLOOP2",
+                    "SKIP:",
+                    "DEY",
+                    "BEQ EXIT",
+                    "JMP DIVMODLOOP2",
 
-                "EXIT:  ",
-                ";; CLEANUP",
-                "LDA STACKBASE + 1,X",
-                "STA STACKBASE + 5,X",
-                "LDA STACKBASE + 2,X",
-                "STA STACKBASE + 6,X",
-                "LDA STACKBASE + 3,X",
-                "STA STACKBASE + 7,X",
-                "LDA STACKBASE + 4,X",
-                "STA STACKBASE + 8,X",
+                    "EXIT:  ",
+                    ";; CLEANUP",
+                    "LDA STACKBASE + 1,X",
+                    "STA STACKBASE + 5,X",
+                    "LDA STACKBASE + 2,X",
+                    "STA STACKBASE + 6,X",
+                    "LDA STACKBASE + 3,X",
+                    "STA STACKBASE + 7,X",
+                    "LDA STACKBASE + 4,X",
+                    "STA STACKBASE + 8,X",
 
-                "INX",
-                "INX",
-                "INX",
-                "INX",
-                "RTS",
+                    "INX",
+                    "INX",
+                    "INX",
+                    "INX",
+                    "RTS",
 
-                "DIV16:",
-                "JSR DIV16WITHMOD",
-                "INX",
-                "INX",
-                "RTS",
+                    "DIV16:",
+                    "JSR DIV16WITHMOD",
+                    "INX",
+                    "INX",
+                    "RTS",
 
-                "MOD16:",
-                "JSR DIV16WITHMOD",
-                "LDA STACKBASE + 1,X",
-                "STA STACKBASE + 3,X",
-                "LDA STACKBASE + 2,X",
-                "STA STACKBASE + 4,X",
-                "INX",
-                "INX",
-                "RTS",
+                    "MOD16:",
+                    "JSR DIV16WITHMOD",
+                    "LDA STACKBASE + 1,X",
+                    "STA STACKBASE + 3,X",
+                    "LDA STACKBASE + 2,X",
+                    "STA STACKBASE + 4,X",
+                    "INX",
+                    "INX",
+                    "RTS",
 
-                "MALLOC:",
-                "CLC",
-                "ADC HEAPTOP",
-                "STA HEAPTOP",
-                "BCC NOCARRY",
-                "INC HEAPTOP+1",
-                "NOCARRY:",
-                "LDA HEAPTOP",
-                "STA STACKACCESS",
-                "LDA HEAPTOP + 1",
-                "STA STACKACCESS + 1",
-                "JSR PUSH16",
+                    "MALLOC:",
+                    "CLC",
+                    "ADC HEAPTOP",
+                    "STA HEAPTOP",
+                    "BCC NOCARRY",
+                    "INC HEAPTOP+1",
+                    "NOCARRY:",
+                    "LDA HEAPTOP",
+                    "STA STACKACCESS",
+                    "LDA HEAPTOP + 1",
+                    "STA STACKACCESS + 1",
+                    "JSR PUSH16",
 
-                "RTS",
+                    "RTS",
 
-            ];
+                ];
 
-            const literalStrings = stringTable.map((str, index) => {
-                const bytes: string[] = [];
-                for (let i = 0; i < str.length; i++) {
-                    bytes.push(String(str[i].charCodeAt(0) & 255));
+                const literalStrings = stringTable.map((str, index) => {
+                    const bytes: string[] = [];
+                    for (let i = 0; i < str.length; i++) {
+                        bytes.push(String(str[i].charCodeAt(0) & 255));
+                    }
+                    const strBytes = bytes.join(",");
+                    return `str${index}: BYTE ${strBytes}`;
+                });
+                const vars: string[] = [];
+                if (token.context !== undefined) {
+                    for (let i = 0; i < Object.entries(token.context.varsDefinition).length; i++) {
+                        const [name, varDef] = Object.entries(token.context.varsDefinition)[i];
+                        const variableName = "V_" + name;
+                        const size = typeof varDef.out === "string" || varDef.out[0] === "array" ? sizeForValueType(varDef.internalType, target) : sizeOfStruct(token.context, varDef.out);
+                        vars.push(`${variableName} DS ${size}`);
+                    }
                 }
-                const strBytes = bytes.join(",");
-                return `str${index}: BYTE ${strBytes}`;
-            });
-            const vars: string[] = [];
-            if (token.context !== undefined) {
-                for (let i = 0; i < Object.entries(token.context.varsDefinition).length; i++) {
-                    const [name, varDef] = Object.entries(token.context.varsDefinition)[i];
-                    const variableName = "V_" + name;
-                    const size = typeof varDef.out === "string" || varDef.out[0] === "array" ? sizeForValueType(varDef.internalType) : sizeOfStruct(token.context, varDef.out);
-                    vars.push(`${variableName} DS ${size}`);
-                }
+
+                const heap = [
+                    "HEAPSTART:",
+                ]
+
+                return lib.concat(literalStrings).concat(vars).concat(heap);
             }
+            if (target === "freebsd") {
+                const lib = [
+                    "mov rax, 1",
+                    "mov rdi, 0",
+                    "syscall",
 
-            const heap = [
-                "HEAPSTART:",
-            ]
+                    "print_uint:",
+                    "; division in 64bit save the quotient into rax and the reminder in rdx",
+                    "xor rcx, rcx",
+                    "mov r8, 10",
+                    ".loop:",
+                    "xor rdx, rdx; clearing the register that is going to be used as holder for the reminder",
+                    "div r8",
+                    "add dl, 0x30; make the reminder printable in ascii conversion 0x30 is '0'",
+                    "dec rsp; reduce one byte from the address placed in rsp(freeing one byte of memory)",
+                    "mov[rsp], dl; pour one byte into the address pointed",
+                    "inc rcx",
+                    "test rax, rax",
+                    "jnz .loop",
+                    ".print_chars_on_stack:",
+                    "xor rax, rax",
+                    "mov rsi, rsp;",
+                    "mov rdx, rcx",
+                    "push rcx",
+                    "mov rax, 4",
+                    "mov rdi, 1",
+                    "syscall; rsi e rdx are respectively buffer starting point and length in byte",
+                    "; the syscall is going to look at what is in memory at the address loaded in rsi(BE CAREFULL) and not at the content of rdi",
+                    "pop rcx",
+                    "add rsp, rcx; when printed we can free the stack",
+                    "ret",
 
-            return lib.concat(literalStrings).concat(vars).concat(heap);
+                    "print_lf:",
+                    "mov rcx, 10",
+                    "call emit",
+                    "ret",
+
+                    "emit:", // emit ascii char in rcx
+                    "push rdx",
+                    "push rax",
+                    "push rdi",
+                    "push rsi",
+                    "push rcx",
+                    "mov rsi, rsp",
+                    "mov rdx, 1",
+                    "mov rax, 4",
+                    "mov rdi, 1",
+                    "syscall",
+                    "pop rcx",
+                    "pop rsi",
+                    "pop rdi",
+                    "pop rax",
+                    "pop rdx",
+                    "ret",
+
+                    "allocate:",
+                    "mov rbx, [mem_top]", // return the starting address in rbx
+                    "add [mem_top], rax",
+                    "ret",
+                ];
+                const literalStrings = ["section .data"]
+                    .concat(
+                        stringTable.map((str, index) => {
+                            const bytes = [];
+                            for (let i = 0; i < str.length; i++) {
+                                bytes.push(String(str[i].charCodeAt(0) & 255));
+                            }
+                            const strBytes = bytes.join(",");
+                            return `str${index} db ${strBytes}`;
+                        })
+                    );
+                const vars = ["section .bss"];
+                if (token.context !== undefined) {
+                    for (let i = 0; i < Object.entries(token.context.varsDefinition).length; i++) {
+                        const [name, varDef] = Object.entries(token.context.varsDefinition)[i];
+                        const variableName = "V_" + name;
+                        const size = typeof varDef.out === "string" || varDef.out[0] === "array" ? sizeForValueType(varDef.internalType, target) : sizeOfStruct(token.context, varDef.out);
+                        vars.push(`${variableName}: resb ${size}`);
+                    }
+                }
+                vars.push("mem_top: resb 8");
+                vars.push("ret_stack_rsp: resb 8");
+                vars.push(`ret_stack: resb ${RET_STACK_CAPACITY}`);
+                vars.push("ret_stack_end:");
+                vars.push(`mem: resb ${MEM_CAPACITY}`);
+                return lib.concat(literalStrings).concat(vars);
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
         },
-        generatePreludeAsm: () => [
-            "processor 6502 ; TEH BEAST",
-            "ORG $0801 ; BASIC STARTS HERE",
-            "HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00",
-            "ORG $0810 ; MY PROGRAM STARTS HERE",
-            "; INIT HEAP",
-            "LDA #<HEAPSTART",
-            "STA HEAPTOP",
-            "LDA #>HEAPSTART",
-            "STA HEAPTOP+1",
-            "JSR INITSTACK",
-        ],
-
-
+        generatePreludeAsm: (ast, target) => {
+            if (target === "c64") return [
+                "processor 6502 ; TEH BEAST",
+                "ORG $0801 ; BASIC STARTS HERE",
+                "HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00",
+                "ORG $0810 ; MY PROGRAM STARTS HERE",
+                "; INIT HEAP",
+                "LDA #<HEAPSTART",
+                "STA HEAPTOP",
+                "LDA #>HEAPSTART",
+                "STA HEAPTOP+1",
+                "JSR INITSTACK",
+            ];
+            if (target === "freebsd") return [
+                "BITS 64",
+                "section .text",
+                "global	_start",
+                "_start:",
+                // init ret_stack_rsp
+                "mov rax, ret_stack_end",
+                "mov [ret_stack_rsp], rax",
+                "mov rax, mem",
+                "mov [mem_top], rax",
+            ];
+            console.log(`target system '${target}' unknown`);
+            exit();
+        }
     };
     voc[TokenType.INC] = {
         txt: "inc",
@@ -2915,7 +3717,7 @@ function createVocabulary(): Vocabulary {
         },
         out: () => "void",
         generateChildPreludeAsm: () => { return undefined }, // no child generation asm
-        generateAsm: token => {
+        generateAsm: (token, target) => {
             assertChildNumber(token, 1);
             const child = token.childs[0]
             const varName = child.txt;
@@ -2924,49 +3726,73 @@ function createVocabulary(): Vocabulary {
                 logError(child.loc, `INC generateAsm cannot find declaration for '${varName}', compiler error`);
                 exit();
             }
-            if (varDef.isGlobalContext) {
-                const asmVarName = "V_" + varName;
-                if (varDef.internalType === "byte") return [
-                    `INC ${asmVarName}`,
-                ];
+            if (target === "c64") {
+                if (varDef.isGlobalContext) {
+                    const asmVarName = "V_" + varName;
+                    if (varDef.internalType === "byte") return [
+                        `INC ${asmVarName}`,
+                    ];
 
-                return [
-                    `INC ${asmVarName}`,
-                    "BNE not_carry_@",
-                    `INC ${asmVarName} + 1`,
-                    `not_carry_@:`,
-                ]
-            }
+                    return [
+                        `INC ${asmVarName}`,
+                        "BNE not_carry_@",
+                        `INC ${asmVarName} + 1`,
+                        `not_carry_@:`,
+                    ]
+                }
 
-            // LOCAL CONTEXT
+                // LOCAL CONTEXT
 
-            if (varDef.offset === undefined) {
-                logError(token.loc, `INC generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
-                exit();
-            }
+                if (varDef.offset === undefined) {
+                    logError(token.loc, `INC generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
+                    exit();
+                }
 
-            if (varDef.internalType === "byte") {
+                if (varDef.internalType === "byte") {
+                    return [
+                        "TSX",
+                        "TXA",
+                        "CLC",
+                        `ADC #${varDef.offset + 1}`,
+                        "TAX",
+                        "INC $0100,X"
+                    ];
+                }
                 return [
                     "TSX",
                     "TXA",
                     "CLC",
                     `ADC #${varDef.offset + 1}`,
                     "TAX",
-                    "INC $0100,X"
-                ];
+                    "INC $0100,X",
+                    "BNE not_carry_@",
+                    `INC $0101,X`,
+                    `not_carry_@:`,
+                ]
             }
-            return [
-                "TSX",
-                "TXA",
-                "CLC",
-                `ADC #${varDef.offset + 1}`,
-                "TAX",
-                "INC $0100,X",
-                "BNE not_carry_@",
-                `INC $0101,X`,
-                `not_carry_@:`,
-            ]
+            if (target === "freebsd") {
+                if (varDef.isGlobalContext) {
+                    const asmVarName = "V_" + varName;
+                    return [
+                        `add qword [${asmVarName}], 1`,
+                    ];
+                }
 
+                // LOCAL CONTEXT
+
+                if (varDef.offset === undefined) {
+                    logError(token.loc, `INC generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
+                    exit();
+                }
+                return [
+                    "mov rax, [ret_stack_rsp]",
+                    `add rax, ${varDef.offset}`,
+                    "add qword [rax], 1",
+                ];
+
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
         },
     };
     voc[TokenType.DEFINE] = {
@@ -3150,7 +3976,7 @@ function createVocabulary(): Vocabulary {
                 "LDA STACKACCESS+1",
                 "ADC #0",
                 "STA AUX+1",
-            ].concat(getAsmPushValuePointedByAux(type));
+            ].concat(getAsmPushValuePointedByAux(type, target));
         },
         preprocessTokens: ast => {
             if (ast[2].type === TokenType.WORD) {
@@ -3258,7 +4084,7 @@ function createVocabulary(): Vocabulary {
                 logError(componentChild.loc, `'${componentChild.txt}' is not part of ${structChild.txt}`);
                 exit();
             }
-            return getAsmForSetWordPointedByAUX(type, offset);
+            return getAsmForSetWordPointedByAUX(type, offset, target);
         }
     };
     voc[TokenType.NEW] = {
@@ -3324,47 +4150,66 @@ function createVocabulary(): Vocabulary {
             exit();
         },
         out: () => "record",
-        generateAsm: token => {
+        generateAsm: (token, target) => {
             if (token.context === undefined) {
                 logError(token.loc, `can't find context for ${token.txt}, compiler error`);
                 exit();
             }
             if (token.context.parent === undefined) return []; // the global context
 
-            let sizeToRelease = sizeOfContext(token.context);
+            let sizeToRelease = sizeOfContext(token.context, target);
             if (sizeToRelease === 0) return ["; no stack memory to release"];
-            return [
-                "; push the heap",
-                "SAVE_HEAP_@:",
-                "LDA HEAPTOP",
-                "STA STACKACCESS",
-                "STA TOADD+1",
-                "LDA HEAPTOP+1",
-                "STA STACKACCESS+1",
-                "STA TOADD+2",
-                "JSR PUSH16",
-                "; copy mem",
-                "TSX",
-                "INX",
-                "STX FROMADD+1",
-                "LDA #01",
-                "STA FROMADD+2",
-                `LDY #${sizeToRelease}`,
-                "JSR COPYMEM",
-                "CLC",
-                "LDA HEAPTOP",
-                `ADC #${sizeToRelease}`,
-                "STA HEAPTOP",
-                `; release ${sizeToRelease} on the stack`,
-                "TSX",
-                "TXA",
-                "CLC",
-                `ADC #${sizeToRelease}`,
-                "TAX",
-                "TXS"
-            ];
+            if (target === "c64") {
+                return [
+                    "; push the heap",
+                    "SAVE_HEAP_@:",
+                    "LDA HEAPTOP",
+                    "STA STACKACCESS",
+                    "STA TOADD+1",
+                    "LDA HEAPTOP+1",
+                    "STA STACKACCESS+1",
+                    "STA TOADD+2",
+                    "JSR PUSH16",
+                    "; copy mem",
+                    "TSX",
+                    "INX",
+                    "STX FROMADD+1",
+                    "LDA #01",
+                    "STA FROMADD+2",
+                    `LDY #${sizeToRelease}`,
+                    "JSR COPYMEM",
+                    "CLC",
+                    "LDA HEAPTOP",
+                    `ADC #${sizeToRelease}`,
+                    "STA HEAPTOP",
+                    `; release ${sizeToRelease} on the stack`,
+                    "TSX",
+                    "TXA",
+                    "CLC",
+                    `ADC #${sizeToRelease}`,
+                    "TAX",
+                    "TXS"
+                ];
+            }
+            if (target === "freebsd") {
+                return [
+                    `mov rax, ${sizeToRelease}`,
+                    "call allocate",
+                    "mov rdi, rbx",
+                    "mov rsi, [ret_stack_rsp]",
+                    `mov rcx, ${sizeToRelease}`,
+                    "rep movsb",
+                    `; release ${sizeToRelease} on the stack`,
+                    "mov rax, [ret_stack_rsp]",
+                    `add rax, ${sizeToRelease}`,
+                    "mov [ret_stack_rsp], rax",
+                    "push rbx",
+                ];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
         },
-        generatePreludeAsm: token => {
+        generatePreludeAsm: (token, target) => {
             // at the start we make some space on the stack, for variables
             if (token.context === undefined) {
                 logError(token.loc, `can't find context for ${token.txt}, compiler error`);
@@ -3377,20 +4222,31 @@ function createVocabulary(): Vocabulary {
             for (const [key, varDef] of Object.entries(token.context.varsDefinition)) {
                 varDef.offset = sizeToReserve;
                 const valueType = varDef.internalType;
-                sizeToReserve += sizeForValueType(varDef.internalType);
+                sizeToReserve += sizeForValueType(varDef.internalType, target);
             }
 
             const strVariables = Object.values(token.context.varsDefinition).map(varDef => varDef.token.txt + " (" + humanReadableType(varDef.out) + " offset " + varDef.offset + ")").join(", ");
             if (sizeToReserve === 0) return ["; no stack memory to reserve"];
-            return [
-                `; reserve ${sizeToReserve} on the stack for: ${strVariables}`,
-                "TSX",
-                "TXA",
-                "SEC",
-                `SBC #${sizeToReserve}`,
-                "TAX",
-                "TXS"
-            ];
+            if (target === "c64") {
+                return [
+                    `; reserve ${sizeToReserve} on the stack for: ${strVariables}`,
+                    "TSX",
+                    "TXA",
+                    "SEC",
+                    `SBC #${sizeToReserve}`,
+                    "TAX",
+                    "TXS"
+                ];
+            }
+            if (target === "freebsd") {
+                return [
+                    "mov rax, [ret_stack_rsp]",
+                    `sub rax, ${sizeToReserve}`,
+                    "mov [ret_stack_rsp], rax",
+                ];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
         }
     };
     voc[TokenType.ARRAY] = {
@@ -3435,7 +4291,7 @@ function createVocabulary(): Vocabulary {
             if (n === 1) return undefined;
             return [];
         },
-        generateAsm: token => {
+        generateAsm: (token, target) => {
             assertChildNumber(token, 2);
             if (token.context === undefined) {
                 logError(token.loc, `can't find context for ${token.txt}, compiler error`);
@@ -3445,34 +4301,49 @@ function createVocabulary(): Vocabulary {
             const firstChild = token.childs[0];
             const secondChild = token.childs[1];
             const secontChildType = getReturnTypeOfAWord(secondChild);
-            const structSize = typeof secontChildType === "string" ? sizeForValueType(secontChildType) : sizeOfStruct(token.context, secontChildType);
-
-            return [
-                // size is on the stack                
-                // push the heap
-                "LDA HEAPTOP",
-                "STA STACKACCESS",
-                "LDA HEAPTOP+1",
-                "STA STACKACCESS+1",
-                "JSR PUSH16",
-                "JSR SWAP16",
-                "JSR PUSH16",
-                "JSR SWAP16", // heap heap size
-                // push structsize                
-                `LDA #${structSize}`,
-                "STA STACKACCESS",
-                `LDA #0`,
-                "STA STACKACCESS + 1",
-                "JSR PUSH16", // heap heap size structsize
-                "JSR MUL16", // heap heap (size * structsize)
-                "JSR ADD16", // heap (heap + size * structsize)
-                // store the new heap
-                "JSR POP16",
-                "LDA STACKACCESS",
-                "STA HEAPTOP",
-                "LDA STACKACCESS + 1",
-                "STA HEAPTOP + 1", // the array address is on the stack
-            ];
+            const structSize = typeof secontChildType === "string" ? sizeForValueType(secontChildType, target) : sizeOfStruct(token.context, secontChildType);
+            if (target === "c64") {
+                return [
+                    // size is on the stack                
+                    // push the heap
+                    "LDA HEAPTOP",
+                    "STA STACKACCESS",
+                    "LDA HEAPTOP+1",
+                    "STA STACKACCESS+1",
+                    "JSR PUSH16",
+                    "JSR SWAP16",
+                    "JSR PUSH16",
+                    "JSR SWAP16", // heap heap size
+                    // push structsize                
+                    `LDA #${structSize}`,
+                    "STA STACKACCESS",
+                    `LDA #0`,
+                    "STA STACKACCESS + 1",
+                    "JSR PUSH16", // heap heap size structsize
+                    "JSR MUL16", // heap heap (size * structsize)
+                    "JSR ADD16", // heap (heap + size * structsize)
+                    // store the new heap
+                    "JSR POP16",
+                    "LDA STACKACCESS",
+                    "STA HEAPTOP",
+                    "LDA STACKACCESS + 1",
+                    "STA HEAPTOP + 1", // the array address is on the stack
+                ];
+            }
+            if (target === "freebsd") {
+                return [
+                    // size is on the stack                
+                    // push the heap
+                    "pop rax", // the size
+                    "mov rbx, [mem_top]",
+                    `imul rax, ${structSize}`,
+                    "add rax, rbx",
+                    "mov [mem_top], rax",
+                    "push rbx", // the array address is on the stack
+                ];
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
         }
     };
     voc[TokenType.ARRAY_TYPE] = {
@@ -3523,7 +4394,7 @@ function createVocabulary(): Vocabulary {
             return [arrayType, "number", arrayType[1]]
         },
         out: () => "void",
-        generateChildPreludeAsm: (token, n) => {
+        generateChildPreludeAsm: (token, n, target) => {
             if (n === 2) {
                 assertChildNumber(token, 3);
                 const arrayType = getReturnTypeOfAWord(token.childs[0]);
@@ -3531,36 +4402,51 @@ function createVocabulary(): Vocabulary {
                     logError(token.childs[0].loc, `'${token.childs[0].txt}' should be an array, it's a ${humanReadableType(arrayType)}`);
                     exit();
                 }
-                const sizeOfElement = sizeForValueType(arrayType[1]);
-                return [
-                    // address and index on the stack
-                    `LDA #<${sizeOfElement}`,
-                    `STA STACKACCESS`,
-                    `LDA #>${sizeOfElement}`,
-                    `STA STACKACCESS + 1`,
-                    "JSR PUSH16",
-                    "JSR MUL16",
-                    "JSR ADD16",
-                    "LDX SP16",
-                    "LDA STACKBASE + 1,X",
-                    "STA AUX",
-                    "LDA STACKBASE + 2,X",
-                    "STA AUX + 1",
-                    "INX",
-                    "INX",
-                    "STX SP16",
-                ];
+                const sizeOfElement = sizeForValueType(arrayType[1], target);
+                if (target === "c64") {
+                    return [
+                        // address and index on the stack
+                        `LDA #<${sizeOfElement}`,
+                        `STA STACKACCESS`,
+                        `LDA #>${sizeOfElement}`,
+                        `STA STACKACCESS + 1`,
+                        "JSR PUSH16",
+                        "JSR MUL16",
+                        "JSR ADD16",
+                        "LDX SP16",
+                        "LDA STACKBASE + 1,X",
+                        "STA AUX",
+                        "LDA STACKBASE + 2,X",
+                        "STA AUX + 1",
+                        "INX",
+                        "INX",
+                        "STX SP16",
+                    ];
+                }
+                if (target === "freebsd") {
+                    return [
+                        // address and index on the stack
+                        "pop rbx", // index
+                        "pop rax", // address
+
+                        `imul rbx, ${sizeOfElement}`,
+                        "add rax, rbx",
+                        "push rax",
+                    ];
+                }
+                console.log(`target system '${target}' unknown`);
+                exit();
             }
             return [];
         },
-        generateAsm: (token) => {
+        generateAsm: (token, target) => {
             assertChildNumber(token, 3);
             const arrayType = getReturnTypeOfAWord(token.childs[0]);
             if (typeof arrayType === "string" || arrayType[0] !== "array") {
                 logError(token.childs[0].loc, `'${token.childs[0].txt}' should be an array, it's a ${humanReadableType(arrayType)}`);
                 exit();
             }
-            return getAsmForSetWordPointedByAUX(arrayType[1], 0);
+            return getAsmForSetWordPointedByAUX(arrayType[1], 0, target);
         }
     };
     voc[TokenType.AT] = {
@@ -3589,33 +4475,49 @@ function createVocabulary(): Vocabulary {
             }
             return arrayType[1];
         },
-        generateAsm: token => {
+        generateAsm: (token, target) => {
             assertChildNumber(token, 2);
             const arrayType = getReturnTypeOfAWord(token.childs[0]);
             if (typeof arrayType === "string" || arrayType[0] !== "array") {
                 logError(token.childs[0].loc, `'${token.childs[0].txt}' should be an array, it's a ${humanReadableType(arrayType)}`);
                 exit();
             }
-            const sizeOfElement = sizeForValueType(arrayType[1]);
-            return [
-                // address and index on the stack
-                `LDA #<${sizeOfElement}`,
-                `STA STACKACCESS`,
-                `LDA #>${sizeOfElement}`,
-                `STA STACKACCESS + 1`,
-                "JSR PUSH16",
-                "JSR MUL16",
-                "JSR ADD16",
-                "LDX SP16",
-                "LDA STACKBASE + 1,X",
-                "STA AUX",
-                "LDA STACKBASE + 2,X",
-                "STA AUX + 1",
-                "INX",
-                "INX",
-                "STX SP16",
-                `; now get the ${humanReadableType(arrayType[1])} pointed by the tos`
-            ].concat(getAsmForGetWordPointedByAUX(arrayType[1], 0));
+            const sizeOfElement = sizeForValueType(arrayType[1], target);
+
+            if (target === "c64") {
+                return [
+                    // address and index on the stack
+                    `LDA #<${sizeOfElement}`,
+                    `STA STACKACCESS`,
+                    `LDA #>${sizeOfElement}`,
+                    `STA STACKACCESS + 1`,
+                    "JSR PUSH16",
+                    "JSR MUL16",
+                    "JSR ADD16",
+                    "LDX SP16",
+                    "LDA STACKBASE + 1,X",
+                    "STA AUX",
+                    "LDA STACKBASE + 2,X",
+                    "STA AUX + 1",
+                    "INX",
+                    "INX",
+                    "STX SP16",
+                    `; now get the ${humanReadableType(arrayType[1])} pointed by the tos`
+                ].concat(getAsmForGetWordPointedByAUX(arrayType[1], 0, target));
+            }
+
+            if (target === "freebsd") {
+                return [
+                    // address and index on the stack
+                    "pop rbx", // index
+                    "pop rax", // address
+                    `imul rbx, ${sizeOfElement}`,
+                    "add rax, rbx",
+                    `; now get the ${humanReadableType(arrayType[1])} pointed by the aux`
+                ].concat(getAsmForGetWordPointedByAUX(arrayType[1], 0, target));
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();            
         }
     };        
 
@@ -4169,7 +5071,7 @@ function typeCheck(token: Token) {
 
 }
 
-function setWordDefinition(token: Token) {
+function setWordDefinition(token: Token, target: Target) {
 
     if (token.type !== TokenType.LIT_WORD) {
         logError(token.loc, `'${token.txt}' is not a 'LIT WORD'`);
@@ -4217,7 +5119,7 @@ function setWordDefinition(token: Token) {
             internalType: "addr",
             offset: undefined,
         };
-        token.context.size += sizeForValueType("addr");
+        token.context.size += sizeForValueType("addr", target);
     } else {
         // if (child.internalValueType === undefined) {
         //     logError(child.loc, `the internal type of '${child.txt}' is undefined`);
@@ -4234,12 +5136,12 @@ function setWordDefinition(token: Token) {
             internalType: child.internalValueType ?? child.out,
             offset: undefined,
         };        
-        token.context.size += sizeForValueType(child.out);        
+        token.context.size += sizeForValueType(child.out, target);        
     }
 
 }
 
-function setStructDefinition(token: Token) {
+function setStructDefinition(token: Token, target: Target) {
 
     if (token.type !== TokenType.STRUCT) {
         logError(token.loc, `'${token.txt}' is not a 'STRUCT'`);
@@ -4280,7 +5182,7 @@ function setStructDefinition(token: Token) {
     let size = 0;
     const elements = [];
     for (const [name, varDef] of Object.entries(block.context.varsDefinition)) {
-        const currSize = sizeForValueType(varDef.internalType);
+        const currSize = sizeForValueType(varDef.internalType, target);
         elements.push({
             name,
             offset: size,
@@ -4333,9 +5235,9 @@ function parseBlock(ast: AST): AST {
             typeCheck(group);
             optimize(group);
             if (group.type === TokenType.LIT_WORD) {
-                setWordDefinition(group);
+                setWordDefinition(group, target);
             } else if (group.type === TokenType.STRUCT) {
-                setStructDefinition(group);
+                setStructDefinition(group, target);
             }
 
             if (token.position !== InstructionPosition.PREFIX) j = j - 1; // we already taken as child the token before this
@@ -4433,8 +5335,10 @@ function groupByExpectedArityOutZero(sequence: AST) {
             // this could be part of current sequence as return value of the block
             if (j === sequence.length - 2) {
                 const nextToken = sequence[j + 1];
-                if (nextToken.type === TokenType.REF_BLOCK || nextToken.type === TokenType.BLOCK || nextToken.type === TokenType.RECORD) {
-                    const freeWords = getWordUsedButNotDefinedInABlock(nextToken);
+                if (nextToken.type === TokenType.REF_BLOCK || nextToken.type === TokenType.BLOCK ||
+                    nextToken.type === TokenType.RECORD || nextToken.type === TokenType.WORD) {
+
+                    const freeWords = nextToken.type === TokenType.WORD ? [nextToken.txt] : getWordUsedButNotDefinedInABlock(nextToken);
                     const currentlyDefinedWords = sequence.slice(lastPointer, j + 1)
                         .filter(token => token.type === TokenType.LIT_WORD)
                         .map(token => token.txt);
@@ -4617,69 +5521,104 @@ function getAfterFunctionName(n: number): string {
     return "AFTER_" + n;
 }
 
-function compileLiteral(ast: Token): Assembly {
-    let ret: Assembly = [];    
-    if (ast.out === "number") {
-        ret.push(`; ${ast.loc.row}:${ast.loc.col} NUMBER ${ast.txt}`);
-        const MSB = (parseInt(ast.txt, 10) >> 8) & 255;
-        ret.push(`LDA #${MSB}`);
-        ret.push(`STA STACKACCESS+1`);
-        const LSB = parseInt(ast.txt, 10) & 255;
-        ret.push(`LDA #${LSB}`);
-        ret.push(`STA STACKACCESS`);
-        ret.push(`JSR PUSH16`);
+function compileLiteral(ast: Token, target: Target): Assembly {
+    let ret: Assembly = [];
+    if (target === "c64") {
+        if (ast.out === "number") {
+            ret.push(`; ${ast.loc.row}:${ast.loc.col} NUMBER ${ast.txt}`);
+            const MSB = (parseInt(ast.txt, 10) >> 8) & 255;
+            ret.push(`LDA #${MSB}`);
+            ret.push(`STA STACKACCESS+1`);
+            const LSB = parseInt(ast.txt, 10) & 255;
+            ret.push(`LDA #${LSB}`);
+            ret.push(`STA STACKACCESS`);
+            ret.push(`JSR PUSH16`);
 
-    } else if (ast.out === "byte") {
-        ret.push(`; ${ast.loc.row}:${ast.loc.col} BYTE ${ast.txt}`);
-        const LSB = parseInt(ast.txt, 10) & 255;
-        ret.push(`LDA #${LSB}`);
-        ret.push(`STA STACKACCESS`);
-        ret.push(`LDA #0`);
-        ret.push(`STA STACKACCESS+1`);
-        ret.push(`JSR PUSH16`);
-    } else if (ast.out === "string") {
-        ret.push(`; ${ast.loc.row}:${ast.loc.col} STRING "${ast.txt}"`);
-        // push lenght 
-        // todo: ora la lunghezza massima della stringa è 255 caratteri, aumentarla ?
-        const stringToPush = ast.txt;
-        if (stringToPush.length > 255) {
-            logError(ast.loc, "strings must be less than 256 chars");
+        } else if (ast.out === "byte") {
+            ret.push(`; ${ast.loc.row}:${ast.loc.col} BYTE ${ast.txt}`);
+            const LSB = parseInt(ast.txt, 10) & 255;
+            ret.push(`LDA #${LSB}`);
+            ret.push(`STA STACKACCESS`);
+            ret.push(`LDA #0`);
+            ret.push(`STA STACKACCESS+1`);
+            ret.push(`JSR PUSH16`);
+        } else if (ast.out === "string") {
+            ret.push(`; ${ast.loc.row}:${ast.loc.col} STRING "${ast.txt}"`);
+            // push lenght 
+            // todo: ora la lunghezza massima della stringa è 255 caratteri, aumentarla ?
+            const stringToPush = ast.txt;
+            if (stringToPush.length > 255) {
+                logError(ast.loc, "strings must be less than 256 chars");
+                exit();
+            }
+            ret.push(`LDA #0`);
+            ret.push(`STA STACKACCESS+1`);
+            ret.push(`LDA #${ast.txt.length}`);
+            ret.push(`STA STACKACCESS`);
+            ret.push(`JSR PUSH16`);
+
+            // push address
+            const labelIndex = stringTable.length;
+            stringTable.push(ast.txt);
+            ret.push(`LDA #>str${labelIndex}`);
+            ret.push(`STA STACKACCESS+1`);
+            ret.push(`LDA #<str${labelIndex}`);
+            ret.push(`STA STACKACCESS`);
+            ret.push(`JSR PUSH16`);
+
+        } else if (ast.out === "bool") {
+            ret.push(`; ${ast.loc.row}:${ast.loc.col} BOOL ${ast.txt}`);
+            ret.push(`LDA #${ast.txt === "true" ? "1" : "0"}`);
+            ret.push(`STA STACKACCESS`);
+            ret.push(`LDA #0`);
+            ret.push(`STA STACKACCESS+1`);
+            ret.push(`JSR PUSH16`);
+        } else if (ast.out === "addr") {
+            logError(ast.loc, `'Addr' should not be compiled as a value, compiler error`);
+            exit();
+        } else if (ast.out === "void") {
+            logError(ast.loc, `'Void' should not be compiled as a value, compiler error`);
+            exit();
+        } else {
+            logError(ast.loc, `compiling the type '${ast.out}' is not supported yet`);
             exit();
         }
-        ret.push(`LDA #0`);
-        ret.push(`STA STACKACCESS+1`);
-        ret.push(`LDA #${ast.txt.length}`);
-        ret.push(`STA STACKACCESS`);
-        ret.push(`JSR PUSH16`);
-
-        // push address
-        const labelIndex = stringTable.length;
-        stringTable.push(ast.txt);
-        ret.push(`LDA #>str${labelIndex}`);
-        ret.push(`STA STACKACCESS+1`);
-        ret.push(`LDA #<str${labelIndex}`);
-        ret.push(`STA STACKACCESS`);
-        ret.push(`JSR PUSH16`);
-
-    } else if (ast.out === "bool") {
-        ret.push(`; ${ast.loc.row}:${ast.loc.col} BOOL ${ast.txt}`);
-        ret.push(`LDA #${ast.txt === "true" ? "1" : "0"}`);
-        ret.push(`STA STACKACCESS`);
-        ret.push(`LDA #0`);
-        ret.push(`STA STACKACCESS+1`);
-        ret.push(`JSR PUSH16`);
-    } else if (ast.out === "addr") {
-        logError(ast.loc, `'Addr' should not be compiled as a value, compiler error`);
-        exit();
-    } else if (ast.out === "void") {
-        logError(ast.loc, `'Void' should not be compiled as a value, compiler error`);
-        exit();
-    } else {
-        logError(ast.loc, `compiling the type '${ast.out}' is not supported yet`);
-        exit();
+        return ret;
+    } else if (target === "freebsd") {
+        if (ast.out === "number") {
+            ret.push(`; ${ast.loc.row}:${ast.loc.col} NUMBER ${ast.txt}`);
+            const num = parseInt(ast.txt, 10);
+            ret.push(`push ${num}`);
+        } else if (ast.out === "byte") {
+            ret.push(`; ${ast.loc.row}:${ast.loc.col} BYTE ${ast.txt}`);
+            const LSB = parseInt(ast.txt, 10) & 255;
+            ret.push(`push ${LSB}`);
+        } else if (ast.out === "string") {
+            ret.push(`; ${ast.loc.row}:${ast.loc.col} STRING "${ast.txt}"`);
+            // push lenght 
+            const stringToPush = ast.txt;
+            ret.push(`push ${ast.txt.length}`);
+            // push address
+            const labelIndex = stringTable.length;
+            stringTable.push(ast.txt);
+            ret.push(`push str${labelIndex}`);
+        } else if (ast.out === "bool") {
+            ret.push(`; ${ast.loc.row}:${ast.loc.col} BOOL ${ast.txt}`);
+            ret.push(`push ${ast.txt === "true" ? "1" : "0"}`);
+        } else if (ast.out === "addr") {
+            logError(ast.loc, `'Addr' should not be compiled as a value, compiler error`);
+            exit();
+        } else if (ast.out === "void") {
+            logError(ast.loc, `'Void' should not be compiled as a value, compiler error`);
+            exit();
+        } else {
+            logError(ast.loc, `compiling the type '${ast.out}' is not supported yet`);
+            exit();
+        }
+        return ret;
     }
-
-    return ret;
+    console.log(`target system unknown ${target}`);
+    exit();
 }
 
 function isTypeToken(token: Token): boolean {
@@ -4688,7 +5627,7 @@ function isTypeToken(token: Token): boolean {
     return varDef?.type === "struct";
 }
 
-function compile(vocabulary: Vocabulary, ast: Token): Assembly {
+function compile(vocabulary: Vocabulary, ast: Token, target: Target): Assembly {
 
     let ret: Assembly = [];
     const inst = vocabulary[ast.type];
@@ -4703,7 +5642,7 @@ function compile(vocabulary: Vocabulary, ast: Token): Assembly {
         if (inst.generatePreludeAsm) {
             ret.push("; Prelude for:");
             ret.push(instructionLabel);
-            ret = ret.concat(inst.generatePreludeAsm(ast));
+            ret = ret.concat(inst.generatePreludeAsm(ast, target));
         }
     }
 
@@ -4725,7 +5664,7 @@ function compile(vocabulary: Vocabulary, ast: Token): Assembly {
     for (let i = 0; i < ast.childs.length; i++) {
         let generateAssemblyChild: boolean = true;
         if (inst.generateChildPreludeAsm) {
-            const retAsseblyChild = inst.generateChildPreludeAsm(ast, i);
+            const retAsseblyChild = inst.generateChildPreludeAsm(ast, i, target);
             if (retAsseblyChild !== undefined) {
                 ret = ret.concat(retAsseblyChild);
             } else {
@@ -4735,16 +5674,16 @@ function compile(vocabulary: Vocabulary, ast: Token): Assembly {
                 generateAssemblyChild = false;
             }
         }
-        if (generateAssemblyChild) ret = ret.concat(compile(vocabulary, ast.childs[i]))
+        if (generateAssemblyChild) ret = ret.concat(compile(vocabulary, ast.childs[i], target));
     }
 
     // lets' compile for real        
     if (ast.type === TokenType.LITERAL) {
-        ret = ret.concat(compileLiteral(ast));
+        ret = ret.concat(compileLiteral(ast, target));
     } else {
         ret.push(instructionLabel);
         const inst = vocabulary[ast.type];
-        ret = ret.concat(inst.generateAsm(ast));
+        ret = ret.concat(inst.generateAsm(ast, target));
     }
 
     // LABEL NUMBERING, EACH @ found in instructions is changed to labelIndex        
@@ -4846,8 +5785,9 @@ function dumpContext(context: Context | undefined) {
 
 function usage() {
     console.log("USAGE:");
-    console.log("    deno run --allow-all cazz.ts <filename>");
-    console.log("    NOTE: filename must have .cazz extension");
+    console.log("    deno run --allow-all cazz.ts <target> <filename>");
+    console.log("        <target> should be c64 or freebsd");
+    console.log("        <filename> must have .cazz extension");
 }
 
 type Target = "c64" | "freebsd";
@@ -4857,7 +5797,7 @@ if (Deno.args.length !== 2) {
     exit();
 }
 
-if (Deno.args[0] !== "c64" && Deno.args[1] !== "freebsd") {
+if (Deno.args[0] !== "c64" && Deno.args[0] !== "freebsd") {
     console.error(`ERROR: in the first parametere you need to specify the target 'c64' or 'freebsd': ${Deno.args[0]} is not a valid target`);
     usage();
     exit();
@@ -4880,19 +5820,42 @@ const astProgram = parse(vocabulary, program);
 dumpAst(astProgram);
 //exit();
 
-const asm = compile(vocabulary, astProgram);
-optimizeAsm(asm);
-addIndent(asm);
-await Deno.writeTextFile(basename + ".asm", asm.join("\n"));
-
-const dasm = Deno.run({ cmd: ["dasm", basename + ".asm", "-o" + basename + ".prg", "-s" + basename + ".sym"] });
-const dasmStatus = await dasm.status();
-if (dasmStatus.success === false) {
-    console.log("ERROR: dasm returned an error " + dasmStatus.code);
-    exit();
+const asm = compile(vocabulary, astProgram, target);
+if (target === "c64") {
+    optimizeAsm(asm);
+    addIndent(asm);
 }
 
-const emu = Deno.run({ opt: { stdout: "null" }, cmd: ["x64", "-silent", basename + ".prg"] });
-const emuStatus = await emu.status();
+await Deno.writeTextFile(basename + ".asm", asm.join("\n"));
 
-console.log("Done");
+if (target === "c64") {
+    const dasm = Deno.run({ cmd: ["dasm", basename + ".asm", "-o" + basename + ".prg", "-s" + basename + ".sym"] });
+    const dasmStatus = await dasm.status();
+    if (dasmStatus.success === false) {
+        console.log("ERROR: dasm returned an error " + dasmStatus.code);
+        exit();
+    }
+
+    const emu = Deno.run({ opt: { stdout: "null" }, cmd: ["x64", "-silent", basename + ".prg"] });
+    const emuStatus = await emu.status();
+    console.log("Done");
+}
+if (target === "freebsd") {
+    const nasm = Deno.run({ cmd: ["nasm", "-f", "elf64", basename + ".asm"] });
+    const nasmStatus = await nasm.status();
+    if (nasmStatus.success === false) {
+        console.log("ERROR: nasm returned an error " + nasmStatus.code);
+        exit();
+    }
+    //const ld = Deno.run({ cmd: ["ld", "-m", "elf_amd64_fbsd", "-o", basename, "-s", basename + ".o"] });
+    const ld = Deno.run({ cmd: ["ld", "-m", "elf_amd64_fbsd", "-o", basename, basename + ".o"] });
+    const ldStatus = await ld.status();
+    if (ldStatus.success === false) {
+        console.log("ERROR: ld returned an error " + ldStatus.code);
+        exit();
+    }
+
+    Deno.run({ cmd: ["./" + basename] });
+}
+
+

@@ -1,644 +1,541 @@
-	; Prelude for:
-	; 1: 1 PROG [prog] type: ()=>void
-	processor 6502 ; TEH BEAST
-	ORG $0801 ; BASIC STARTS HERE
-	HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00
-	ORG $0810 ; MY PROGRAM STARTS HERE
-	; INIT HEAP
-	LDA #<HEAPSTART
-	STA HEAPTOP
-	LDA #>HEAPSTART
-	STA HEAPTOP+1
-	JSR INITSTACK
-	; Prelude for:
-	; 3: 11 BLOCK [256 * peek 161] type: ()=>number
-	; no stack memory to reserve
-	; 3:13 NUMBER 256
-	LDA #1
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 3:24 NUMBER 161
-	LDA #0
-	STA STACKACCESS+1
-	LDA #161
-	STA STACKACCESS
-	; JSR PUSH16
-	; 3: 19 PEEK peek type: (number)=>byte
-	; JSR POP16
-	LDY #0
-	LDA (STACKACCESS),Y
-	STA STACKACCESS
-	STY STACKACCESS+1
-	JSR PUSH16
-	; 3: 17 MULT * type: (number,byte)=>number
-	JSR MUL16
-	; 3: 11 BLOCK [256 * peek 161] type: ()=>number
-	; no stack memory to release
-	; 3:36 NUMBER 162
-	LDA #0
-	STA STACKACCESS+1
-	LDA #162
-	STA STACKACCESS
-	; JSR PUSH16
-	; 3: 31 PEEK peek type: (number)=>byte
-	; JSR POP16
-	LDY #0
-	LDA (STACKACCESS),Y
-	STA STACKACCESS
-	STY STACKACCESS+1
-	JSR PUSH16
-	; 3: 29 PLUS + type: (number,byte)=>number
-	LDX SP16
-	CLC
-	LDA STACKBASE + 1,X
-	ADC STACKBASE + 3,X
-	STA STACKACCESS
-	LDA STACKBASE + 2,X
-	ADC STACKBASE + 4,X
-	STA STACKACCESS+1
-	INX
-	INX
-	INX
-	INX
-	STX SP16
-	; JSR PUSH16
-	; 4: 1 LIT_WORD start type: (number)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_start + 0
-	LDA STACKACCESS + 1
-	STA V_start + 1
-	; 5:4 NUMBER 0
-	LDA #0
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	; JSR PUSH16
-	; 5: 1 LIT_WORD i type: (number)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_i + 0
-	LDA STACKACCESS + 1
-	STA V_i + 1
-startloop18:
-	; 6: 7 WORD i type: ()=>number
-	LDA V_i
-	STA STACKACCESS
-	LDA V_i + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 6:11 NUMBER 10000
-	LDA #39
-	STA STACKACCESS+1
-	LDA #16
-	STA STACKACCESS
-	JSR PUSH16
-	; 6: 9 LT < type: (number,number)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BCC less13
-	BNE greaterorequal13
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BCC less13
-greaterorequal13:
-	LDA #00
-	JMP store13
-less13:
-	LDA #01
-store13:
-	STA STACKACCESS
-	LDA #00
-	STA STACKACCESS + 1
-	INX
-	INX
-	INX
-	INX
-	STX SP16
-	; JSR PUSH16
-	; JSR POP16
-	LDA STACKACCESS
-	BNE trueblock18
-	JMP endblock18 ; if all zero
-trueblock18:
-	; Prelude for:
-	; 6: 17 BLOCK [d 100 + 1 inc i] type: ()=>void
-	; reserve 2 on the stack for: d (number offset 0)
-	TSX
-	TXA
-	SEC
-	SBC #2
-	TAX
-	TXS
-	; 7:10 NUMBER 101
-	LDA #0
-	STA STACKACCESS+1
-	LDA #101
-	STA STACKACCESS
-	; JSR PUSH16
-	; 7: 5 LIT_WORD d type: (number)=>void
-	; JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; no child generation for 'inc'
-	; 8: 5 INC inc type: (number)=>void
-	INC V_i
-	BNE not_carry_16
-	INC V_i + 1
-not_carry_16:
-	; 6: 17 BLOCK [d 100 + 1 inc i] type: ()=>void
-	; release 2 on the stack
-	TSX
-	TXA
-	CLC
-	ADC #2
-	TAX
-	TXS
-	; 6: 1 WHILE while type: (boolean,void)=>void
-	JMP startloop18
-endblock18:
-	; 10:6 STRING "DONE IN "
-	LDA #0
-	STA STACKACCESS+1
-	LDA #8
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str0
-	STA STACKACCESS+1
-	LDA #<str0
-	STA STACKACCESS
-	JSR PUSH16
-	; 10: 1 PRIN prin type: (string)=>void
-	JSR PRINT_STRING
-	; Prelude for:
-	; 3: 11 BLOCK [256 * peek 161] type: ()=>number
-	; no stack memory to reserve
-	; 3:13 NUMBER 256
-	LDA #1
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 3:24 NUMBER 161
-	LDA #0
-	STA STACKACCESS+1
-	LDA #161
-	STA STACKACCESS
-	; JSR PUSH16
-	; 3: 19 PEEK peek type: (number)=>byte
-	; JSR POP16
-	LDY #0
-	LDA (STACKACCESS),Y
-	STA STACKACCESS
-	STY STACKACCESS+1
-	JSR PUSH16
-	; 3: 17 MULT * type: (number,byte)=>number
-	JSR MUL16
-	; 3: 11 BLOCK [256 * peek 161] type: ()=>number
-	; no stack memory to release
-	; 3:36 NUMBER 162
-	LDA #0
-	STA STACKACCESS+1
-	LDA #162
-	STA STACKACCESS
-	JSR PUSH16
-	; 10: 29 WORD start type: ()=>number
-	LDA V_start
-	STA STACKACCESS
-	LDA V_start + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 10: 27 MINUS - type: (number,number)=>number
-	JSR SUB16
-	; 3: 31 PEEK peek type: (number)=>byte
-	JSR POP16
-	LDY #0
-	LDA (STACKACCESS),Y
-	STA STACKACCESS
-	STY STACKACCESS+1
-	JSR PUSH16
-	; 3: 29 PLUS + type: (number,byte)=>number
-	LDX SP16
-	CLC
-	LDA STACKBASE + 1,X
-	ADC STACKBASE + 3,X
-	STA STACKACCESS
-	LDA STACKBASE + 2,X
-	ADC STACKBASE + 4,X
-	STA STACKACCESS+1
-	INX
-	INX
-	INX
-	INX
-	STX SP16
-	; JSR PUSH16
-	; 10: 17 PRIN prin type: (number)=>void
-	; JSR POP16
-	JSR PRINT_INT
-	; 10:41 STRING " JIFFY"
-	LDA #0
-	STA STACKACCESS+1
-	LDA #6
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str1
-	STA STACKACCESS+1
-	LDA #<str1
-	STA STACKACCESS
-	JSR PUSH16
-	; 10: 35 PRINT print type: (string)=>void
-	JSR PRINT_STRING
-	LDA #13
-	JSR $FFD2
-	; 1: 1 PROG [prog] type: ()=>void
-	RTS
-BCD DS 3 ; USED IN BIN TO BCD
-HEAPSAVE DS 3 ; USED IN COPYSTRING
-AUXMUL DS 2
-HEAPTOP DS 2
-TEST_UPPER_BIT: BYTE $80
-AUX = $7D
-SP16 = $7F
-STACKACCESS = $0080
-STACKBASE = $0000
-COPYMEM:
-	TYA
-	BEQ ENDCOPY
-FROMADD:
-	LDA $1111
-TOADD:
-	STA $1111
-	INC FROMADD + 1
-	BNE COPY_NO_CARRY1
-	INC FROMADD + 2
-COPY_NO_CARRY1:
-	INC TOADD + 1
-	BNE COPY_NO_CARRY2
-	INC TOADD + 2
-COPY_NO_CARRY2:
-	DEY
-	BNE COPYMEM
-ENDCOPY:
-	RTS
-PRINT_STRING:
-	JSR POP16
-	LDX SP16
-	LDA STACKBASE + 1,X; LEN
-	INX
-	INX
-	STX SP16
-	TAX; NOW IN X WE HAVE THE LEN
-	BEQ EXIT_PRINT_STR
-	LDY #0
-LOOP_PRINT_STRING:
-	LDA (STACKACCESS),Y
-	JSR $FFD2
-	INY
-	DEX
-	BNE LOOP_PRINT_STRING
-EXIT_PRINT_STR:
-	RTS
-	; stack.a65 from https://github.com/dourish/mitemon/blob/master/stack.a65
-INITSTACK:
-	LDX #$FF
-	STX SP16
-	RTS
-PUSH16:
-	LDX SP16
-	LDA STACKACCESS + 1
-	STA STACKBASE,X
-	DEX
-	LDA STACKACCESS
-	STA STACKBASE,X
-	DEX
-	STX SP16
-	RTS
-POP16:
-	LDX SP16
-	LDA STACKBASE + 1,X
-	STA STACKACCESS
-	INX
-	LDA STACKBASE + 1,X
-	STA STACKACCESS + 1
-	INX
-	STX SP16
-	RTS
-DUP16:
-	LDX SP16
-	LDA STACKBASE + 2,X
-	STA STACKBASE,X
-	DEX
-	LDA STACKBASE + 2,X
-	STA STACKBASE,X
-	DEX
-	STX SP16
-	RTS
-SWAP16:
-	LDX SP16
-	LDA STACKBASE + 2,X
-	STA STACKBASE,X
-	DEX
-	LDA STACKBASE + 2,X
-	STA STACKBASE,X
-	DEX
-	LDA STACKBASE + 5,X
-	STA STACKBASE + 3,X
-	LDA STACKBASE + 6,X
-	STA STACKBASE + 4,X
-	LDA STACKBASE + 1,X
-	STA STACKBASE + 5,X
-	LDA STACKBASE + 2,X
-	STA STACKBASE + 6,X
-	INX
-	INX
-	STX SP16
-	RTS
-ADD16:
-	LDX SP16
-	CLC
-	LDA STACKBASE + 1,X;
-	ADC STACKBASE + 3,X
-	STA STACKBASE + 3,X
-	LDA STACKBASE + 2,X
-	ADC STACKBASE + 4,X
-	STA STACKBASE + 4,X
-	INX
-	INX
-	STX SP16
-	RTS
-SUB16:
-	LDX SP16
-	SEC
-	LDA STACKBASE + 3,X
-	SBC STACKBASE + 1,X
-	STA STACKBASE + 3,X
-	LDA STACKBASE + 4,X
-	SBC STACKBASE + 2,X
-	STA STACKBASE + 4,X
-	INX
-	INX
-	STX SP16
-	RTS
-BINBCD16: SED
-	LDA #0
-	STA BCD + 0
-	STA BCD + 1
-	STA BCD + 2
-	LDX #16
-CNVBIT: ASL STACKACCESS + 0
-	ROL STACKACCESS + 1
-	LDA BCD + 0
-	ADC BCD + 0
-	STA BCD + 0
-	LDA BCD + 1
-	ADC BCD + 1
-	STA BCD + 1
-	LDA BCD + 2
-	ADC BCD + 2
-	STA BCD + 2
-	DEX
-	BNE CNVBIT
-	CLD
-	RTS
-PRINT_INT:
-	LDY #0
-	JSR BINBCD16
-	LDA BCD+2
-	AND #$0F
-	BEQ DIGIT2
-	TAY
-	CLC
-	ADC #$30
-	JSR $FFD2
-DIGIT2:
-	LDA BCD+1
-	LSR
-	LSR
-	LSR
-	LSR
-	BNE DO_DIGIT_2
-	CPY #00
-	BEQ DIGIT_3
-DO_DIGIT_2:
-	LDY #1
-	CLC
-	ADC #$30
-	JSR $FFD2
-DIGIT_3:
-	LDA BCD+1
-	AND #$0F
-	BNE DO_DIGIT_3
-	CPY #00
-	BEQ DIGIT_4
-DO_DIGIT_3:
-	LDY #1
-	CLC
-	ADC #$30
-	JSR $FFD2
-DIGIT_4:
-	LDA BCD+0
-	LSR
-	LSR
-	LSR
-	LSR
-	BNE DO_DIGIT_4
-	CPY #00
-	BEQ DIGIT_5
-DO_DIGIT_4:
-	CLC
-	ADC #$30
-	JSR $FFD2
-DIGIT_5:
-	LDA BCD+0
-	AND #$0F
-	CLC
-	ADC #$30
-	JSR $FFD2
-	RTS
-MUL16:
-	LDX SP16
-	LDA STACKBASE + 3,X    ; Get the multiplicand and
-	STA AUXMUL             ; put it in the scratchpad.
-	LDA STACKBASE + 4,X
-	STA AUXMUL + 1
-	PHA
-	LDA #0
-	STA STACKBASE + 3       ; Zero - out the original multiplicand area
-	STA STACKBASE + 4
-	PLA
-	LDY #$10                ; We'll loop 16 times.
-shift_loop:
-	ASL STACKBASE + 3,X     ; Shift the entire 32 bits over one bit position.
-	ROL STACKBASE + 4,X
-	ROL STACKBASE + 1,X
-	ROL STACKBASE + 2,X
-	BCC skip_add            ; Skip the adding -in to the result if the high bit shifted out was 0
-	CLC                     ; Else, add multiplier to intermediate result.
-	LDA AUXMUL
-	ADC STACKBASE + 3,X
-	STA STACKBASE + 3,X
-	LDA AUXMUL + 1
-	ADC STACKBASE + 4,X
-	STA STACKBASE + 4,X
-	LDA #0
-	ADC STACKBASE + 1,X
-	STA STACKBASE + 1,X
-skip_add:
-	DEY                      ; If we haven't done 16 iterations yet,
-	BNE  shift_loop          ; then go around again.
-	INX
-	INX
-	STX SP16
-	RTS
-	; https://www.ahl27.com/posts/2022/12/SIXTH-div/
-DIV16WITHMOD:
-;; MAX ITERATIONS IS 16 = 0X10, SINCE WE HAVE 16 BIT NUMBERS
-	LDX SP16
-	LDY #$10
-	;; ADD TWO SPACES ON STACK
-	DEX
-	DEX
-	DEX
-	DEX
-	LDA #0
-	STA STACKBASE + 1,X; REMAINDER
-	STA STACKBASE + 2,X
-	STA STACKBASE + 3,X; QUOTIENT
-	STA STACKBASE + 4,X
-	; +5 - 6 IS DENOMINATOR
-	; +7 - 8 IS NUMERATOR
-	;; SET UP THE NUMERATOR
-	LDA #0
-	ORA STACKBASE + 8,X
-	ORA STACKBASE + 7,X
-	BEQ EARLYEXIT
-	;; CHECKING IS DENOMINATOR IS ZERO(IF SO WE'LL JUST STORE ZEROS)
-	LDA #0
-	ORA STACKBASE + 6,X
-	ORA STACKBASE + 5,X
-	BNE DIVMODLOOP1
-EARLYEXIT:
-	;; NUMERATOR OR DENOMINATOR ARE ZERO, JUST RETURN
-	LDA #0
-	STA STACKBASE + 6,X
-	STA STACKBASE + 5,X
-	INX
-	INX
-	INX
-	INX
-	RTS
-	;; TRIM DOWN TO LEADING BIT
-DIVMODLOOP1:
-	LDA STACKBASE + 8,X
-	BIT TEST_UPPER_BIT
-	BNE END
-	CLC
-	ASL STACKBASE + 7,X
-	ROL STACKBASE + 8,X
-	DEY
-	JMP DIVMODLOOP1
-END:
-	;; MAIN DIVISION LOOP
-DIVMODLOOP2:
-	;; LEFT - SHIFT THE REMAINDER
-	CLC
-	ASL STACKBASE + 1,X         
-	ROL STACKBASE + 2,X
-	;; LEFT - SHIFT THE QUOTIENT
-	CLC
-	ASL STACKBASE + 3,X
-	ROL STACKBASE + 4,X
-	;; SET LEAST SIGNIFICANT BIT TO BIT I OF NUMERATOR
-	CLC
-	ASL STACKBASE + 7,X
-	ROL STACKBASE + 8,X
-	LDA STACKBASE + 1,X
-	ADC #0
-	STA STACKBASE + 1,X
-	LDA STACKBASE + 2,X
-	ADC #0
-	STA STACKBASE + 2,X
-	;; COMPARE REMAINDER TO DENOMINATOR
-	; UPPER BYTE(STACKBASE + 2 IS ALREADY IN A)
-	CMP STACKBASE + 6,X
-	BMI SKIP; IF R < D, SKIP TO NEXT ITERATION 
-	BNE SUBTRACT; IF R > D, WE CAN SKIP COMPARING LOWER BYTE
-; IF R = D, WE HAVE TO CHECK THE LOWER BYTE
-	; LOWER BYTE
-	LDA STACKBASE + 1,X
-	CMP STACKBASE + 5,X
-	BMI SKIP
-SUBTRACT:
-	;; SUBTRACT DENOMINATOR FROM REMAINDER
-	SEC
-	; SUBTRACT LOWER BYTE
-	LDA STACKBASE + 1,X
-	SBC STACKBASE + 5,X
-	STA STACKBASE + 1,X
-	; SUBTRACT UPPER BYTE
-	LDA STACKBASE + 2,X
-	SBC STACKBASE + 6,X
-	STA STACKBASE + 2,X
-	;; ADD ONE TO QUOTIENT
-	INC STACKBASE + 3,X
-SKIP:
-	DEY
-	BEQ EXIT
-	JMP DIVMODLOOP2
-EXIT:  
-	;; CLEANUP
-	LDA STACKBASE + 1,X
-	STA STACKBASE + 5,X
-	LDA STACKBASE + 2,X
-	STA STACKBASE + 6,X
-	LDA STACKBASE + 3,X
-	STA STACKBASE + 7,X
-	LDA STACKBASE + 4,X
-	STA STACKBASE + 8,X
-	INX
-	INX
-	INX
-	INX
-	RTS
-DIV16:
-	JSR DIV16WITHMOD
-	INX
-	INX
-	RTS
-MOD16:
-	JSR DIV16WITHMOD
-	LDA STACKBASE + 1,X
-	STA STACKBASE + 3,X
-	LDA STACKBASE + 2,X
-	STA STACKBASE + 4,X
-	INX
-	INX
-	RTS
-MALLOC:
-	CLC
-	ADC HEAPTOP
-	STA HEAPTOP
-	BCC NOCARRY
-	INC HEAPTOP+1
-NOCARRY:
-	LDA HEAPTOP
-	STA STACKACCESS
-	LDA HEAPTOP + 1
-	STA STACKACCESS + 1
-	JSR PUSH16
-	RTS
-str0: BYTE 68,79,78,69,32,73,78,32
-str1: BYTE 32,74,73,70,70,89
-V_start DS 2
-V_i DS 2
-HEAPSTART:
+; Prelude for:
+; 1: 1 PROG [prog] type: ()=>void
+BITS 64
+section .text
+global	_start
+_start:
+mov rax, ret_stack_end
+mov [ret_stack_rsp], rax
+mov rax, mem
+mov [mem_top], rax
+; 1:13 NUMBER 10
+push 10
+; no child generation for 'array'
+; 1: 7 ARRAY array type: (number,number)=>Array of number
+pop rax
+mov rbx, [mem_top]
+imul rax, 8
+add rax, rbx
+mov [mem_top], rax
+push rbx
+; 1: 1 LIT_WORD arr1 type: (Array of number)=>void
+pop rax
+mov [V_arr1], rax
+; 2:4 NUMBER 0
+push 0
+; 2: 1 LIT_WORD i type: (number)=>void
+pop rax
+mov [V_i], rax
+startloop24:
+; 3: 7 WORD i type: ()=>number
+mov rax, [V_i]
+push rax
+; 3:11 NUMBER 10
+push 10
+; 3: 9 LT < type: (number,number)=>boolean
+pop rbx
+pop rax
+cmp rax, rbx
+jl .less7
+push 0
+jmp .end7
+.less7:
+push 1
+.end7:
+pop rax
+cmp rax, 0
+jne trueblock24
+jmp endblock24
+trueblock24:
+; Prelude for:
+; 3: 14 BLOCK [change arr1 i i * 2 prin i prin )  print arr1 at i inc i] type: ()=>void
+; no stack memory to reserve
+; 4: 10 WORD arr1 type: ()=>Array of number
+mov rax, [V_arr1]
+push rax
+; 4: 15 WORD i type: ()=>number
+mov rax, [V_i]
+push rax
+pop rbx
+pop rax
+imul rbx, 8
+add rax, rbx
+push rax
+; 4: 17 WORD i type: ()=>number
+mov rax, [V_i]
+push rax
+; 4:21 NUMBER 2
+push 2
+; 4: 19 MULT * type: (number,number)=>number
+pop rbx
+pop rax
+mul rbx
+push rax
+; 4: 3 CHANGE change type: (Array of number,number,number)=>void
+pop rbx
+pop rax
+mov [rax], rbx
+; 5: 8 WORD i type: ()=>number
+mov rax, [V_i]
+push rax
+; 5: 3 PRIN prin type: (number)=>void
+pop rax
+call print_uint
+; 5:15 STRING ") "
+push 2
+push str0
+; 5: 10 PRIN prin type: (string)=>void
+pop rax
+mov rsi, rax
+pop rax
+mov rdx, rax
+mov rax, 4
+mov rdi, 1
+syscall
+; 5: 26 WORD arr1 type: ()=>Array of number
+mov rax, [V_arr1]
+push rax
+; 5: 34 WORD i type: ()=>number
+mov rax, [V_i]
+push rax
+; 5: 31 AT at type: (Array of number,number)=>number
+pop rbx
+pop rax
+imul rbx, 8
+add rax, rbx
+; now get the number pointed by the aux
+mov rbx, [rax + 0]
+push rbx
+; 5: 20 PRINT print type: (number)=>void
+pop rax
+call print_uint
+call print_lf
+; no child generation for 'inc'
+; 6: 3 INC inc type: (number)=>void
+add qword [V_i], 1
+; 3: 14 BLOCK [change arr1 i i * 2 prin i prin )  print arr1 at i inc i] type: ()=>void
+; no stack memory to release
+; 3: 1 WHILE while type: (boolean,void)=>void
+jmp startloop24
+endblock24:
+; no child generation for 'struct'
+; no child generation for 'struct'
+; 9: 1 STRUCT struct type: (symbol,record)=>void
+; Prelude for:
+; 15: 14 REF_BLOCK :[n Number points array n Point i 0 while i < n [change points i new Point [label POINT x i * i y i * 2] inc i] points] type: ()=>addr
+jmp AFTER_0
+CALL_0:
+sub rsp, 24
+mov [ret_stack_rsp], rsp
+mov rsp, rax
+; 15: 19 NUMBER Number type: ()=>number
+; 15: 16 LIT_WORD n type: (number)=>void
+pop rbx
+mov rax, [ret_stack_rsp]
+add rax, 0
+mov [rax], rbx
+; 16: 17 WORD n type: ()=>number
+mov rax, [ret_stack_rsp]
+add rax, 0
+mov rbx, [rax]
+push rbx
+; no child generation for 'array'
+; 16: 11 ARRAY array type: (number,Point)=>Array of Point
+pop rax
+mov rbx, [mem_top]
+imul rax, 32
+add rax, rbx
+mov [mem_top], rax
+push rbx
+; 16: 3 LIT_WORD points type: (Array of Point)=>void
+pop rbx
+mov rax, [ret_stack_rsp]
+add rax, 8
+mov [rax], rbx
+; 17:6 NUMBER 0
+push 0
+; 17: 3 LIT_WORD i type: (number)=>void
+pop rbx
+mov rax, [ret_stack_rsp]
+add rax, 16
+mov [rax], rbx
+startloop53:
+; 18: 9 WORD i type: ()=>number
+mov rax, [ret_stack_rsp]
+add rax, 16
+mov rbx, [rax]
+push rbx
+; 18: 13 WORD n type: ()=>number
+mov rax, [ret_stack_rsp]
+add rax, 0
+mov rbx, [rax]
+push rbx
+; 18: 11 LT < type: (number,number)=>boolean
+pop rbx
+pop rax
+cmp rax, rbx
+jl .less35
+push 0
+jmp .end35
+.less35:
+push 1
+.end35:
+pop rax
+cmp rax, 0
+jne trueblock53
+jmp endblock53
+trueblock53:
+; Prelude for:
+; 18: 15 BLOCK [change points i new Point [label POINT x i * i y i * 2] inc i] type: ()=>void
+; no stack memory to reserve
+; 19: 12 WORD points type: ()=>Array of Point
+mov rax, [ret_stack_rsp]
+add rax, 8
+mov rbx, [rax]
+push rbx
+; 19: 19 WORD i type: ()=>number
+mov rax, [ret_stack_rsp]
+add rax, 16
+mov rbx, [rax]
+push rbx
+pop rbx
+pop rax
+imul rbx, 8
+add rax, rbx
+push rax
+; no child generation for 'new'
+; Prelude for:
+; 19: 31 RECORD [label POINT x i * i y i * 2] type: ()=>void
+mov rax, [ret_stack_rsp]
+sub rax, 32
+mov [ret_stack_rsp], rax
+; 20:14 STRING "POINT"
+push 5
+push str1
+; 20: 7 LIT_WORD label type: (string)=>void
+pop rbx
+mov rax, [ret_stack_rsp]
+add rax, 0
+mov [rax], rbx
+pop rbx
+add rax, 8
+mov [rax], rbx
+; 21: 10 WORD i type: ()=>number
+mov rax, [ret_stack_rsp]
+add rax, 48
+mov rbx, [rax]
+push rbx
+; 21: 14 WORD i type: ()=>number
+mov rax, [ret_stack_rsp]
+add rax, 48
+mov rbx, [rax]
+push rbx
+; 21: 12 MULT * type: (number,number)=>number
+pop rbx
+pop rax
+mul rbx
+push rax
+; 21: 7 LIT_WORD x type: (number)=>void
+pop rbx
+mov rax, [ret_stack_rsp]
+add rax, 16
+mov [rax], rbx
+; 22: 10 WORD i type: ()=>number
+mov rax, [ret_stack_rsp]
+add rax, 48
+mov rbx, [rax]
+push rbx
+; 22:14 NUMBER 2
+push 2
+; 22: 12 MULT * type: (number,number)=>number
+pop rbx
+pop rax
+mul rbx
+push rax
+; 22: 7 LIT_WORD y type: (number)=>void
+pop rbx
+mov rax, [ret_stack_rsp]
+add rax, 24
+mov [rax], rbx
+; 19: 31 RECORD [label POINT x i * i y i * 2] type: ()=>void
+mov rax, 32
+call allocate
+mov rdi, rbx
+mov rsi, [ret_stack_rsp]
+mov rcx, 32
+rep movsb
+; release 32 on the stack
+mov rax, [ret_stack_rsp]
+add rax, 32
+mov [ret_stack_rsp], rax
+push rbx
+; 19: 21 NEW new type: (symbol,record)=>Point
+; do heap malloc for size of structure and return back the address
+; 19: 5 CHANGE change type: (Array of Point,number,Point)=>void
+pop rbx
+pop rax
+mov [rax], rbx
+; no child generation for 'inc'
+; 24: 5 INC inc type: (number)=>void
+mov rax, [ret_stack_rsp]
+add rax, 16
+add qword [rax], 1
+; 18: 15 BLOCK [change points i new Point [label POINT x i * i y i * 2] inc i] type: ()=>void
+; no stack memory to release
+; 18: 3 WHILE while type: (boolean,void)=>void
+jmp startloop53
+endblock53:
+; 26: 3 WORD points type: ()=>Array of Point
+mov rax, [ret_stack_rsp]
+add rax, 8
+mov rbx, [rax]
+push rbx
+; 15: 14 REF_BLOCK :[n Number points array n Point i 0 while i < n [change points i new Point [label POINT x i * i y i * 2] inc i] points] type: ()=>addr
+mov rax, [ret_stack_rsp]
+add rax, 24
+mov [ret_stack_rsp], rax
+mov rax, rsp
+mov rsp, [ret_stack_rsp]
+ret
+AFTER_0:
+push CALL_0
+; 15: 1 LIT_WORD init_points type: (addr)=>void
+pop rax
+mov [V_init_points], rax
+; Prelude for:
+; 29: 15 REF_BLOCK :[arr array Point n Number i 0 while i < n [prin arr at i print  ! inc i]] type: ()=>addr
+jmp AFTER_1
+CALL_1:
+sub rsp, 24
+mov [ret_stack_rsp], rsp
+mov rsp, rax
+; 29: 37 NUMBER Number type: ()=>number
+; 29: 34 LIT_WORD n type: (number)=>void
+pop rbx
+mov rax, [ret_stack_rsp]
+add rax, 8
+mov [rax], rbx
+; 29: 28 WORD Point type: ()=>Point
+; no asm for constructor
+; 29: 22 ARRAY_TYPE array type: (Point)=>Array of Point
+; DO NOTHING
+; 29: 17 LIT_WORD arr type: (Array of Point)=>void
+pop rbx
+mov rax, [ret_stack_rsp]
+add rax, 0
+mov [rax], rbx
+; 30:6 NUMBER 0
+push 0
+; 30: 3 LIT_WORD i type: (number)=>void
+pop rbx
+mov rax, [ret_stack_rsp]
+add rax, 16
+mov [rax], rbx
+startloop75:
+; 31: 9 WORD i type: ()=>number
+mov rax, [ret_stack_rsp]
+add rax, 16
+mov rbx, [rax]
+push rbx
+; 31: 13 WORD n type: ()=>number
+mov rax, [ret_stack_rsp]
+add rax, 8
+mov rbx, [rax]
+push rbx
+; 31: 11 LT < type: (number,number)=>boolean
+pop rbx
+pop rax
+cmp rax, rbx
+jl .less66
+push 0
+jmp .end66
+.less66:
+push 1
+.end66:
+pop rax
+cmp rax, 0
+jne trueblock75
+jmp endblock75
+trueblock75:
+; Prelude for:
+; 31: 15 BLOCK [prin arr at i print  ! inc i] type: ()=>void
+; no stack memory to reserve
+; 32: 10 WORD arr type: ()=>Array of Point
+mov rax, [ret_stack_rsp]
+add rax, 0
+mov rbx, [rax]
+push rbx
+; 32: 17 WORD i type: ()=>number
+mov rax, [ret_stack_rsp]
+add rax, 16
+mov rbx, [rax]
+push rbx
+; 32: 14 AT at type: (Array of Point,number)=>Point
+pop rbx
+pop rax
+imul rbx, 8
+add rax, rbx
+; now get the Point pointed by the aux
+mov rbx, [rax + 0]
+push rbx
+; 32: 5 PRIN prin type: (Point)=>void
+pop rax
+push rax
+mov rbx, [rax + 8]
+push rbx
+mov rbx, [rax]
+push rbx
+pop rax
+mov rsi, rax
+pop rax
+mov rdx, rax
+mov rax, 4
+mov rdi, 1
+syscall
+pop rax
+mov rcx, 32
+call emit
+add rax, 16
+push rax
+mov rbx, [rax]
+push rbx
+pop rax
+call print_uint
+pop rax
+mov rcx, 32
+call emit
+add rax, 8
+push rax
+mov rbx, [rax]
+push rbx
+pop rax
+call print_uint
+pop rax
+; 32:25 STRING " !"
+push 2
+push str2
+; 32: 19 PRINT print type: (string)=>void
+pop rax
+mov rsi, rax
+pop rax
+mov rdx, rax
+mov rax, 4
+mov rdi, 1
+syscall
+call print_lf
+; no child generation for 'inc'
+; 33: 5 INC inc type: (number)=>void
+mov rax, [ret_stack_rsp]
+add rax, 16
+add qword [rax], 1
+; 31: 15 BLOCK [prin arr at i print  ! inc i] type: ()=>void
+; no stack memory to release
+; 31: 3 WHILE while type: (boolean,void)=>void
+jmp startloop75
+endblock75:
+; 29: 15 REF_BLOCK :[arr array Point n Number i 0 while i < n [prin arr at i print  ! inc i]] type: ()=>addr
+mov rax, [ret_stack_rsp]
+add rax, 24
+mov [ret_stack_rsp], rax
+mov rax, rsp
+mov rsp, [ret_stack_rsp]
+ret
+AFTER_1:
+push CALL_1
+; 29: 1 LIT_WORD print_points type: (addr)=>void
+pop rax
+mov [V_print_points], rax
+; 37:19 NUMBER 10
+push 10
+; 37: 7 WORD init_points type: ()=>Array of Point
+mov rbx, [V_init_points]
+mov rax, rsp
+mov rsp, [ret_stack_rsp]
+call rbx
+mov [ret_stack_rsp], rsp
+mov rsp, rax
+; 37: 1 LIT_WORD arr2 type: (Array of Point)=>void
+pop rax
+mov [V_arr2], rax
+; 38: 14 WORD arr2 type: ()=>Array of Point
+mov rax, [V_arr2]
+push rax
+; 38:19 NUMBER 10
+push 10
+; 38: 1 WORD print_points type: ()=>void
+mov rbx, [V_print_points]
+mov rax, rsp
+mov rsp, [ret_stack_rsp]
+call rbx
+mov [ret_stack_rsp], rsp
+mov rsp, rax
+; 1: 1 PROG [prog] type: ()=>void
+mov rax, 1
+mov rdi, 0
+syscall
+print_uint:
+; division in 64bit save the quotient into rax and the reminder in rdx
+xor rcx, rcx
+mov r8, 10
+.loop:
+xor rdx, rdx; clearing the register that is going to be used as holder for the reminder
+div r8
+add dl, 0x30; make the reminder printable in ascii conversion 0x30 is '0'
+dec rsp; reduce one byte from the address placed in rsp(freeing one byte of memory)
+mov[rsp], dl; pour one byte into the address pointed
+inc rcx
+test rax, rax
+jnz .loop
+.print_chars_on_stack:
+xor rax, rax
+mov rsi, rsp;
+mov rdx, rcx
+push rcx
+mov rax, 4
+mov rdi, 1
+syscall; rsi e rdx are respectively buffer starting point and length in byte
+; the syscall is going to look at what is in memory at the address loaded in rsi(BE CAREFULL) and not at the content of rdi
+pop rcx
+add rsp, rcx; when printed we can free the stack
+ret
+print_lf:
+mov rcx, 10
+call emit
+ret
+emit:
+push rdx
+push rax
+push rdi
+push rsi
+push rcx
+mov rsi, rsp
+mov rdx, 1
+mov rax, 4
+mov rdi, 1
+syscall
+pop rcx
+pop rsi
+pop rdi
+pop rax
+pop rdx
+ret
+allocate:
+mov rbx, [mem_top]
+add [mem_top], rax
+ret
+section .data
+str0 db 41,32
+str1 db 80,79,73,78,84
+str2 db 32,33
+section .bss
+V_arr1: resb 8
+V_i: resb 8
+V_Point: resb 32
+V_init_points: resb 8
+V_print_points: resb 8
+V_arr2: resb 8
+mem_top: resb 8
+ret_stack_rsp: resb 8
+ret_stack: resb 655360
+ret_stack_end:
+mem: resb 655360

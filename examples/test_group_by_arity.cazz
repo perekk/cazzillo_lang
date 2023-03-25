@@ -47,6 +47,9 @@ struct Point ['y Number]
 ;OUT 0     1    1 
 ]
 
+['test :[] test]
+
 'stk stack
 prin "STACK:" print stk
 print either stk = 255 ["LOOKS GOOD TO ME!"] ["NO BUENO"]
+

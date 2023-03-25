@@ -3,7 +3,7 @@
 'const :[69]
 'const2 :[false]
 'const3 :[2 + 3 * 4]
-'const4 :["CAZZ" . "ILLO"]
+'const4 :["CAZZILLO"]
 'log :[
     print const
     print const2
@@ -16,11 +16,7 @@
 
 'test :[
     'drawline :[print "-------"]
-    'i 0
-    while i < 10 [
-        drawline
-        i: i + 1
-    ]
+    drawline    
     log
 ]
 
