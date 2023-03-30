@@ -6140,15 +6140,30 @@ function compile(vocabulary: Vocabulary, ast: Token, target: Target): Assembly {
     return ret;
 }
 
-function optimizeAsm(asm: Assembly) {
+function optimizeAsm(asm: Assembly, target: Target) {
+    // simple peephole optimization
     let lastInstruction = "";
     let lastInstructionIndex = -1;
     for (let i = 0; i < asm.length; i++) {
         const instruction = asm[i];
-        if (instruction[0] === ";") continue;
-        if (instruction === "JSR POP16" && lastInstruction === "JSR PUSH16") {
-            asm[lastInstructionIndex] = "; " + asm[lastInstructionIndex];
-            asm[i] = "; " + asm[i];
+        switch (target) {
+            case "c64": {
+                if (instruction[0] === ";") continue;
+                if (instruction === "JSR POP16" && lastInstruction === "JSR PUSH16") {
+                    asm[lastInstructionIndex] = "; " + asm[lastInstructionIndex];
+                    asm[i] = "; " + asm[i];
+                }
+
+                break;
+            }
+            case "freebsd": {
+                if (instruction[0] === ";") continue;
+                if (instruction === "pop rax" && lastInstruction === "push rax") {
+                    asm[lastInstructionIndex] = "; " + asm[lastInstructionIndex];
+                    asm[i] = "; " + asm[i];
+                }
+                break;
+            }
         }
         lastInstruction = instruction;
         lastInstructionIndex = i;
@@ -6274,7 +6289,7 @@ async function main() {
 
     const asm = compile(vocabulary, astProgram, target);
     if (target === "c64") {
-        optimizeAsm(asm);
+        optimizeAsm(asm, target);
         addIndent(asm);
     }
 
