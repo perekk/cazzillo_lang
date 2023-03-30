@@ -1,0 +1,110 @@
+def W 20
+def H 10
+'board array W * H Number
+'board2 array W * H Number
+
+// .*.
+// ..*
+// ***
+'put_glider :[
+  'x Number
+  'y Number
+  'base y * W + x
+  change board base + 1 1
+  change board base + W + 2 1
+  change board base + W + W + 0 1
+  change board base + W + W + 1 1
+  change board base + W + W + 2 1
+]
+
+'init_board :[
+  'i 0
+  while i < W * H [
+    change board i 0
+    inc i
+  ]
+]
+
+'display_board :[
+  'i 0
+  while i < W * H [        
+    prin either board at [i] = 0 ["."] ["O"]
+    ;prin board at i
+    inc i
+    if i % W = 0 [print ""]
+  ]
+]
+
+'get_alives :['i Number
+  'ret 0
+  ; prin "BASE:" print i
+  ; prin board at [i - W - 1]
+  ; prin board at [i - W - 0]
+  ; print board at [i - W + 1]
+  ; prin board at [i - 0 - 1]
+  ; prin "X"
+  ; print board at [i - 0 + 1]
+  ; prin board at [i + W - 1]
+  ; prin board at [i + W - 0]
+  ; print board at [i + W + 1]
+
+  ; print [i - W - 1]
+  ; print [i - W - 0]
+  ; print [i - W + 1]
+  ; print [i - 0 - 1]  
+  ; print [i - 0 + 1]
+  ; print [i + W - 1]
+  ; print [i + W - 0]
+  ; print [i + W + 1]
+
+
+  if board at [i - W - 1] = 1 [inc ret]
+  if board at [i - W - 0] = 1 [inc ret]
+  if board at [i - W + 1] = 1 [inc ret]
+  if board at [i - 0 - 1] = 1 [inc ret]  
+  if board at [i - 0 + 1] = 1 [inc ret]  
+  if board at [i + W - 1] = 1 [inc ret]
+  if board at [i + W - 0] = 1 [inc ret]
+  if board at [i + W + 1] = 1 [inc ret]
+  ret
+]
+
+'step :[
+  'i W + 1
+  while i < W * [H - 1] - 1 [
+    'alive get_alives i
+    'cell_state board at i
+    either cell_state = 1 [
+      cell_state: 0
+      if alive = 2 [cell_state: 1]
+      if alive = 3 [cell_state: 1]
+    ] [
+      if alive = 3 [cell_state: 1]
+    ]
+    change board2 i cell_state
+    ;change board2 i alive
+    inc i
+  ]
+]
+
+'swap_board :[
+  'i 0
+  while i < W * H [
+    change board i board2 at i
+    inc i
+  ]
+]
+
+init_board
+put_glider 2 2
+display_board
+
+;print get_alives W * 2 + 3
+
+step
+swap_board
+display_board
+
+step
+swap_board
+display_board

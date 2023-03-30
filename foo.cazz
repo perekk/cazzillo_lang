@@ -1,43 +1,123 @@
-'arr1 array 10 Number
-'i 0
-while i < 10 [
-  change arr1 i i * 2 
-  prin i prin ") " print arr1 at i
-  inc i
-]
+include "lib/std.cazz"
+print INCLUDED? . " works !"
 
-struct Point [
-  'label String
-  'x Number
-  'y Number  
-]
+; def W 20
+; def H 10
+; 'board array W * H Number
+; 'board2 array W * H Number
 
-'init_points :['n Number
-  'points array n Point 
-  'i 0
-  while i < n [
-    change points i new Point [
-      'label "POINT"
-      'x i * i
-      'y i * 2
-    ]    
-    inc i
-  ]
-  points
-]
+; // .*.
+; // ..*
+; // ***
+; 'put_glider :[
+;   'x Number
+;   'y Number
+;   'base y * W + x
+;   change board base + 1 1
+;   change board base + W + 2 1
+;   change board base + W + W + 0 1
+;   change board base + W + W + 1 1
+;   change board base + W + W + 2 1
+; ]
 
-'print_points :['arr array Point 'n Number
-  'i 0
-  while i < n [
-    prin arr at i print " !"
-    inc i
-  ]
-]
+; 'init_board :['b array Number
+;   'i 0
+;   while i < W * H [
+;     change b i 0
+;     inc i
+;   ]
+; ]
 
-'arr2 init_points 10
-print_points arr2 10
+; 'display_board :['b array Number
+;   'i 0
+;   while i < W * H [        
+;     ;if i % W = 0 [prin i / W prin ": "]
+;     prin either b at [i] = 0 ["."] ["O"]
+;     ;prin b at i
+;     inc i
+;     if i % W = 0 [print ""]
+;   ]
+;   emit 27 !< prin "[" prin H prin "A"
+;   emit 27 !< prin "[" prin W prin "D"
+ 
+;   ;print "--------------------"
+; ]
 
-; emit 65 !<  print stack
-; emit 66 !<  print stack
-; emit 67 !<  print stack
-; emit 10 !<  print stack
+; 'get_alives :['i Number
+;   'ret 0
+;   ; prin "BASE:" print i
+;   ; prin board at [i - W - 1]
+;   ; prin board at [i - W - 0]
+;   ; print board at [i - W + 1]
+;   ; prin board at [i - 0 - 1]
+;   ; prin "X"
+;   ; print board at [i - 0 + 1]
+;   ; prin board at [i + W - 1]
+;   ; prin board at [i + W - 0]
+;   ; print board at [i + W + 1]
+
+;   ; print [i - W - 1]
+;   ; print [i - W - 0]
+;   ; print [i - W + 1]
+;   ; print [i - 0 - 1]  
+;   ; print [i - 0 + 1]
+;   ; print [i + W - 1]
+;   ; print [i + W - 0]
+;   ; print [i + W + 1]
+
+
+;   if board at [i - W - 1] = 1 [inc ret]
+;   if board at [i - W - 0] = 1 [inc ret]
+;   if board at [i - W + 1] = 1 [inc ret]
+;   if board at [i - 0 - 1] = 1 [inc ret]  
+;   if board at [i - 0 + 1] = 1 [inc ret]  
+;   if board at [i + W - 1] = 1 [inc ret]
+;   if board at [i + W - 0] = 1 [inc ret]
+;   if board at [i + W + 1] = 1 [inc ret]
+;   ret
+; ]
+
+; 'compute_next_state :['cell_index Number
+;   'alive get_alives cell_index
+;   'cell_state board at cell_index
+;   either cell_state = 1 [
+;     cell_state: 0
+;     if alive = 2 [cell_state: 1]
+;     if alive = 3 [cell_state: 1]
+;   ] [
+;     if alive = 3 [cell_state: 1]
+;   ]  
+;   cell_state
+; ]
+
+; 'step :[
+;   'i W + 1
+;   while i < W * [H - 1] - 2 [
+;     change board2 i compute_next_state i    
+;     inc i
+;   ]
+; ]
+
+; 'swap_board :[
+;   'i 0
+;   while i < W * H [
+;     change board i board2 at i
+;     inc i
+;   ]
+; ]
+
+; init_board board
+; init_board board2
+; put_glider 2 2
+; display_board board
+
+; while true [
+;   step
+;   swap_board
+;   display_board board
+; ]
+
+
+
+
+

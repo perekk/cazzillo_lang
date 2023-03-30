@@ -1,0 +1,37 @@
+struct Entity [
+  'x Number
+  'y Number
+  'life Number
+  'label String
+  'active Bool
+]
+
+'init_entities :[
+  'entities array 10 Entity
+  'i 0
+  while i < 10 [
+    change entities i new Entity [
+        'x i * 3
+        'y 3
+        'life 100
+        'label "ENEMY"
+        'active true
+    ]
+    inc i
+  ]
+  entities
+]
+
+'display_entities :['entities array Entity
+  'i 0
+  while i < 10 [
+    prin entities at i
+    print ""
+    inc i
+  ]  
+]
+
+
+'mobs init_entities
+display_entities mobs
+

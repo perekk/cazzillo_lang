@@ -3,7 +3,7 @@
 while i < 10 [
   change arr1 i i * 2 
   prin i prin ") " print arr1 at i
-  inc i
+  inc i  
 ]
 
 struct Point [
@@ -21,7 +21,7 @@ struct Point [
       'x i * i
       'y i * 2
     ]    
-    inc i
+    inc i    
   ]
   points
 ]

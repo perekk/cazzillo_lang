@@ -1,0 +1,25 @@
+'print_arr :['k array Number prin k at 0 prin " " prin k at 1 prin " " prin k at 2  print ""]
+
+'b array [array [1 2 3] array [4 5 6] array [7 8 9]]
+
+print_arr b at 1
+change b 1 array [11 12 13]
+print_arr b at 1
+
+print "----------------------"
+
+'change_arr :['a array Number
+  change a 0 67
+  change a 1 68  
+  change a 2 69    
+]
+
+'a array [9 10 11]
+print_arr a
+change_arr a
+print_arr a
+
+print "----------------------"
+
+prin "STACK:" print stack
+
