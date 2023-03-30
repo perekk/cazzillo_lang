@@ -1,123 +1,17 @@
-include "lib/std.cazz"
-print INCLUDED? . " works !"
+'f :['n Number
+  return either n = 0 [69] [420]  
+]
 
-; def W 20
-; def H 10
-; 'board array W * H Number
-; 'board2 array W * H Number
-
-; // .*.
-; // ..*
-; // ***
-; 'put_glider :[
-;   'x Number
-;   'y Number
-;   'base y * W + x
-;   change board base + 1 1
-;   change board base + W + 2 1
-;   change board base + W + W + 0 1
-;   change board base + W + W + 1 1
-;   change board base + W + W + 2 1
-; ]
-
-; 'init_board :['b array Number
-;   'i 0
-;   while i < W * H [
-;     change b i 0
-;     inc i
-;   ]
-; ]
-
-; 'display_board :['b array Number
-;   'i 0
-;   while i < W * H [        
-;     ;if i % W = 0 [prin i / W prin ": "]
-;     prin either b at [i] = 0 ["."] ["O"]
-;     ;prin b at i
-;     inc i
-;     if i % W = 0 [print ""]
-;   ]
-;   emit 27 !< prin "[" prin H prin "A"
-;   emit 27 !< prin "[" prin W prin "D"
- 
-;   ;print "--------------------"
-; ]
-
-; 'get_alives :['i Number
-;   'ret 0
-;   ; prin "BASE:" print i
-;   ; prin board at [i - W - 1]
-;   ; prin board at [i - W - 0]
-;   ; print board at [i - W + 1]
-;   ; prin board at [i - 0 - 1]
-;   ; prin "X"
-;   ; print board at [i - 0 + 1]
-;   ; prin board at [i + W - 1]
-;   ; prin board at [i + W - 0]
-;   ; print board at [i + W + 1]
-
-;   ; print [i - W - 1]
-;   ; print [i - W - 0]
-;   ; print [i - W + 1]
-;   ; print [i - 0 - 1]  
-;   ; print [i - 0 + 1]
-;   ; print [i + W - 1]
-;   ; print [i + W - 0]
-;   ; print [i + W + 1]
+'g :['n Number
+  if n = 0 [return 69]
+  420
+]
 
 
-;   if board at [i - W - 1] = 1 [inc ret]
-;   if board at [i - W - 0] = 1 [inc ret]
-;   if board at [i - W + 1] = 1 [inc ret]
-;   if board at [i - 0 - 1] = 1 [inc ret]  
-;   if board at [i - 0 + 1] = 1 [inc ret]  
-;   if board at [i + W - 1] = 1 [inc ret]
-;   if board at [i + W - 0] = 1 [inc ret]
-;   if board at [i + W + 1] = 1 [inc ret]
-;   ret
-; ]
-
-; 'compute_next_state :['cell_index Number
-;   'alive get_alives cell_index
-;   'cell_state board at cell_index
-;   either cell_state = 1 [
-;     cell_state: 0
-;     if alive = 2 [cell_state: 1]
-;     if alive = 3 [cell_state: 1]
-;   ] [
-;     if alive = 3 [cell_state: 1]
-;   ]  
-;   cell_state
-; ]
-
-; 'step :[
-;   'i W + 1
-;   while i < W * [H - 1] - 2 [
-;     change board2 i compute_next_state i    
-;     inc i
-;   ]
-; ]
-
-; 'swap_board :[
-;   'i 0
-;   while i < W * H [
-;     change board i board2 at i
-;     inc i
-;   ]
-; ]
-
-; init_board board
-; init_board board2
-; put_glider 2 2
-; display_board board
-
-; while true [
-;   step
-;   swap_board
-;   display_board board
-; ]
-
-
-
-
+print stack
+prin "SHOULD RETURN  69: " print f 0
+prin "SHOULD RETURN 420: " print f 1
+prin "SHOULD RETURN  69: " print g 0
+prin "SHOULD RETURN 420: " print g 1
+print stack
 

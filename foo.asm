@@ -1,105 +1,819 @@
-; Prelude for:
-; 1: 1 PROG [prog] type: ()=>void
-BITS 64
-section .text
-global	_start
-_start:
-mov rax, ret_stack_end
-mov [ret_stack_rsp], rax
-mov rax, mem
-mov [mem_top], rax
-; 1:15 STRING "YESS"
-push 4
-push str0
-; 2:19 STRING " works !"
-push 8
-push str1
-; 2: 17 STR_JOIN . type: (string,string)=>string
-pop r8
-pop r9
-pop r10
-pop r11
-mov rax, r9
-add rax, r11
-call allocate
-mov rsi, r10
-mov rdi, rbx
-mov rcx, r11
-rep movsb
-mov rsi, r8
-mov rcx, r9
-rep movsb
-push rax
-push rbx
-; 2: 1 PRINT print type: (string)=>void
-pop rax
-mov rsi, rax
-pop rax
-mov rdx, rax
-mov rax, 4
-mov rdi, 1
-syscall
-call print_lf
-; 1: 1 PROG [prog] type: ()=>void
-mov rax, 1
-mov rdi, 0
-syscall
-print_uint:
-; division in 64bit save the quotient into rax and the reminder in rdx
-xor rcx, rcx
-mov r8, 10
-.loop:
-xor rdx, rdx; clearing the register that is going to be used as holder for the reminder
-div r8
-add dl, 0x30; make the reminder printable in ascii conversion 0x30 is '0'
-dec rsp; reduce one byte from the address placed in rsp(freeing one byte of memory)
-mov[rsp], dl; pour one byte into the address pointed
-inc rcx
-test rax, rax
-jnz .loop
-.print_chars_on_stack:
-xor rax, rax
-mov rsi, rsp;
-mov rdx, rcx
-push rcx
-mov rax, 4
-mov rdi, 1
-syscall; rsi e rdx are respectively buffer starting point and length in byte
-; the syscall is going to look at what is in memory at the address loaded in rsi(BE CAREFULL) and not at the content of rdi
-pop rcx
-add rsp, rcx; when printed we can free the stack
-ret
-print_lf:
-mov rcx, 10
-call emit
-ret
-emit:
-push rdx
-push rax
-push rdi
-push rsi
-push rcx
-mov rsi, rsp
-mov rdx, 1
-mov rax, 4
-mov rdi, 1
-syscall
-pop rcx
-pop rsi
-pop rdi
-pop rax
-pop rdx
-ret
-allocate:
-mov rbx, [mem_top]
-add [mem_top], rax
-ret
-section .data
-str0 db 89,69,83,83
-str1 db 32,119,111,114,107,115,32,33
-section .bss
-mem_top: resb 8
-ret_stack_rsp: resb 8
-ret_stack: resb 655360
-ret_stack_end:
-mem: resb 655360
+	; Prelude for:
+	; 1: 1 PROG [prog] type: ()=>void
+	processor 6502 ; TEH BEAST
+	ORG $0801 ; BASIC STARTS HERE
+	HEX 0C 08 0A 00 9E 20 32 30 36 34 00 00 00
+	ORG $0810 ; MY PROGRAM STARTS HERE
+	; INIT HEAP
+	LDA #<HEAPSTART
+	STA HEAPTOP
+	LDA #>HEAPSTART
+	STA HEAPTOP+1
+	JSR INITSTACK
+	; Prelude for:
+; 1: 4 REF_BLOCK :[n Number return either n = 0 [69] [420]] type: ()=>addr
+	JMP AFTER_0
+CALL_0:
+	; reserve 2 on the stack for: n (number offset 0)
+	TSX
+	TXA
+	SEC
+	SBC #2
+	TAX
+	TXS
+	; 1: 9 NUMBER Number type: ()=>number
+	; 1: 6 LIT_WORD n type: (number)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 2: 17 WORD n type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 2:21 NUMBER 0
+	LDA #0
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	JSR PUSH16
+; 2: 19 EQ = type: (number,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BNE notequal4
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal4
+	LDA #01
+	JMP store4
+notequal4:
+	LDA #00
+store4:
+	STA STACKACCESS
+	LDA #00
+	STA STACKACCESS + 1
+	INX
+	INX
+	INX
+	INX
+	STX SP16
+	; JSR PUSH16
+	; JSR POP16
+	LDA STACKACCESS
+	BNE trueblock9
+	JMP elseblock9 ; if all zero
+trueblock9:
+	; Prelude for:
+	; 2: 23 BLOCK [69] type: ()=>number
+	; no stack memory to reserve
+	; 2:24 NUMBER 69
+	LDA #0
+	STA STACKACCESS+1
+	LDA #69
+	STA STACKACCESS
+	JSR PUSH16
+	; 2: 23 BLOCK [69] type: ()=>number
+	; no stack memory to release
+	JMP endblock9
+elseblock9:
+	; Prelude for:
+	; 2: 28 BLOCK [420] type: ()=>number
+	; no stack memory to reserve
+	; 2:29 NUMBER 420
+	LDA #1
+	STA STACKACCESS+1
+	LDA #164
+	STA STACKACCESS
+	JSR PUSH16
+	; 2: 28 BLOCK [420] type: ()=>number
+	; no stack memory to release
+	; 2: 10 EITHER either type: (boolean,number,number)=>number
+endblock9:
+	; 2: 3 RETURN return type: (number)=>number
+	; release 2 on the stack
+	TSX
+	TXA
+	CLC
+	ADC #2
+	TAX
+	TXS
+	RTS
+; 1: 4 REF_BLOCK :[n Number return either n = 0 [69] [420]] type: ()=>addr
+	; release 2 on the stack
+	TSX
+	TXA
+	CLC
+	ADC #2
+	TAX
+	TXS
+	RTS
+AFTER_0:
+	LDA #<CALL_0
+	STA STACKACCESS
+	LDA #>CALL_0
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 1: 1 LIT_WORD f type: (addr)=>void
+	; JSR POP16
+	LDA STACKACCESS
+	STA V_f + 0
+	LDA STACKACCESS + 1
+	STA V_f + 1
+	; Prelude for:
+; 5: 4 REF_BLOCK :[n Number if n = 0 [return 69] 420] type: ()=>addr
+	JMP AFTER_1
+CALL_1:
+	; reserve 2 on the stack for: n (number offset 0)
+	TSX
+	TXA
+	SEC
+	SBC #2
+	TAX
+	TXS
+	; 5: 9 NUMBER Number type: ()=>number
+	; 5: 6 LIT_WORD n type: (number)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 6: 6 WORD n type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #1
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 6:10 NUMBER 0
+	LDA #0
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	JSR PUSH16
+; 6: 8 EQ = type: (number,number)=>boolean
+	LDX SP16
+	LDA STACKBASE + 4,X
+	CMP STACKBASE + 2,X
+	BNE notequal17
+	LDA STACKBASE + 3,X
+	CMP STACKBASE + 1,X
+	BNE notequal17
+	LDA #01
+	JMP store17
+notequal17:
+	LDA #00
+store17:
+	STA STACKACCESS
+	LDA #00
+	STA STACKACCESS + 1
+	INX
+	INX
+	INX
+	INX
+	STX SP16
+	; JSR PUSH16
+	; JSR POP16
+	LDA STACKACCESS
+	BNE trueblock21
+	JMP endblock21 ; if all zero
+trueblock21:
+	; Prelude for:
+	; 6: 12 BLOCK [return 69] type: ()=>void
+	; no stack memory to reserve
+	; 6:20 NUMBER 69
+	LDA #0
+	STA STACKACCESS+1
+	LDA #69
+	STA STACKACCESS
+	JSR PUSH16
+	; 6: 13 RETURN return type: (number)=>number
+	; release 2 on the stack
+	TSX
+	TXA
+	CLC
+	ADC #2
+	TAX
+	TXS
+	RTS
+	; 6: 12 BLOCK [return 69] type: ()=>void
+	; no stack memory to release
+	; 6: 3 IF if type: (boolean,void)=>void
+endblock21:
+	; 7:3 NUMBER 420
+	LDA #1
+	STA STACKACCESS+1
+	LDA #164
+	STA STACKACCESS
+	JSR PUSH16
+; 5: 4 REF_BLOCK :[n Number if n = 0 [return 69] 420] type: ()=>addr
+	; release 2 on the stack
+	TSX
+	TXA
+	CLC
+	ADC #2
+	TAX
+	TXS
+	RTS
+AFTER_1:
+	LDA #<CALL_1
+	STA STACKACCESS
+	LDA #>CALL_1
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 5: 1 LIT_WORD g type: (addr)=>void
+	; JSR POP16
+	LDA STACKACCESS
+	STA V_g + 0
+	LDA STACKACCESS + 1
+	STA V_g + 1
+	; 11: 7 STACK stack type: ()=>number
+	LDA SP16
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	; JSR PUSH16
+	; 11: 1 PRINT print type: (number)=>void
+	; JSR POP16
+	JSR PRINT_INT
+	LDA #13
+	JSR $FFD2
+	; 12:6 STRING "SHOULD RETURN  69: "
+	LDA #0
+	STA STACKACCESS+1
+	LDA #19
+	STA STACKACCESS
+	JSR PUSH16
+	LDA #>str0
+	STA STACKACCESS+1
+	LDA #<str0
+	STA STACKACCESS
+	JSR PUSH16
+	; 12: 1 PRIN prin type: (string)=>void
+	JSR PRINT_STRING
+	; 12:36 NUMBER 0
+	LDA #0
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	JSR PUSH16
+	; 12: 34 WORD f type: ()=>number
+	LDA V_f
+	STA CALL_FUN_30 + 1
+	LDA V_f + 1
+	STA CALL_FUN_30 + 2
+CALL_FUN_30:
+	JSR $1111 ; will be overwritten
+	; 12: 28 PRINT print type: (number)=>void
+	JSR POP16
+	JSR PRINT_INT
+	LDA #13
+	JSR $FFD2
+	; 13:6 STRING "SHOULD RETURN 420: "
+	LDA #0
+	STA STACKACCESS+1
+	LDA #19
+	STA STACKACCESS
+	JSR PUSH16
+	LDA #>str1
+	STA STACKACCESS+1
+	LDA #<str1
+	STA STACKACCESS
+	JSR PUSH16
+	; 13: 1 PRIN prin type: (string)=>void
+	JSR PRINT_STRING
+	; 13:36 NUMBER 1
+	LDA #0
+	STA STACKACCESS+1
+	LDA #1
+	STA STACKACCESS
+	JSR PUSH16
+	; 13: 34 WORD f type: ()=>number
+	LDA V_f
+	STA CALL_FUN_35 + 1
+	LDA V_f + 1
+	STA CALL_FUN_35 + 2
+CALL_FUN_35:
+	JSR $1111 ; will be overwritten
+	; 13: 28 PRINT print type: (number)=>void
+	JSR POP16
+	JSR PRINT_INT
+	LDA #13
+	JSR $FFD2
+	; 14:6 STRING "SHOULD RETURN  69: "
+	LDA #0
+	STA STACKACCESS+1
+	LDA #19
+	STA STACKACCESS
+	JSR PUSH16
+	LDA #>str2
+	STA STACKACCESS+1
+	LDA #<str2
+	STA STACKACCESS
+	JSR PUSH16
+	; 14: 1 PRIN prin type: (string)=>void
+	JSR PRINT_STRING
+	; 14:36 NUMBER 0
+	LDA #0
+	STA STACKACCESS+1
+	LDA #0
+	STA STACKACCESS
+	JSR PUSH16
+	; 14: 34 WORD g type: ()=>number
+	LDA V_g
+	STA CALL_FUN_40 + 1
+	LDA V_g + 1
+	STA CALL_FUN_40 + 2
+CALL_FUN_40:
+	JSR $1111 ; will be overwritten
+	; 14: 28 PRINT print type: (number)=>void
+	JSR POP16
+	JSR PRINT_INT
+	LDA #13
+	JSR $FFD2
+	; 15:6 STRING "SHOULD RETURN 420: "
+	LDA #0
+	STA STACKACCESS+1
+	LDA #19
+	STA STACKACCESS
+	JSR PUSH16
+	LDA #>str3
+	STA STACKACCESS+1
+	LDA #<str3
+	STA STACKACCESS
+	JSR PUSH16
+	; 15: 1 PRIN prin type: (string)=>void
+	JSR PRINT_STRING
+	; 15:36 NUMBER 1
+	LDA #0
+	STA STACKACCESS+1
+	LDA #1
+	STA STACKACCESS
+	JSR PUSH16
+	; 15: 34 WORD g type: ()=>number
+	LDA V_g
+	STA CALL_FUN_45 + 1
+	LDA V_g + 1
+	STA CALL_FUN_45 + 2
+CALL_FUN_45:
+	JSR $1111 ; will be overwritten
+	; 15: 28 PRINT print type: (number)=>void
+	JSR POP16
+	JSR PRINT_INT
+	LDA #13
+	JSR $FFD2
+	; 16: 7 STACK stack type: ()=>number
+	LDA SP16
+	STA STACKACCESS
+	LDA #0
+	STA STACKACCESS+1
+	; JSR PUSH16
+	; 16: 1 PRINT print type: (number)=>void
+	; JSR POP16
+	JSR PRINT_INT
+	LDA #13
+	JSR $FFD2
+	; 1: 1 PROG [prog] type: ()=>void
+	RTS
+BCD DS 3 ; USED IN BIN TO BCD
+HEAPSAVE DS 3 ; USED IN COPYSTRING
+AUXMUL DS 2
+HEAPTOP DS 2
+TEST_UPPER_BIT: BYTE $80
+AUX = $7D
+SP16 = $7F
+STACKACCESS = $0080
+STACKBASE = $0000
+COPYMEM:
+	TYA
+	BEQ ENDCOPY
+FROMADD:
+	LDA $1111
+TOADD:
+	STA $1111
+	INC FROMADD + 1
+	BNE COPY_NO_CARRY1
+	INC FROMADD + 2
+COPY_NO_CARRY1:
+	INC TOADD + 1
+	BNE COPY_NO_CARRY2
+	INC TOADD + 2
+COPY_NO_CARRY2:
+	DEY
+	BNE COPYMEM
+ENDCOPY:
+	RTS
+PRINT_STRING:
+	JSR POP16
+	LDX SP16
+	LDA STACKBASE + 1,X; LEN
+	INX
+	INX
+	STX SP16
+	TAX; NOW IN X WE HAVE THE LEN
+	BEQ EXIT_PRINT_STR
+	LDY #0
+LOOP_PRINT_STRING:
+	LDA (STACKACCESS),Y
+	JSR $FFD2
+	INY
+	DEX
+	BNE LOOP_PRINT_STRING
+EXIT_PRINT_STR:
+	RTS
+	; stack.a65 from https://github.com/dourish/mitemon/blob/master/stack.a65
+INITSTACK:
+	LDX #$FF
+	STX SP16
+	RTS
+PUSH16:
+	LDX SP16
+	LDA STACKACCESS + 1
+	STA STACKBASE,X
+	DEX
+	LDA STACKACCESS
+	STA STACKBASE,X
+	DEX
+	STX SP16
+	RTS
+POP16:
+	LDX SP16
+	LDA STACKBASE + 1,X
+	STA STACKACCESS
+	INX
+	LDA STACKBASE + 1,X
+	STA STACKACCESS + 1
+	INX
+	STX SP16
+	RTS
+DUP16:
+	LDX SP16
+	LDA STACKBASE + 2,X
+	STA STACKBASE,X
+	DEX
+	LDA STACKBASE + 2,X
+	STA STACKBASE,X
+	DEX
+	STX SP16
+	RTS
+SWAP16:
+	LDX SP16
+	LDA STACKBASE + 2,X
+	STA STACKBASE,X
+	DEX
+	LDA STACKBASE + 2,X
+	STA STACKBASE,X
+	DEX
+	LDA STACKBASE + 5,X
+	STA STACKBASE + 3,X
+	LDA STACKBASE + 6,X
+	STA STACKBASE + 4,X
+	LDA STACKBASE + 1,X
+	STA STACKBASE + 5,X
+	LDA STACKBASE + 2,X
+	STA STACKBASE + 6,X
+	INX
+	INX
+	STX SP16
+	RTS
+OVERSWAP16:
+	LDX SP16
+	LDA STACKBASE + 5,X
+	STA AUX
+	LDA STACKBASE + 6,X
+	STA AUX + 1
+	LDA STACKBASE + 3,X
+	STA STACKBASE + 5,X
+	LDA STACKBASE + 4,X
+	STA STACKBASE + 6,X
+	LDA AUX
+	STA STACKBASE + 3,X
+	LDA AUX + 1
+	STA STACKBASE + 4,X
+	RTS
+OVER16:
+	LDX SP16
+	LDA STACKBASE + 5,X
+	STA AUX
+	LDA STACKBASE + 6,X
+	STA AUX + 1
+	LDA STACKBASE + 3,X
+	STA STACKBASE + 5,X
+	LDA STACKBASE + 4,X
+	STA STACKBASE + 6,X
+	LDA STACKBASE + 1,X
+	STA STACKBASE + 3,X
+	LDA STACKBASE + 2,X
+	STA STACKBASE + 4,X
+	LDA AUX
+	STA STACKBASE + 1,X
+	LDA AUX + 1
+	STA STACKBASE + 2,X
+	RTS
+ADD16:
+	LDX SP16
+	CLC
+	LDA STACKBASE + 1,X;
+	ADC STACKBASE + 3,X
+	STA STACKBASE + 3,X
+	LDA STACKBASE + 2,X
+	ADC STACKBASE + 4,X
+	STA STACKBASE + 4,X
+	INX
+	INX
+	STX SP16
+	RTS
+SUB16:
+	LDX SP16
+	SEC
+	LDA STACKBASE + 3,X
+	SBC STACKBASE + 1,X
+	STA STACKBASE + 3,X
+	LDA STACKBASE + 4,X
+	SBC STACKBASE + 2,X
+	STA STACKBASE + 4,X
+	INX
+	INX
+	STX SP16
+	RTS
+BINBCD16: SED
+	LDA #0
+	STA BCD + 0
+	STA BCD + 1
+	STA BCD + 2
+	LDX #16
+CNVBIT: ASL STACKACCESS + 0
+	ROL STACKACCESS + 1
+	LDA BCD + 0
+	ADC BCD + 0
+	STA BCD + 0
+	LDA BCD + 1
+	ADC BCD + 1
+	STA BCD + 1
+	LDA BCD + 2
+	ADC BCD + 2
+	STA BCD + 2
+	DEX
+	BNE CNVBIT
+	CLD
+	RTS
+PRINT_INT:
+	LDY #0
+	JSR BINBCD16
+	LDA BCD+2
+	AND #$0F
+	BEQ DIGIT2
+	TAY
+	CLC
+	ADC #$30
+	JSR $FFD2
+DIGIT2:
+	LDA BCD+1
+	LSR
+	LSR
+	LSR
+	LSR
+	BNE DO_DIGIT_2
+	CPY #00
+	BEQ DIGIT_3
+DO_DIGIT_2:
+	LDY #1
+	CLC
+	ADC #$30
+	JSR $FFD2
+DIGIT_3:
+	LDA BCD+1
+	AND #$0F
+	BNE DO_DIGIT_3
+	CPY #00
+	BEQ DIGIT_4
+DO_DIGIT_3:
+	LDY #1
+	CLC
+	ADC #$30
+	JSR $FFD2
+DIGIT_4:
+	LDA BCD+0
+	LSR
+	LSR
+	LSR
+	LSR
+	BNE DO_DIGIT_4
+	CPY #00
+	BEQ DIGIT_5
+DO_DIGIT_4:
+	CLC
+	ADC #$30
+	JSR $FFD2
+DIGIT_5:
+	LDA BCD+0
+	AND #$0F
+	CLC
+	ADC #$30
+	JSR $FFD2
+	RTS
+MUL16:
+	LDX SP16
+	LDA STACKBASE + 3,X    ; Get the multiplicand and
+	STA AUXMUL             ; put it in the scratchpad.
+	LDA STACKBASE + 4,X
+	STA AUXMUL + 1
+	PHA
+	LDA #0
+	STA STACKBASE + 3       ; Zero - out the original multiplicand area
+	STA STACKBASE + 4
+	PLA
+	LDY #$10                ; We'll loop 16 times.
+shift_loop:
+	ASL STACKBASE + 3,X     ; Shift the entire 32 bits over one bit position.
+	ROL STACKBASE + 4,X
+	ROL STACKBASE + 1,X
+	ROL STACKBASE + 2,X
+	BCC skip_add            ; Skip the adding -in to the result if the high bit shifted out was 0
+	CLC                     ; Else, add multiplier to intermediate result.
+	LDA AUXMUL
+	ADC STACKBASE + 3,X
+	STA STACKBASE + 3,X
+	LDA AUXMUL + 1
+	ADC STACKBASE + 4,X
+	STA STACKBASE + 4,X
+	LDA #0
+	ADC STACKBASE + 1,X
+	STA STACKBASE + 1,X
+skip_add:
+	DEY                      ; If we haven't done 16 iterations yet,
+	BNE  shift_loop          ; then go around again.
+	INX
+	INX
+	STX SP16
+	RTS
+	; https://www.ahl27.com/posts/2022/12/SIXTH-div/
+DIV16WITHMOD:
+;; MAX ITERATIONS IS 16 = 0X10, SINCE WE HAVE 16 BIT NUMBERS
+	LDX SP16
+	LDY #$10
+	;; ADD TWO SPACES ON STACK
+	DEX
+	DEX
+	DEX
+	DEX
+	LDA #0
+	STA STACKBASE + 1,X; REMAINDER
+	STA STACKBASE + 2,X
+	STA STACKBASE + 3,X; QUOTIENT
+	STA STACKBASE + 4,X
+	; +5 - 6 IS DENOMINATOR
+	; +7 - 8 IS NUMERATOR
+	;; SET UP THE NUMERATOR
+	LDA #0
+	ORA STACKBASE + 8,X
+	ORA STACKBASE + 7,X
+	BEQ EARLYEXIT
+	;; CHECKING IS DENOMINATOR IS ZERO(IF SO WE'LL JUST STORE ZEROS)
+	LDA #0
+	ORA STACKBASE + 6,X
+	ORA STACKBASE + 5,X
+	BNE DIVMODLOOP1
+EARLYEXIT:
+	;; NUMERATOR OR DENOMINATOR ARE ZERO, JUST RETURN
+	LDA #0
+	STA STACKBASE + 6,X
+	STA STACKBASE + 5,X
+	INX
+	INX
+	INX
+	INX
+	RTS
+	;; TRIM DOWN TO LEADING BIT
+DIVMODLOOP1:
+	LDA STACKBASE + 8,X
+	BIT TEST_UPPER_BIT
+	BNE END
+	CLC
+	ASL STACKBASE + 7,X
+	ROL STACKBASE + 8,X
+	DEY
+	JMP DIVMODLOOP1
+END:
+	;; MAIN DIVISION LOOP
+DIVMODLOOP2:
+	;; LEFT - SHIFT THE REMAINDER
+	CLC
+	ASL STACKBASE + 1,X         
+	ROL STACKBASE + 2,X
+	;; LEFT - SHIFT THE QUOTIENT
+	CLC
+	ASL STACKBASE + 3,X
+	ROL STACKBASE + 4,X
+	;; SET LEAST SIGNIFICANT BIT TO BIT I OF NUMERATOR
+	CLC
+	ASL STACKBASE + 7,X
+	ROL STACKBASE + 8,X
+	LDA STACKBASE + 1,X
+	ADC #0
+	STA STACKBASE + 1,X
+	LDA STACKBASE + 2,X
+	ADC #0
+	STA STACKBASE + 2,X
+	;; COMPARE REMAINDER TO DENOMINATOR
+	; UPPER BYTE(STACKBASE + 2 IS ALREADY IN A)
+	CMP STACKBASE + 6,X
+	BMI SKIP; IF R < D, SKIP TO NEXT ITERATION 
+	BNE SUBTRACT; IF R > D, WE CAN SKIP COMPARING LOWER BYTE
+; IF R = D, WE HAVE TO CHECK THE LOWER BYTE
+	; LOWER BYTE
+	LDA STACKBASE + 1,X
+	CMP STACKBASE + 5,X
+	BMI SKIP
+SUBTRACT:
+	;; SUBTRACT DENOMINATOR FROM REMAINDER
+	SEC
+	; SUBTRACT LOWER BYTE
+	LDA STACKBASE + 1,X
+	SBC STACKBASE + 5,X
+	STA STACKBASE + 1,X
+	; SUBTRACT UPPER BYTE
+	LDA STACKBASE + 2,X
+	SBC STACKBASE + 6,X
+	STA STACKBASE + 2,X
+	;; ADD ONE TO QUOTIENT
+	INC STACKBASE + 3,X
+SKIP:
+	DEY
+	BEQ EXIT
+	JMP DIVMODLOOP2
+EXIT:  
+	;; CLEANUP
+	LDA STACKBASE + 1,X
+	STA STACKBASE + 5,X
+	LDA STACKBASE + 2,X
+	STA STACKBASE + 6,X
+	LDA STACKBASE + 3,X
+	STA STACKBASE + 7,X
+	LDA STACKBASE + 4,X
+	STA STACKBASE + 8,X
+	INX
+	INX
+	INX
+	INX
+	RTS
+DIV16:
+	JSR DIV16WITHMOD
+	LDX SP16
+	INX
+	INX
+	STX SP16
+	RTS
+MOD16:
+	JSR DIV16WITHMOD
+	LDX SP16
+	LDA STACKBASE + 1,X
+	STA STACKBASE + 3,X
+	LDA STACKBASE + 2,X
+	STA STACKBASE + 4,X
+	INX
+	INX
+	STX SP16
+	RTS
+MALLOC:
+	CLC
+	ADC HEAPTOP
+	STA HEAPTOP
+	BCC NOCARRY
+	INC HEAPTOP+1
+NOCARRY:
+	LDA HEAPTOP
+	STA STACKACCESS
+	LDA HEAPTOP + 1
+	STA STACKACCESS + 1
+	JSR PUSH16
+	RTS
+str0: BYTE 83,72,79,85,76,68,32,82,69,84,85,82,78,32,32,54,57,58,32
+str1: BYTE 83,72,79,85,76,68,32,82,69,84,85,82,78,32,52,50,48,58,32
+str2: BYTE 83,72,79,85,76,68,32,82,69,84,85,82,78,32,32,54,57,58,32
+str3: BYTE 83,72,79,85,76,68,32,82,69,84,85,82,78,32,52,50,48,58,32
+V_f DS 2
+V_g DS 2
+HEAPSTART:

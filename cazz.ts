@@ -54,6 +54,7 @@ enum TokenType {
     AT,
     CHANGE,
     INCLUDE,
+    RETURN,
     TOKEN_COUNT,
 }
 enum InstructionPosition {
@@ -196,7 +197,7 @@ function sizeForValueType(t: ValueType, target: Target): number {
 
 function humanReadableToken(t: TokenType | undefined): string {
     if (t === undefined) return "undefined";
-    console.assert(TokenType.TOKEN_COUNT === 52, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 53, "Exaustive token types count");
     switch (t) {
         case TokenType.LITERAL: return "LITERAL";
         case TokenType.PLUS: return "PLUS";
@@ -250,6 +251,7 @@ function humanReadableToken(t: TokenType | undefined): string {
         case TokenType.AT: return "AT";
         case TokenType.CHANGE: return "CHANGE";
         case TokenType.INCLUDE: return "INCLUDE";
+        case TokenType.RETURN: return "RETURN";
         default:
             throw new Error(`Token Type ${t} not defined`);
     }
@@ -1382,7 +1384,7 @@ function getAsmPrintTopOfStack(type: ValueType, newLine: boolean, target: Target
 }
 
 function createVocabulary(): Vocabulary {
-    console.assert(TokenType.TOKEN_COUNT === 52, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 53, "Exaustive token types count");
     const voc: Vocabulary = {};
     voc[TokenType.PRINT] = {
         txt: "print",
@@ -4783,9 +4785,9 @@ function createVocabulary(): Vocabulary {
                 ].concat(getAsmForGetWordPointedByTOS(arrayType[1], 0, target));
             }
             console.log(`target system '${target}' unknown`);
-            exit();            
+            exit();
         }
-    };        
+    };
     voc[TokenType.INCLUDE] = {
         txt: "include",
         expectedArity: 1,
@@ -4798,6 +4800,70 @@ function createVocabulary(): Vocabulary {
         out: () => "void",
         generateChildPreludeAsm: () => [],
         generateAsm: () => []
+    };
+    voc[TokenType.RETURN] = {
+        txt: "return",
+        expectedArity: 1,
+        expectedArityOut: 0,
+        grabFromStack: false,
+        position: InstructionPosition.PREFIX,
+        priority: 5,
+        userFunction: false,
+        ins: (token) => {
+            assertChildNumber(token, 1);
+            return [getReturnTypeOfAWord(token.childs[0])];
+        },
+        out: (token) => {
+            assertChildNumber(token, 1);
+            return getReturnTypeOfAWord(token.childs[0]);
+        },
+        generateChildPreludeAsm: () => [],
+        generateAsm: (token, target) => {
+            if (token.context === undefined) {
+                logError(token.loc, `can't find context for ${token.txt}, compiler error`);
+                exit();
+            }
+            if (token.context.parent === undefined) return []; // the global context
+
+            // return should release all the contexts space until reach the ref block
+            let sizeToRelease = sizeOfContext(token.context, target);
+            let context = token.context;
+            while (context.element?.type !== TokenType.REF_BLOCK && context.parent !== undefined) {
+                context = context.parent;
+                sizeToRelease += sizeOfContext(context, target);
+                if (context.element === undefined) {
+                    logError(token.loc, `'${token.txt}' is not inside a function`);
+                    exit();
+                }
+                token = context.element;
+            }
+            if (target === "c64") {
+                const asmReleaseSpace = sizeToRelease === 0 ? ["; no stack memory to release"] : [
+                    `; release ${sizeToRelease} on the stack`,
+                    "TSX",
+                    "TXA",
+                    "CLC",
+                    `ADC #${sizeToRelease}`,
+                    "TAX",
+                    "TXS"
+                ];
+                return asmReleaseSpace.concat([
+                    `RTS`,
+                ]);
+            }
+            if (target === "freebsd") {
+                return [
+                    "mov rax, [ret_stack_rsp]",
+                    `add rax, ${sizeToRelease}`,
+                    "mov [ret_stack_rsp], rax",
+                    "mov rax, rsp",
+                    "mov rsp, [ret_stack_rsp]",
+                    "ret",
+                ]
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        }
     };
 
     return voc;
@@ -5153,14 +5219,58 @@ function getParametersRequestedByBlock(block: Token) {
 
 }
 
+function getReturnValueByRefBlock(block: Token): ValueType {
+    if (block.type !== TokenType.REF_BLOCK) {
+        logError(block.loc, `the token '${block.txt}' is not a REF_BLOCK`);
+        exit();
+    }
+    if (block.childs.length === 0) return "void";
+
+    // getTokensByTypeRecur recurs only in BLOCK not in REF_BLOCK
+    // so every return here is related to the ref block as parameter
+    const returns = getTokensByTypeRecur(block, TokenType.RETURN);
+    const lastChild = block.childs.at(-1);
+    if (lastChild && lastChild?.type !== TokenType.RETURN) {
+        returns.unshift(lastChild);
+    }
+    if (returns.length === 0) {
+        logError(block.loc, `Cannot determine the type of '${block.txt}'`);
+        exit();
+    }
+
+    const firstType = getReturnTypeOfAWord(returns[0]);
+    for (let i = 1; i < returns.length; i++) {
+        const currentReturnType = getReturnTypeOfAWord(returns[i]);
+        if (firstType !== currentReturnType) {
+            logError(returns[0].loc, `return types mismatch: '${returns[0].txt}' returns ${humanReadableType(firstType)}...`);
+            logError(returns[i].loc, `... while '${returns[i].txt}' returns ${humanReadableType(currentReturnType)}`);
+            exit();
+        }
+    }
+    return firstType;
+
+}
+
 function getReturnValueByBlock(block: Token) {
 
-    if (block.type !== TokenType.BLOCK && block.type !== TokenType.REF_BLOCK && block.type !== TokenType.PROG && block.type !== TokenType.RECORD) {        
+    if (block.type !== TokenType.BLOCK && block.type !== TokenType.REF_BLOCK && block.type !== TokenType.PROG && block.type !== TokenType.RECORD) {
         logError(block.loc, `the token '${block.txt}' is not a BLOCK or REF_BLOCK or PROG!`);
         exit();
     }
+
+    for (let i = 0; i < block.childs.length - 1; i++) {
+        if (block.childs[i].type === TokenType.RETURN) {
+            logError(block.childs[i + 1].loc, `'${block.childs[i + 1].txt}' is unreachable code`);
+            exit();
+        } else if (block.childs[i].out !== "void") {
+            logError(block.childs[i].loc, `the expression '${block.childs[i].txt}' should not return unhandled data, currently it returns ${humanReadableType(block.childs[i].out)}`);
+            exit();
+        }
+    }
+    if (block.type === TokenType.REF_BLOCK) return getReturnValueByRefBlock(block);
+
     const lastChild = block.childs.at(-1);
-    if (lastChild === undefined) return "void";
+    if (lastChild === undefined || lastChild.type === TokenType.RETURN) return "void";
 
     const lastChildType = lastChild.out;
     if (lastChildType === undefined) {
@@ -5175,14 +5285,6 @@ function typeCheckBlock(block: Token) {
     if (block.type !== TokenType.BLOCK && block.type !== TokenType.REF_BLOCK && block.type !== TokenType.PROG && block.type !== TokenType.RECORD) {
         logError(block.loc, `the token '${block.txt}' is not a BLOCK or REF_BLOCK or PROG!`);
         exit();
-    }
-
-    for (let i = 0; i < block.childs.length - 1; i++) {
-        if (block.childs[i].out !== "void") {
-            logError(block.childs[i].loc, `the expression '${block.childs[i].txt}' should not return unhandled data, currently it returns ${humanReadableType(block.childs[i].out)}`);
-            dumpAst(block);
-            exit();
-        }
     }
 
     // let's search for something like ['x Number 'y Number] where Number accepts a value but does not have child
@@ -5614,15 +5716,24 @@ function getInsOutArity(token: Token): { ins: number, out: number } {
 
 }
 
-function getTokensByTypeRecur(token: Token, type: TokenType): string[] {
-    const wordUsed = token.childs.filter(child => child.type === type).map(child => child.txt);
-    const wordUsedByChild = token.childs.filter(child => child.type === TokenType.BLOCK).map(child => getTokensByTypeRecur(child, type));
+function getTokensRecur(token: Token, pred: (token: Token) => boolean): Token[] {
+    const wordUsed = token.childs.filter(pred);
+    //const wordUsedByChild = token.childs.filter(child => child.type === TokenType.BLOCK).map(child => getTokensRecur(child, pred));
+    const wordUsedByChild = token.childs.map(child => getTokensRecur(child, pred));
     return wordUsed.concat(wordUsedByChild.flat());
 }
 
+function getTokensByTypeRecur(token: Token, type: TokenType): Token[] {
+    return getTokensRecur(token, (token: Token) => token.type === type);
+
+    // const wordUsed = token.childs.filter(child => child.type === type);
+    // const wordUsedByChild = token.childs.filter(child => child.type === TokenType.BLOCK).map(child => getTokensByTypeRecur(child, type));
+    // return wordUsed.concat(wordUsedByChild.flat());
+}
+
 function getWordUsedButNotDefinedInABlock(token: Token): string[] {
-    const wordsUsed = getTokensByTypeRecur(token, TokenType.WORD);
-    const wordsDefined = getTokensByTypeRecur(token, TokenType.LIT_WORD);
+    const wordsUsed = getTokensByTypeRecur(token, TokenType.WORD).map(token => token.txt);
+    const wordsDefined = getTokensByTypeRecur(token, TokenType.LIT_WORD).map(token => token.txt);
     const wordsUsedButNotDefined = wordsUsed.filter(x => !wordsDefined.includes(x));
     const freeWords = wordsUsedButNotDefined.filter(name => getWordDefinition(token.context, name) === undefined);
     return freeWords;

@@ -1,3 +1,5 @@
+include "lib/std.cazz"
+
 def W 20
 def H 10
 'board array W * H Number
@@ -17,22 +19,27 @@ def H 10
   change board base + W + W + 2 1
 ]
 
-'init_board :[
+'init_board :['b array Number
   'i 0
   while i < W * H [
-    change board i 0
+    change b i 0
     inc i
   ]
 ]
 
-'display_board :[
+'display_board :['b array Number
   'i 0
   while i < W * H [        
-    prin either board at [i] = 0 ["."] ["O"]
-    ;prin board at i
+    ;if i % W = 0 [prin i / W prin ": "]
+    prin either b at [i] = 0 ["."] ["O"]
+    ;prin b at i
     inc i
     if i % W = 0 [print ""]
   ]
+  emit 27 !< prin "[" prin H prin "A"
+  emit 27 !< prin "[" prin W prin "D"
+ 
+  ;print "--------------------"
 ]
 
 'get_alives :['i Number
@@ -69,20 +76,23 @@ def H 10
   ret
 ]
 
+'compute_next_state :['cell_index Number
+  'alive get_alives cell_index
+  'cell_state board at cell_index
+  either cell_state = 1 [
+    cell_state: 0
+    if alive = 2 [cell_state: 1]
+    if alive = 3 [cell_state: 1]
+  ] [
+    if alive = 3 [cell_state: 1]
+  ]  
+  cell_state
+]
+
 'step :[
   'i W + 1
-  while i < W * [H - 1] - 1 [
-    'alive get_alives i
-    'cell_state board at i
-    either cell_state = 1 [
-      cell_state: 0
-      if alive = 2 [cell_state: 1]
-      if alive = 3 [cell_state: 1]
-    ] [
-      if alive = 3 [cell_state: 1]
-    ]
-    change board2 i cell_state
-    ;change board2 i alive
+  while i < W * [H - 1] - 2 [
+    change board2 i compute_next_state i    
     inc i
   ]
 ]
@@ -95,16 +105,18 @@ def H 10
   ]
 ]
 
-init_board
+init_board board
+init_board board2
 put_glider 2 2
-display_board
+display_board board
 
-;print get_alives W * 2 + 3
+while true [
+  step
+  swap_board
+  display_board board
+]
 
-step
-swap_board
-display_board
 
-step
-swap_board
-display_board
+
+
+
