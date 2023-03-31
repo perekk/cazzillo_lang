@@ -49,6 +49,8 @@ struct Point ['y Number]
 
 ['test :[] test]
 
+poke 10000 + 10 + 2 81 !<
+
 'stk stack
 prin "STACK:" print stk
 print either stk = 255 ["LOOKS GOOD TO ME!"] ["NO BUENO"]

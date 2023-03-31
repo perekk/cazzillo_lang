@@ -10,19 +10,83 @@
 	LDA #>HEAPSTART
 	STA HEAPTOP+1
 	JSR INITSTACK
+	; 9:4 NUMBER 1
+	LDA #0
+	STA STACKACCESS+1
+	LDA #1
+	STA STACKACCESS
+	; JSR PUSH16
+	; 9: 1 LIT_WORD a type: (number)=>void
+	; JSR POP16
+	LDA STACKACCESS
+	STA V_a + 0
+	LDA STACKACCESS + 1
+	STA V_a + 1
 	; Prelude for:
-; 1: 4 REF_BLOCK :[n Number return either n = 0 [69] [420]] type: ()=>addr
-	JMP AFTER_0
-CALL_0:
-	; reserve 2 on the stack for: n (number offset 0)
+	; 11: 1 BLOCK [f :[x Number return x + c]] type: ()=>void
+	; reserve 2 on the stack for: f (number offset 0)
 	TSX
 	TXA
 	SEC
 	SBC #2
 	TAX
 	TXS
-	; 1: 9 NUMBER Number type: ()=>number
-	; 1: 6 LIT_WORD n type: (number)=>void
+	; 11: 1 BLOCK [f :[x Number return x + c]] type: ()=>void
+	; release 2 on the stack
+	TSX
+	TXA
+	CLC
+	ADC #2
+	TAX
+	TXS
+	; 13: 7 WORD a type: ()=>number
+	LDA V_a
+	STA STACKACCESS
+	LDA V_a + 1
+	STA STACKACCESS + 1
+	; JSR PUSH16
+	; 13: 1 PRINT print type: (number)=>void
+	; JSR POP16
+	JSR PRINT_INT
+	LDA #13
+	JSR $FFD2
+	; Prelude for:
+	; 15: 7 REF_BLOCK :[x Number ret x + 1 y Number z Number ret ret + z ret] type: ()=>addr
+	JMP AFTER_0
+CALL_0:
+	; reserve 8 on the stack for: x (number offset 0), ret (number offset 2), y (number offset 4), z (number offset 6)
+	TSX
+	TXA
+	SEC
+	SBC #8
+	TAX
+	TXS
+	; 15: 43 NUMBER Number type: ()=>number
+	; 15: 40 LIT_WORD z type: (number)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #7
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 15: 33 NUMBER Number type: ()=>number
+	; 15: 30 LIT_WORD y type: (number)=>void
+	JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #5
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 15: 12 NUMBER Number type: ()=>number
+	; 15: 9 LIT_WORD x type: (number)=>void
 	JSR POP16
 	TSX
 	TXA
@@ -33,7 +97,7 @@ CALL_0:
 	STA $0100,X
 	LDA STACKACCESS + 1
 	STA $0101,X
-	; 2: 17 WORD n type: ()=>number
+	; 15: 24 WORD x type: ()=>number
 	TSX
 	TXA
 	CLC
@@ -44,80 +108,103 @@ CALL_0:
 	LDA $0101,X
 	STA STACKACCESS + 1
 	JSR PUSH16
-	; 2:21 NUMBER 0
+	; 15:28 NUMBER 1
 	LDA #0
 	STA STACKACCESS+1
-	LDA #0
+	LDA #1
 	STA STACKACCESS
 	JSR PUSH16
-; 2: 19 EQ = type: (number,number)=>boolean
+	; 15: 26 PLUS + type: (number,number)=>number
 	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal4
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BNE notequal4
-	LDA #01
-	JMP store4
-notequal4:
-	LDA #00
-store4:
+	CLC
+	LDA STACKBASE + 1,X
+	ADC STACKBASE + 3,X
 	STA STACKACCESS
-	LDA #00
-	STA STACKACCESS + 1
+	LDA STACKBASE + 2,X
+	ADC STACKBASE + 4,X
+	STA STACKACCESS+1
 	INX
 	INX
 	INX
 	INX
 	STX SP16
 	; JSR PUSH16
+	; 15: 19 LIT_WORD ret type: (number)=>void
 	; JSR POP16
-	LDA STACKACCESS
-	BNE trueblock9
-	JMP elseblock9 ; if all zero
-trueblock9:
-	; Prelude for:
-	; 2: 23 BLOCK [69] type: ()=>number
-	; no stack memory to reserve
-	; 2:24 NUMBER 69
-	LDA #0
-	STA STACKACCESS+1
-	LDA #69
-	STA STACKACCESS
-	JSR PUSH16
-	; 2: 23 BLOCK [69] type: ()=>number
-	; no stack memory to release
-	JMP endblock9
-elseblock9:
-	; Prelude for:
-	; 2: 28 BLOCK [420] type: ()=>number
-	; no stack memory to reserve
-	; 2:29 NUMBER 420
-	LDA #1
-	STA STACKACCESS+1
-	LDA #164
-	STA STACKACCESS
-	JSR PUSH16
-	; 2: 28 BLOCK [420] type: ()=>number
-	; no stack memory to release
-	; 2: 10 EITHER either type: (boolean,number,number)=>number
-endblock9:
-	; 2: 3 RETURN return type: (number)=>number
-	; release 2 on the stack
 	TSX
 	TXA
 	CLC
-	ADC #2
+	ADC #3
 	TAX
-	TXS
-	RTS
-; 1: 4 REF_BLOCK :[n Number return either n = 0 [69] [420]] type: ()=>addr
-	; release 2 on the stack
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 15: 55 WORD ret type: ()=>number
 	TSX
 	TXA
 	CLC
-	ADC #2
+	ADC #3
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 15: 61 WORD z type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #7
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 15: 59 PLUS + type: (number,number)=>number
+	LDX SP16
+	CLC
+	LDA STACKBASE + 1,X
+	ADC STACKBASE + 3,X
+	STA STACKACCESS
+	LDA STACKBASE + 2,X
+	ADC STACKBASE + 4,X
+	STA STACKACCESS+1
+	INX
+	INX
+	INX
+	INX
+	STX SP16
+	; JSR PUSH16
+	; 15: 50 SET_WORD ret type: (number)=>void
+	; JSR POP16
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	LDA STACKACCESS
+	STA $0100,X
+	LDA STACKACCESS + 1
+	STA $0101,X
+	; 15: 63 WORD ret type: ()=>number
+	TSX
+	TXA
+	CLC
+	ADC #3
+	TAX
+	LDA $0100,X
+	STA STACKACCESS
+	LDA $0101,X
+	STA STACKACCESS + 1
+	JSR PUSH16
+	; 15: 7 REF_BLOCK :[x Number ret x + 1 y Number z Number ret ret + z ret] type: ()=>addr
+	; release 8 on the stack
+	TSX
+	TXA
+	CLC
+	ADC #8
 	TAX
 	TXS
 	RTS
@@ -127,271 +214,39 @@ AFTER_0:
 	LDA #>CALL_0
 	STA STACKACCESS + 1
 	; JSR PUSH16
-	; 1: 1 LIT_WORD f type: (addr)=>void
+	; 15: 1 LIT_WORD test type: (addr)=>void
 	; JSR POP16
 	LDA STACKACCESS
-	STA V_f + 0
+	STA V_test + 0
 	LDA STACKACCESS + 1
-	STA V_f + 1
-	; Prelude for:
-; 5: 4 REF_BLOCK :[n Number if n = 0 [return 69] 420] type: ()=>addr
-	JMP AFTER_1
-CALL_1:
-	; reserve 2 on the stack for: n (number offset 0)
-	TSX
-	TXA
-	SEC
-	SBC #2
-	TAX
-	TXS
-	; 5: 9 NUMBER Number type: ()=>number
-	; 5: 6 LIT_WORD n type: (number)=>void
-	JSR POP16
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA STACKACCESS
-	STA $0100,X
-	LDA STACKACCESS + 1
-	STA $0101,X
-	; 6: 6 WORD n type: ()=>number
-	TSX
-	TXA
-	CLC
-	ADC #1
-	TAX
-	LDA $0100,X
-	STA STACKACCESS
-	LDA $0101,X
-	STA STACKACCESS + 1
-	JSR PUSH16
-	; 6:10 NUMBER 0
-	LDA #0
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-; 6: 8 EQ = type: (number,number)=>boolean
-	LDX SP16
-	LDA STACKBASE + 4,X
-	CMP STACKBASE + 2,X
-	BNE notequal17
-	LDA STACKBASE + 3,X
-	CMP STACKBASE + 1,X
-	BNE notequal17
-	LDA #01
-	JMP store17
-notequal17:
-	LDA #00
-store17:
-	STA STACKACCESS
-	LDA #00
-	STA STACKACCESS + 1
-	INX
-	INX
-	INX
-	INX
-	STX SP16
-	; JSR PUSH16
-	; JSR POP16
-	LDA STACKACCESS
-	BNE trueblock21
-	JMP endblock21 ; if all zero
-trueblock21:
-	; Prelude for:
-	; 6: 12 BLOCK [return 69] type: ()=>void
-	; no stack memory to reserve
-	; 6:20 NUMBER 69
-	LDA #0
-	STA STACKACCESS+1
-	LDA #69
-	STA STACKACCESS
-	JSR PUSH16
-	; 6: 13 RETURN return type: (number)=>number
-	; release 2 on the stack
-	TSX
-	TXA
-	CLC
-	ADC #2
-	TAX
-	TXS
-	RTS
-	; 6: 12 BLOCK [return 69] type: ()=>void
-	; no stack memory to release
-	; 6: 3 IF if type: (boolean,void)=>void
-endblock21:
-	; 7:3 NUMBER 420
-	LDA #1
-	STA STACKACCESS+1
-	LDA #164
-	STA STACKACCESS
-	JSR PUSH16
-; 5: 4 REF_BLOCK :[n Number if n = 0 [return 69] 420] type: ()=>addr
-	; release 2 on the stack
-	TSX
-	TXA
-	CLC
-	ADC #2
-	TAX
-	TXS
-	RTS
-AFTER_1:
-	LDA #<CALL_1
-	STA STACKACCESS
-	LDA #>CALL_1
-	STA STACKACCESS + 1
-	; JSR PUSH16
-	; 5: 1 LIT_WORD g type: (addr)=>void
-	; JSR POP16
-	LDA STACKACCESS
-	STA V_g + 0
-	LDA STACKACCESS + 1
-	STA V_g + 1
-	; 11: 7 STACK stack type: ()=>number
-	LDA SP16
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS+1
-	; JSR PUSH16
-	; 11: 1 PRINT print type: (number)=>void
-	; JSR POP16
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	; 12:6 STRING "SHOULD RETURN  69: "
-	LDA #0
-	STA STACKACCESS+1
-	LDA #19
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str0
-	STA STACKACCESS+1
-	LDA #<str0
-	STA STACKACCESS
-	JSR PUSH16
-	; 12: 1 PRIN prin type: (string)=>void
-	JSR PRINT_STRING
-	; 12:36 NUMBER 0
-	LDA #0
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 12: 34 WORD f type: ()=>number
-	LDA V_f
-	STA CALL_FUN_30 + 1
-	LDA V_f + 1
-	STA CALL_FUN_30 + 2
-CALL_FUN_30:
-	JSR $1111 ; will be overwritten
-	; 12: 28 PRINT print type: (number)=>void
-	JSR POP16
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	; 13:6 STRING "SHOULD RETURN 420: "
-	LDA #0
-	STA STACKACCESS+1
-	LDA #19
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str1
-	STA STACKACCESS+1
-	LDA #<str1
-	STA STACKACCESS
-	JSR PUSH16
-	; 13: 1 PRIN prin type: (string)=>void
-	JSR PRINT_STRING
-	; 13:36 NUMBER 1
+	STA V_test + 1
+	; 16:12 NUMBER 1
 	LDA #0
 	STA STACKACCESS+1
 	LDA #1
 	STA STACKACCESS
 	JSR PUSH16
-	; 13: 34 WORD f type: ()=>number
-	LDA V_f
-	STA CALL_FUN_35 + 1
-	LDA V_f + 1
-	STA CALL_FUN_35 + 2
-CALL_FUN_35:
+	; 16:14 NUMBER 2
+	LDA #0
+	STA STACKACCESS+1
+	LDA #2
+	STA STACKACCESS
+	JSR PUSH16
+	; 16:16 NUMBER 3
+	LDA #0
+	STA STACKACCESS+1
+	LDA #3
+	STA STACKACCESS
+	JSR PUSH16
+	; 16: 7 WORD test type: ()=>number
+	LDA V_test
+	STA CALL_FUN_25 + 1
+	LDA V_test + 1
+	STA CALL_FUN_25 + 2
+CALL_FUN_25:
 	JSR $1111 ; will be overwritten
-	; 13: 28 PRINT print type: (number)=>void
-	JSR POP16
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	; 14:6 STRING "SHOULD RETURN  69: "
-	LDA #0
-	STA STACKACCESS+1
-	LDA #19
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str2
-	STA STACKACCESS+1
-	LDA #<str2
-	STA STACKACCESS
-	JSR PUSH16
-	; 14: 1 PRIN prin type: (string)=>void
-	JSR PRINT_STRING
-	; 14:36 NUMBER 0
-	LDA #0
-	STA STACKACCESS+1
-	LDA #0
-	STA STACKACCESS
-	JSR PUSH16
-	; 14: 34 WORD g type: ()=>number
-	LDA V_g
-	STA CALL_FUN_40 + 1
-	LDA V_g + 1
-	STA CALL_FUN_40 + 2
-CALL_FUN_40:
-	JSR $1111 ; will be overwritten
-	; 14: 28 PRINT print type: (number)=>void
-	JSR POP16
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	; 15:6 STRING "SHOULD RETURN 420: "
-	LDA #0
-	STA STACKACCESS+1
-	LDA #19
-	STA STACKACCESS
-	JSR PUSH16
-	LDA #>str3
-	STA STACKACCESS+1
-	LDA #<str3
-	STA STACKACCESS
-	JSR PUSH16
-	; 15: 1 PRIN prin type: (string)=>void
-	JSR PRINT_STRING
-	; 15:36 NUMBER 1
-	LDA #0
-	STA STACKACCESS+1
-	LDA #1
-	STA STACKACCESS
-	JSR PUSH16
-	; 15: 34 WORD g type: ()=>number
-	LDA V_g
-	STA CALL_FUN_45 + 1
-	LDA V_g + 1
-	STA CALL_FUN_45 + 2
-CALL_FUN_45:
-	JSR $1111 ; will be overwritten
-	; 15: 28 PRINT print type: (number)=>void
-	JSR POP16
-	JSR PRINT_INT
-	LDA #13
-	JSR $FFD2
-	; 16: 7 STACK stack type: ()=>number
-	LDA SP16
-	STA STACKACCESS
-	LDA #0
-	STA STACKACCESS+1
-	; JSR PUSH16
 	; 16: 1 PRINT print type: (number)=>void
-	; JSR POP16
+	JSR POP16
 	JSR PRINT_INT
 	LDA #13
 	JSR $FFD2
@@ -810,10 +665,8 @@ NOCARRY:
 	STA STACKACCESS + 1
 	JSR PUSH16
 	RTS
-str0: BYTE 83,72,79,85,76,68,32,82,69,84,85,82,78,32,32,54,57,58,32
-str1: BYTE 83,72,79,85,76,68,32,82,69,84,85,82,78,32,52,50,48,58,32
-str2: BYTE 83,72,79,85,76,68,32,82,69,84,85,82,78,32,32,54,57,58,32
-str3: BYTE 83,72,79,85,76,68,32,82,69,84,85,82,78,32,52,50,48,58,32
-V_f DS 2
-V_g DS 2
+V_a DS 2
+V_c DS 2
+V_b DS 2
+V_test DS 2
 HEAPSTART:

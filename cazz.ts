@@ -92,6 +92,7 @@ type VarDefinitionBase = {
     priority?: number,
     out: ValueType,
     offset: number | undefined,
+    reference: Token[]
 }
 type VarDefinitionValue = VarDefinitionBase & {
     type: "value",
@@ -4869,12 +4870,15 @@ function createVocabulary(): Vocabulary {
     return voc;
 }
 
-function logError(loc: Location, msg: string) {    
+function logError(loc: Location, msg: string, warning: boolean = false) {    
     const line = loc.filename in sourceCode ? sourceCode[loc.filename].split("\n")[loc.row - 1] : `<cannot retrieve the source line in file ${loc.filename}>`;
     console.log(line);
-    console.log(" ".repeat(loc.col - 1) + `^ (row: ${loc.row} col: ${loc.col})`);    
-    console.error("(file://" + loc.filename + ":" + loc.row + ":" + loc.col + ") ERROR: " + msg);
-    //console.trace();
+    console.log(" ".repeat(loc.col - 1) + `^ (row: ${loc.row} col: ${loc.col})`);        
+    if (warning) {
+        console.warn(`(file://${loc.filename}:${loc.row}:${loc.col}) WARNING: ${msg}`);
+    } else {
+        console.error(`(file://${loc.filename}:${loc.row}:${loc.col}) ERROR: ${msg}`);
+    }
 }
 
 function exit(): never {
@@ -5552,6 +5556,7 @@ function setWordDefinition(token: Token, target: Target) {
             priority: child.priority,
             internalType: "addr",
             offset: undefined,
+            reference: []
         };
         token.context.size += sizeForValueType("addr", target);
     } else {
@@ -5569,6 +5574,7 @@ function setWordDefinition(token: Token, target: Target) {
             priority: child.priority,
             internalType: child.internalValueType ?? child.out,
             offset: undefined,
+            reference: []
         };        
         token.context.size += sizeForValueType(child.out, target);        
     }
@@ -5636,7 +5642,8 @@ function setStructDefinition(token: Token, target: Target) {
         internalType: "addr",
         offset: undefined,
         size,
-        elements
+        elements,
+        reference: []
     };
     token.context.varsDefinition[name] = structDef;
     console.log("created struct word " + name);
@@ -5666,6 +5673,8 @@ function parseBlock(ast: AST, target: Target, vocabulary: Vocabulary): AST {
             }
 
             const group = groupFunctionToken(ast, j, vocabulary);
+            if (token.position !== InstructionPosition.PREFIX) j = j - 1; // we already taken as child the token before this
+
             typeCheck(group, vocabulary);
             optimize(group, target);
             if (group.type === TokenType.LIT_WORD) {
@@ -5674,7 +5683,6 @@ function parseBlock(ast: AST, target: Target, vocabulary: Vocabulary): AST {
                 setStructDefinition(group, target);
             }
 
-            if (token.position !== InstructionPosition.PREFIX) j = j - 1; // we already taken as child the token before this
         }
     }
 
@@ -5689,7 +5697,7 @@ function getInsOutArity(token: Token): { ins: number, out: number } {
         if (varDef === undefined) {
             logError(token.loc, `unknown word '${token.txt}'`);
             exit();
-        }
+        }        
         return { ins: varDef.ins.length, out: varDef.out === "void" ? 0 : 1 };
     }
     if (token.type === TokenType.REF_BLOCK || token.type === TokenType.BLOCK || token.type === TokenType.RECORD) {
@@ -5749,7 +5757,6 @@ function groupByExpectedArityOutZero(sequence: AST, target: Target, vocabulary: 
         changeTokenTypeOnContext(vocabulary, token, sequence.slice(token.position === InstructionPosition.PREFIX ? j : j - 1));
         token = sequence[j];
         let { ins, out } = getInsOutArity(token);
-
         if (token.type === TokenType.REF_BLOCK || token.type === TokenType.BLOCK || token.type === TokenType.RECORD) {
             const childs = token.childs;
             groupByExpectedArityOutZero(childs, target, vocabulary);
@@ -5951,6 +5958,65 @@ function parse(vocabulary: Vocabulary, program: AST, target: Target, filename: s
     groupByExpectedArityOutZero(astProgram.childs, target, vocabulary);
     typeCheckBlock(astProgram);
     return astProgram;
+}
+
+function checkForUnusedCode(ast: Token) {
+    const setWordRefInContexts = (token: Token) => {
+        if ((token.type === TokenType.BLOCK || token.type === TokenType.REF_BLOCK || token.type === TokenType.PROG)) {
+            const context = token.context;
+            if (!context) {
+                logError(token.loc, `'${token.txt}' does not have a context`);
+                exit();
+            }
+            for (const [name, def] of Object.entries(context.varsDefinition)) {
+                def.reference = [];
+            }
+        }
+        for (let i = 0; i < token.childs.length; i++) {
+            const child = token.childs[i];
+            if (child.type === TokenType.WORD) {
+                const def = getWordDefinition(child.context, child.txt);
+                if (def === undefined) {
+                    logError(child.loc, `cannot find the definition of word '${child.txt}'`);
+                    exit();
+                }
+                def.reference.push(child);
+            }
+            setWordRefInContexts(child);
+        }
+    }
+    const removeUnusedWordDefinition = (token: Token) => {
+        let ret = 0;
+        // depth first
+        for (let i = token.childs.length - 1; i >= 0; i--) {
+            const child = token.childs[i];
+            ret += removeUnusedWordDefinition(child);
+            if (child.type === TokenType.LIT_WORD) {
+                const def = getWordDefinition(child.context, child.txt);
+                if (def === undefined) {
+                    logError(child.loc, `cannot find the definition of word '${child.txt}'`);
+                    exit();
+                }
+                if (def.reference.length === 0) {
+                    if (isTypeToken(child.childs[0])) {
+                        logError(child.loc, `unused parameter '${child.txt}'`, true);
+                    } else {                        
+                        logError(child.loc, `removed definition of unused word '${child.txt}'`, true);
+                        token.childs.splice(i, 1);
+                        ret++;
+                    }
+
+                }
+            }
+        }
+        return ret;
+    }
+    let tryToRemove = true;
+    while (tryToRemove) {
+        setWordRefInContexts(ast);
+        const numRemoved = removeUnusedWordDefinition(ast);
+        tryToRemove = numRemoved > 0;
+    }
 }
 
 function getFunctionIndex(): number {
@@ -6281,11 +6347,10 @@ async function main() {
     const vocabulary = createVocabulary();
     const program = await tokenizer(filename, vocabulary);
     preprocess(program);
-    //dumpProgram(program);
 
     const astProgram = parse(vocabulary, program, target, filename);
     dumpAst(astProgram);
-    //exit();
+    checkForUnusedCode(astProgram);
 
     const asm = compile(vocabulary, astProgram, target);
     if (target === "c64") {

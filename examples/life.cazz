@@ -44,6 +44,7 @@ def DEAD_CHAR [32 !<]
 
 'get_num_alive_old :['index Number
     'n 0 !<
+    'k 9
     index: index - 41
     if LIFE_CHAR = peek index [inc n]
     inc index

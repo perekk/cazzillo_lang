@@ -1,0 +1,16 @@
+def HEIGHT 10
+def WIDTH 10
+def CELL_COUNT [HEIGHT * WIDTH]
+def SCREEN_START 1024
+def BUFFER_START 10000
+def LIFE_CHAR [81 !<]
+def DEAD_CHAR [32 !<]
+
+'a 1
+'c 2
+['f  :['x Number return x + c]]
+'b c + 1
+print a
+
+'test :['x Number 'ret x + 1 'y Number 'z Number ret: ret + z ret]
+print test 1 2 3
