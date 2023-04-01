@@ -114,6 +114,7 @@ while true [
   step
   swap_board
   display_board board
+  nanosleep 200
 ]
 
 

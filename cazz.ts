@@ -55,6 +55,8 @@ enum TokenType {
     CHANGE,
     INCLUDE,
     RETURN,
+    SYSCALL3,
+    DROP,
     TOKEN_COUNT,
 }
 enum InstructionPosition {
@@ -198,7 +200,7 @@ function sizeForValueType(t: ValueType, target: Target): number {
 
 function humanReadableToken(t: TokenType | undefined): string {
     if (t === undefined) return "undefined";
-    console.assert(TokenType.TOKEN_COUNT === 53, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 55, "Exaustive token types count");
     switch (t) {
         case TokenType.LITERAL: return "LITERAL";
         case TokenType.PLUS: return "PLUS";
@@ -253,6 +255,8 @@ function humanReadableToken(t: TokenType | undefined): string {
         case TokenType.CHANGE: return "CHANGE";
         case TokenType.INCLUDE: return "INCLUDE";
         case TokenType.RETURN: return "RETURN";
+        case TokenType.SYSCALL3: return "SYSCALL";
+        case TokenType.DROP: return "DROP";
         default:
             throw new Error(`Token Type ${t} not defined`);
     }
@@ -1064,7 +1068,7 @@ function getAsmForGetWordGlobal(token: Token, varType: ValueType, asmVarName: st
                     ]
                 }
                 return [
-                    `mov rax, [${asmVarName}]`,
+                    `mov rax, ${asmVarName}`,
                     `push rax`,
                 ];
 
@@ -1385,7 +1389,7 @@ function getAsmPrintTopOfStack(type: ValueType, newLine: boolean, target: Target
 }
 
 function createVocabulary(): Vocabulary {
-    console.assert(TokenType.TOKEN_COUNT === 53, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 55, "Exaustive token types count");
     const voc: Vocabulary = {};
     voc[TokenType.PRINT] = {
         txt: "print",
@@ -3011,15 +3015,23 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: () => ["number"],
         out: () => "byte",
-        generateAsm: () => {
-            return [
-                "JSR POP16",
-                "LDY #0",
-                "LDA (STACKACCESS),Y",
-                "STA STACKACCESS",
-                "STY STACKACCESS+1",
-                "JSR PUSH16"
-            ]
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return [
+                    "JSR POP16",
+                    "LDY #0",
+                    "LDA (STACKACCESS),Y",
+                    "STA STACKACCESS",
+                    "STY STACKACCESS+1",
+                    "JSR PUSH16"
+                ]
+            } else {
+                return [
+                    "pop rbx",
+                    "mov rax, [rbx]",
+                    "push rax"
+                ]
+            }
         }
     };        
     voc[TokenType.CAST_BYTE] = {
@@ -4252,7 +4264,7 @@ function createVocabulary(): Vocabulary {
         expectedArityOut: 0,
         grabFromStack: false,
         position: InstructionPosition.INFIX,
-        priority: 120,
+        priority: 10,
         userFunction: false,
         ins: token => {
             assertChildNumber(token, 3);
@@ -4860,6 +4872,68 @@ function createVocabulary(): Vocabulary {
                     "mov rax, rsp",
                     "mov rsp, [ret_stack_rsp]",
                     "ret",
+                ]
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        }
+    };
+    voc[TokenType.SYSCALL3] = {
+        txt: "syscall3",
+        expectedArity: 3,
+        expectedArityOut: 1,
+        grabFromStack: false,
+        position: InstructionPosition.PREFIX,
+        priority: 5,
+        userFunction: false,
+        ins: () => ["number", "number", "number"],
+        out: () => "number",
+        generateAsm: (token, target) => {
+            if (token.context === undefined) {
+                logError(token.loc, `can't find context for ${token.txt}, compiler error`);
+                exit();
+            }
+            if (token.context.parent === undefined) return []; // the global context
+
+            if (target === "c64") {
+                logError(token.loc, `'${token.txt}' is not implemented in C64`);
+                exit();
+            }
+            if (target === "freebsd") {
+                return [
+                    "pop rsi",
+                    "pop rdi",
+                    "pop rax",
+                    "syscall",
+                    "push rax"
+                ]
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        }
+    };
+    voc[TokenType.DROP] = {
+        txt: "drop",
+        expectedArity: 1,
+        expectedArityOut: 0,
+        grabFromStack: false,
+        position: InstructionPosition.PREFIX,
+        priority: 5,
+        userFunction: false,
+        ins: (token) => {
+            assertChildNumber(token, 1);
+            return [getReturnTypeOfAWord(token.childs[0])];
+        },
+        out: () => "void",
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return [
+                    "JSR POP16",
+                ]
+            }
+            if (target === "freebsd") {
+                return [
+                    "pop rax",
                 ]
             }
             console.log(`target system '${target}' unknown`);
@@ -5991,7 +6065,7 @@ function checkForUnusedCode(ast: Token) {
         for (let i = token.childs.length - 1; i >= 0; i--) {
             const child = token.childs[i];
             ret += removeUnusedWordDefinition(child);
-            if (child.type === TokenType.LIT_WORD) {
+            if (child.type === TokenType.LIT_WORD && token.type !== TokenType.RECORD) {
                 const def = getWordDefinition(child.context, child.txt);
                 if (def === undefined) {
                     logError(child.loc, `cannot find the definition of word '${child.txt}'`);
@@ -6390,6 +6464,12 @@ async function main() {
         }
 
         Deno.run({ cmd: ["./" + basename] });
+        const runStatus = await nasm.status();
+        if (runStatus.success === false) {
+            console.log(`ERROR: ${basename} returned an error ${runStatus.code}`);
+            exit();
+        }
+
     }
 
 }
