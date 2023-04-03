@@ -1,4 +1,4 @@
 include "lib/std.cazz"
 
 nanosleep 800
-print "DONE!"
+print "FINITO!"

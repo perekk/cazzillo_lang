@@ -29,42 +29,17 @@ def H 10
 
 'display_board :['b array Number
   'i 0
-  while i < W * H [        
-    ;if i % W = 0 [prin i / W prin ": "]
-    prin either b at [i] = 0 ["."] ["O"]
-    ;prin b at i
+  while i < W * H [            
+    prin either b at [i] = 0 ["."] ["O"]    
     inc i
     if i % W = 0 [print ""]
   ]
   emit 27 !< prin "[" prin H prin "A"
   emit 27 !< prin "[" prin W prin "D"
- 
-  ;print "--------------------"
 ]
 
 'get_alives :['i Number
-  'ret 0
-  ; prin "BASE:" print i
-  ; prin board at [i - W - 1]
-  ; prin board at [i - W - 0]
-  ; print board at [i - W + 1]
-  ; prin board at [i - 0 - 1]
-  ; prin "X"
-  ; print board at [i - 0 + 1]
-  ; prin board at [i + W - 1]
-  ; prin board at [i + W - 0]
-  ; print board at [i + W + 1]
-
-  ; print [i - W - 1]
-  ; print [i - W - 0]
-  ; print [i - W + 1]
-  ; print [i - 0 - 1]  
-  ; print [i - 0 + 1]
-  ; print [i + W - 1]
-  ; print [i + W - 0]
-  ; print [i + W + 1]
-
-
+  'ret 0  
   if board at [i - W - 1] = 1 [inc ret]
   if board at [i - W - 0] = 1 [inc ret]
   if board at [i - W + 1] = 1 [inc ret]
@@ -108,6 +83,7 @@ def H 10
 init_board board
 init_board board2
 put_glider 2 2
+put_glider 12 0
 display_board board
 
 while true [

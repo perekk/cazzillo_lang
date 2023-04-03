@@ -56,7 +56,7 @@ enum TokenType {
     INCLUDE,
     RETURN,
     SYSCALL3,
-    DROP,
+    DROP,    
     TOKEN_COUNT,
 }
 enum InstructionPosition {
@@ -256,7 +256,7 @@ function humanReadableToken(t: TokenType | undefined): string {
         case TokenType.INCLUDE: return "INCLUDE";
         case TokenType.RETURN: return "RETURN";
         case TokenType.SYSCALL3: return "SYSCALL";
-        case TokenType.DROP: return "DROP";
+        case TokenType.DROP: return "DROP";        
         default:
             throw new Error(`Token Type ${t} not defined`);
     }
@@ -1068,7 +1068,8 @@ function getAsmForGetWordGlobal(token: Token, varType: ValueType, asmVarName: st
                     ]
                 }
                 return [
-                    `mov rax, ${asmVarName}`,
+                    //`mov rax, ${asmVarName}`,
+                    `mov rax, [${asmVarName}]`,
                     `push rax`,
                 ];
 
@@ -3126,22 +3127,40 @@ function createVocabulary(): Vocabulary {
         userFunction: false,
         ins: token => {
             assertChildNumber(token, 1);
-            if (typeof token.childs[0].out === "string" && token.childs[0].out !== "string") {
-                logError(token.childs[0].loc, `the return type of '${token.childs[0].txt}' is ${humanReadableType(token.childs[0].out)} but it should be a struct type or a string`);
-                exit();
-            }
-            if (token.childs[0].out === undefined) {
+            const childReturnType = getReturnTypeOfAWord(token.childs[0]);
+            if (childReturnType === undefined) {
                 logError(token.childs[0].loc, `the return type of '${token.childs[0].txt}' is undefined`);
                 exit();
             }
-            return [token.childs[0].out];
+
+            if (typeof childReturnType === "string" && childReturnType !== "string" && childReturnType !== "addr") {
+                logError(token.childs[0].loc, `the return type of '${token.childs[0].txt}' is ${humanReadableType(token.childs[0].out)} but it should be a struct type or a string`);
+                exit();
+            }
+            return [childReturnType];
         },
         out: () => "number",
         generateAsm: (token, target) => {
             assertChildNumber(token, 1);
-            const child = token.childs[0];
+            const childReturnType = getReturnTypeOfAWord(token.childs[0]);
+            if (typeof childReturnType === "string" && childReturnType !== "string") {
+                logError(token.childs[0].loc, `the return type of '${token.childs[0].txt}' is ${humanReadableType(token.childs[0].out)} but it should be a struct type or a string`);
+                exit();
+            }                        
             if (target === "c64") {
-                if (child.out === "string") {
+                if (childReturnType === "string") {
+                    return [
+                        "LDX SP16",
+                        "LDA STACKBASE + 1,X",
+                        "STA STACKBASE + 3,X",
+                        "INX",
+                        "LDA STACKBASE + 1,X",
+                        "STA STACKBASE + 3,X",
+                        "INX",
+                        "STX SP16",
+                    ];
+                }
+                if (childReturnType[0] === "array") {
                     return [
                         "LDX SP16",
                         "LDA STACKBASE + 1,X",
@@ -3156,13 +3175,20 @@ function createVocabulary(): Vocabulary {
                 return [];
             }
             if (target === "freebsd") {
-                if (child.out === "string") {
+                if (childReturnType === "string") {
                     return [
                         "pop rax", // address
                         "pop rbx", // get rid of the len
                         "push rax",
                     ];
                 }
+                if (childReturnType[0] === "array") {
+                    return [
+                        "pop rax", // address
+                        "pop rbx", // get rid of the len
+                        "push rax",
+                    ];
+                }                
                 return [];
             }
             console.log(`target system '${target}' unknown`);
@@ -4884,7 +4910,7 @@ function createVocabulary(): Vocabulary {
         expectedArityOut: 1,
         grabFromStack: false,
         position: InstructionPosition.PREFIX,
-        priority: 5,
+        priority: 10,
         userFunction: false,
         ins: () => ["number", "number", "number"],
         out: () => "number",
@@ -5179,7 +5205,7 @@ function preprocess(program: AST): AST {
 
 }
 
-function groupFunctionToken(ast: AST, index: number, vocabulary: Vocabulary): Token {
+function groupFunctionToken(ast: AST, index: number, vocabulary: Vocabulary, target: Target): Token {
     const functionElement = ast[index];    
     const functionPosition = getInstructionPosition(functionElement);
     const arity = getArity(functionElement, vocabulary);
@@ -5201,7 +5227,7 @@ function groupFunctionToken(ast: AST, index: number, vocabulary: Vocabulary): To
 
         const lastParameterArity = getArity(lastChild, vocabulary);
         if (lastParameterArity > 0 && lastChild.childs.length !== lastParameterArity) {
-            groupFunctionToken(ast, index + arity - 1, vocabulary);
+            groupFunctionToken(ast, index + arity - 1, vocabulary, target);
         }
         if (childs.length !== arity) {
             logError(functionElement.loc, `the operator ${humanReadableFunction(functionElement)} expects ${arity} parameters, but got only ${childs.length}!`);
@@ -5226,7 +5252,7 @@ function groupFunctionToken(ast: AST, index: number, vocabulary: Vocabulary): To
             }
             const lastParameterArity = getArity(lastChild, vocabulary);
             if (lastParameterArity > 0 && lastChild.childs.length !== lastParameterArity) {
-                groupFunctionToken(ast, index + arity, vocabulary);
+                groupFunctionToken(ast, index + arity, vocabulary, target);
             }
         }
 
@@ -5262,7 +5288,17 @@ function groupFunctionToken(ast: AST, index: number, vocabulary: Vocabulary): To
     if (functionElement.out === undefined) {
         logError(functionElement.loc, `'cannot determine the return type for function ${functionElement.txt}'`);
         exit();
-    }    
+    }
+    typeCheck(functionElement, vocabulary);
+    optimize(functionElement, target);
+    if (functionElement.type === TokenType.LIT_WORD) {
+        setWordDefinition(functionElement, target);
+    } else if (functionElement.type === TokenType.STRUCT) {
+        setStructDefinition(functionElement, target);
+    }
+
+
+
     return functionElement;
 }
 
@@ -5746,16 +5782,9 @@ function parseBlock(ast: AST, target: Target, vocabulary: Vocabulary): AST {
                 exit();
             }
 
-            const group = groupFunctionToken(ast, j, vocabulary);
+            const group = groupFunctionToken(ast, j, vocabulary, target);
             if (token.position !== InstructionPosition.PREFIX) j = j - 1; // we already taken as child the token before this
 
-            typeCheck(group, vocabulary);
-            optimize(group, target);
-            if (group.type === TokenType.LIT_WORD) {
-                setWordDefinition(group, target);
-            } else if (group.type === TokenType.STRUCT) {
-                setStructDefinition(group, target);
-            }
 
         }
     }
@@ -6387,7 +6416,8 @@ function dumpContext(context: Context | undefined) {
 function usage() {
     console.log("USAGE:");
     console.log("    deno run --allow-all cazz.ts <target> <filename>");
-    console.log("        <target> should be c64 or freebsd");
+    console.log("        <target> should be 'c64' or 'freebsd'");
+    console.log("        <action> 'run' or 'compile'");
     console.log("        <filename> must have .cazz extension");
 }
 
@@ -6399,19 +6429,25 @@ let sourceCode: Record<string, string> = {};
 
 async function main() {
 
-    if (Deno.args.length !== 2) {
+    if (Deno.args.length !== 3) {
         usage();
         exit();
     }
 
     if (Deno.args[0] !== "c64" && Deno.args[0] !== "freebsd") {
-        console.error(`ERROR: in the first parametere you need to specify the target 'c64' or 'freebsd': ${Deno.args[0]} is not a valid target`);
+        console.error(`ERROR: in the first parameter you need to specify the target 'c64' or 'freebsd': ${Deno.args[0]} is not a valid target`);
         usage();
         exit();
     }
 
+    if (Deno.args[1] !== "run" && Deno.args[1] !== "compile") {
+        console.error(`ERROR: in the second parameter you need to specify the action 'run' or 'compile': ${Deno.args[1]} is not a valid target`);
+        usage();
+        exit();
+    }
     const target: Target = Deno.args[0] as Target;
-    const argFilename = Deno.args[1];
+    const action = Deno.args[1];
+    const argFilename = Deno.args[2];
 
     const basename = argFilename.substring(0, argFilename.lastIndexOf('.')) || argFilename;
     const filename = absoluteFileName(basename + ".cazz");
@@ -6441,9 +6477,10 @@ async function main() {
             console.log("ERROR: dasm returned an error " + dasmStatus.code);
             exit();
         }
-
-        const emu = Deno.run({ opt: { stdout: "null" }, cmd: ["x64", "-silent", basename + ".prg"] });
-        const emuStatus = await emu.status();
+        if (action === "run") {
+            const emu = Deno.run({ opt: { stdout: "null" }, cmd: ["x64", "-silent", basename + ".prg"] });
+            const emuStatus = await emu.status();
+        }
         console.log("Done");
     }
     if (target === "freebsd") {
@@ -6461,17 +6498,16 @@ async function main() {
         if (ldStatus.success === false) {
             console.log("ERROR: ld returned an error " + ldStatus.code);
             exit();
+        }   
+        if (action === "run") {
+            Deno.run({ cmd: ["./" + basename] });
+            const runStatus = await nasm.status();
+            if (runStatus.success === false) {
+                console.log(`ERROR: ${basename} returned an error ${runStatus.code}`);
+                exit();
+            }
         }
-
-        Deno.run({ cmd: ["./" + basename] });
-        const runStatus = await nasm.status();
-        if (runStatus.success === false) {
-            console.log(`ERROR: ${basename} returned an error ${runStatus.code}`);
-            exit();
-        }
-
     }
-
 }
 
 await main();

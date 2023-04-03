@@ -1,14 +1,6 @@
 def INCLUDED? "YESS"
 def SYS_nanosleep	240
 
-'nanosleep :['msec Number  
-  struct timespec [
-    'tv_sec Number
-    'tv_nsec Number
-  ]
-  'wait_time new timespec [
-    'tv_sec 0
-    'tv_nsec 1000000 * msec
-  ]
-  drop syscall3 SYS_nanosleep wait_time !addr 0
+'nanosleep :['msec Number
+  drop syscall3 SYS_nanosleep [array [0 1000000 * msec]] !addr 0
 ]
