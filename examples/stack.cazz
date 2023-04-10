@@ -12,5 +12,6 @@ while i < 100 [
 i: 0 
 while [is_empty stk] ! [
   prin i prin "): " print pop stk
+  nanosleep 100
   inc i
 ]

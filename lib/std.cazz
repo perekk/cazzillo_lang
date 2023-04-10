@@ -4,3 +4,25 @@ def SYS_nanosleep	240
 'nanosleep :['msec Number
   drop syscall3 SYS_nanosleep [array [0 1000000 * msec]] !addr 0
 ]
+
+
+; STACK
+struct Stack [
+  'data array Number
+  'tos Number
+]
+
+'push :['s Stack 'n Number
+  change s -> data s -> tos n  
+  s -> tos: s -> tos + 1  
+]
+
+'pop :['s Stack 
+  s -> tos: s -> tos - 1
+  s -> data at s -> tos    
+]
+
+'is_empty :['s Stack 
+  s -> tos = 0
+]
+

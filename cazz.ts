@@ -1,5 +1,6 @@
 const RET_STACK_CAPACITY = 640 * 1024;
 const MEM_CAPACITY = 640 * 1024;
+const NO_PEEPHOLE_OPT_DIRECTIVE = ";no-peephole-opt";
 
 enum TokenType {
     LITERAL,
@@ -112,7 +113,7 @@ type VarDefinitionStruct = VarDefinitionBase & {
     ins: [],
     internalType: "addr",
     size: number,
-    elements: Array<{ name: string, size: number, offset: number, type: ValueType }>,
+    elements: Array<{ name: string, size: number, offset: number, def: VarDefinitionSpec }>,
     position: InstructionPosition.PREFIX,
 }
 type VarDefinitionSpec = VarDefinitionValue | VarDefinitionFunction | VarDefinitionStruct;
@@ -383,6 +384,7 @@ function getAsmForSetWordPointedByTOS(varType: ValueType, offset: number, target
             case "number":
             case "addr":
                 return [
+                    NO_PEEPHOLE_OPT_DIRECTIVE,
                     `JSR POP16`,
                     "LDA STACKBASE + 1,X",
                     "STA AUX",
@@ -1457,8 +1459,8 @@ function createVocabulary(): Vocabulary {
                         ])
                     }
                     ret = ret.concat(["JSR PUSH16"]);
-                    ret = ret.concat(getAsmForGetWordPointedByTOS(element.type, 0, target));
-                    ret = ret.concat(getAsmPrintTopOfStack(element.type, true, target));                    
+                    ret = ret.concat(getAsmForGetWordPointedByTOS(element.def.internalType, 0, target));
+                    ret = ret.concat(getAsmPrintTopOfStack(element.def.internalType, true, target));
                 }                
                 ret = ret.concat(["JSR POP16"]);
                 return ret;
@@ -1478,8 +1480,8 @@ function createVocabulary(): Vocabulary {
                         ])
                     }
                     ret = ret.concat(["push rax"]);
-                    ret = ret.concat(getAsmForGetWordPointedByTOS(element.type, 0, target));
-                    ret = ret.concat(getAsmPrintTopOfStack(element.type, true, target));
+                    ret = ret.concat(getAsmForGetWordPointedByTOS(element.def.internalType, 0, target));
+                    ret = ret.concat(getAsmPrintTopOfStack(element.def.internalType, true, target));
                 }
                 ret = ret.concat(["pop rax"]);
                 return ret;
@@ -1555,8 +1557,8 @@ function createVocabulary(): Vocabulary {
                         ])
                     }
                     ret = ret.concat(["JSR PUSH16"]);
-                    ret = ret.concat(getAsmForGetWordPointedByTOS(element.type, 0, target));
-                    ret = ret.concat(getAsmPrintTopOfStack(element.type, false, target));
+                    ret = ret.concat(getAsmForGetWordPointedByTOS(element.def.internalType, 0, target));
+                    ret = ret.concat(getAsmPrintTopOfStack(element.def.internalType, false, target));
                 }
                 ret = ret.concat("JSR POP16");
                 return ret;
@@ -1578,8 +1580,8 @@ function createVocabulary(): Vocabulary {
                         ]);
                     }
                     ret = ret.concat(["push rax"]);
-                    ret = ret.concat(getAsmForGetWordPointedByTOS(element.type, 0, target));
-                    ret = ret.concat(getAsmPrintTopOfStack(element.type, false, target));
+                    ret = ret.concat(getAsmForGetWordPointedByTOS(element.def.internalType, 0, target));
+                    ret = ret.concat(getAsmPrintTopOfStack(element.def.internalType, false, target));
                 }
                 ret = ret.concat("pop rax");
                 return ret;
@@ -4156,7 +4158,7 @@ function createVocabulary(): Vocabulary {
         expectedArityOut: 1,
         grabFromStack: false,
         position: InstructionPosition.INFIX,
-        priority: 120,
+        priority: 130,
         userFunction: false,
         ins: token => {
             assertChildNumber(token, 2);
@@ -4194,7 +4196,7 @@ function createVocabulary(): Vocabulary {
             let type;
             for (let i = 0; i < structDef.elements.length; i++) {
                 if (structDef.elements[i].name === componentName) {
-                    type = structDef.elements[i].type;
+                    type = structDef.elements[i].def;
                     break;
                 }
             }
@@ -4203,7 +4205,7 @@ function createVocabulary(): Vocabulary {
                 exit();
             }
 
-            return type;
+            return type.internalType;
         },
         generateChildPreludeAsm: (token, n) => {            
             if (n === 1) return undefined;
@@ -4243,7 +4245,7 @@ function createVocabulary(): Vocabulary {
             for (let i = 0; i < structDef.elements.length; i++) {
                 if (structDef.elements[i].name === componentName) {
                     offset = structDef.elements[i].offset;
-                    type = structDef.elements[i].type;
+                    type = structDef.elements[i].def;
                     break;
                 }
             }
@@ -4261,14 +4263,14 @@ function createVocabulary(): Vocabulary {
                     "LDA STACKBASE + 2,X",
                     `ADC #0`,
                     "STA STACKBASE + 2,X",
-                ].concat(getAsmForGetWordPointedByTOS(type, 0, target));
+                ].concat(getAsmForGetWordPointedByTOS(type.internalType, 0, target));
             }
             if (target === "freebsd") {
                 return [
                     "pop rax",
                     `add rax, ${offset}`,
                     "push rax",
-                ].concat(getAsmForGetWordPointedByTOS(type, 0, target));
+                ].concat(getAsmForGetWordPointedByTOS(type.internalType, 0, target));
             }
             console.log(`target system '${target}' unknown`);
             exit();
@@ -4316,7 +4318,7 @@ function createVocabulary(): Vocabulary {
             let type;
             for (let i = 0; i < structDef.elements.length; i++) {
                 if (structDef.elements[i].name === componentName) {
-                    type = structDef.elements[i].type;
+                    type = structDef.elements[i].def;
                     break;
                 }
             }
@@ -4325,7 +4327,7 @@ function createVocabulary(): Vocabulary {
                 exit();
             }
 
-            return [["usertype", structName], "symbol", type];
+            return [["usertype", structName], "symbol", type.internalType];
         },
         out: () => {
             return "void";
@@ -4363,7 +4365,7 @@ function createVocabulary(): Vocabulary {
             for (let i = 0; i < structDef.elements.length; i++) {
                 if (structDef.elements[i].name === componentName) {
                     offset = structDef.elements[i].offset;
-                    type = structDef.elements[i].type;
+                    type = structDef.elements[i].def;
                     break;
                 }
             }
@@ -4371,7 +4373,7 @@ function createVocabulary(): Vocabulary {
                 logError(componentChild.loc, `'${componentChild.txt}' is not part of ${structChild.txt}`);
                 exit();
             }
-            return getAsmForSetWordPointedByTOS(type, offset, target);
+            return getAsmForSetWordPointedByTOS(type.internalType, offset, target);
         }
     };
     voc[TokenType.NEW] = {
@@ -4763,7 +4765,7 @@ function createVocabulary(): Vocabulary {
         expectedArityOut: 1,
         grabFromStack: false,
         position: InstructionPosition.INFIX,
-        priority: 130,
+        priority: 120,
         userFunction: false,
         ins: token => {
             assertChildNumber(token, 2);
@@ -5582,35 +5584,40 @@ function typeCheck(token: Token, vocabulary: Vocabulary) {
         const childName = token.childs[0];
         const varDef = getWordDefinition(token.context, childName.txt);
         if (varDef?.type === "struct") {
-            varDef.elements;
+            const varDefElements = varDef.elements;
+
             const childRecord = token.childs[1];
             if (childRecord.context === undefined) {
                 logError(childRecord.loc, `'${childRecord.txt}' does not have a context`);
                 exit();
             }
-            const recordEntries = Object.entries(childRecord.context.varsDefinition).map(([name, varDef]) => { return { name, type: varDef.out, token: varDef.token } });
 
-            if (varDef.elements.length < recordEntries.length) {
-                const unwantedWord = recordEntries[varDef.elements.length];
+            const recordEntries = Object.entries(childRecord.context.varsDefinition)
+                .map(([name, varDef]) => {
+                    return { name, type: varDef.out, token: varDef.token }
+                });
+
+            if (varDefElements.length < recordEntries.length) {
+                const unwantedWord = recordEntries[varDefElements.length];
                 logError(unwantedWord.token.loc, `'${unwantedWord.name}' is not part of '${token.txt}' struct`);
                 exit();
             }
 
-            if (varDef.elements.length > recordEntries.length) {
-                const neededWord = varDef.elements[recordEntries.length];
-                logError(childRecord.loc, `'${neededWord.name}' should be in '${token.txt}' struct`);
+            if (varDefElements.length > recordEntries.length) {
+                const neededWord = varDefElements[recordEntries.length];
+                logError(childRecord.loc, `'${neededWord.name}' should be in '${token.txt}' struct`);                
                 exit();
             }
 
-            for (let i = 0; i < varDef.elements.length; i++) {
-                const structDef = varDef.elements[i];
+            for (let i = 0; i < varDefElements.length; i++) {
+                const structDef = varDefElements[i];
                 const recordDef = recordEntries[i];
                 if (structDef.name !== recordDef.name) {
                     logError(recordDef.token.loc, `the word at position ${i + 1} should be '${structDef.name}' but it is '${recordDef.name}'`);
                     exit();
                 }
-                if (!areTypesEqual(structDef.type, recordDef.type)) {
-                    logError(recordDef.token.loc, `'${recordDef.name}' should be ${humanReadableType(structDef.type)} but it is ${humanReadableType(recordDef.type)}`);
+                if (!areTypesEqual(structDef.def.internalType, recordDef.type)) {
+                    logError(recordDef.token.loc, `'${recordDef.name}' should be ${humanReadableType(structDef.def.internalType)} but it is ${humanReadableType(recordDef.type)}`);
                     exit();
                 }
             }
@@ -5737,7 +5744,7 @@ function setStructDefinition(token: Token, target: Target) {
             name,
             offset: size,
             size: currSize,
-            type: varDef.internalType,
+            def: varDef,
         });
         size += currSize;
     }
@@ -6315,6 +6322,7 @@ function optimizeAsm(asm: Assembly, target: Target) {
     let lastInstructionIndex = -1;
     for (let i = 0; i < asm.length; i++) {
         const instruction = asm[i];
+        if (instruction === NO_PEEPHOLE_OPT_DIRECTIVE) lastInstruction = "";
         switch (target) {
             case "c64": {
                 if (instruction[0] === ";") continue;
@@ -6322,7 +6330,6 @@ function optimizeAsm(asm: Assembly, target: Target) {
                     asm[lastInstructionIndex] = "; " + asm[lastInstructionIndex];
                     asm[i] = "; " + asm[i];
                 }
-
                 break;
             }
             case "freebsd": {
@@ -6334,7 +6341,7 @@ function optimizeAsm(asm: Assembly, target: Target) {
                 break;
             }
         }
-        lastInstruction = instruction;
+        lastInstruction = instruction;        
         lastInstructionIndex = i;
     }
 }
@@ -6471,7 +6478,9 @@ async function main() {
     await Deno.writeTextFile(basename + ".asm", asm.join("\n"));
 
     if (target === "c64") {
-        const dasm = Deno.run({ cmd: ["dasm", basename + ".asm", "-o" + basename + ".prg", "-s" + basename + ".sym"] });
+        const cmd = ["dasm", basename + ".asm", "-o" + basename + ".prg", "-s" + basename + ".sym"];
+        console.log(cmd.join(" "));
+        const dasm = Deno.run({ cmd });
         const dasmStatus = await dasm.status();
         if (dasmStatus.success === false) {
             console.log("ERROR: dasm returned an error " + dasmStatus.code);
