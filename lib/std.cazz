@@ -1,10 +1,26 @@
 def INCLUDED? "YESS"
 def SYS_nanosleep	240
 
+; LOOP
+def loop [( 'i 0 while ( i < ]
+def do [ ) ( ]
+def end [ inc i ) ) ]
+
+; 'nanosleep :['msec Number  
+;   struct timespec [
+;     'tv_sec Number
+;     'tv_nsec Number
+;   ]
+;   'wait_time new timespec [
+;     'tv_sec 0
+;     'tv_nsec 1000000 * msec
+;   ]
+;   drop syscall3 SYS_nanosleep wait_time !addr 0
+; ]
+
 'nanosleep :['msec Number
   drop syscall3 SYS_nanosleep [array [0 1000000 * msec]] !addr 0
 ]
-
 
 ; STACK
 struct Stack [
@@ -13,16 +29,21 @@ struct Stack [
 ]
 
 'push :['s Stack 'n Number
-  change s -> data s -> tos n  
-  s -> tos: s -> tos + 1  
+  change s -> data s -> tos n
+  s -> tos: s -> tos + 1
 ]
 
-'pop :['s Stack 
+'pop :['s Stack
   s -> tos: s -> tos - 1
-  s -> data at s -> tos    
+  s -> data at s -> tos
 ]
 
-'is_empty :['s Stack 
+'is_empty :['s Stack
   s -> tos = 0
 ]
 
+'new_stack :['N Number
+  new Stack [
+      'data array N Number 'tos 0
+  ]
+]

@@ -2293,26 +2293,40 @@ function createVocabulary(): Vocabulary {
             return ["bool", "bool"];
         },
         out: () => "bool",
-        generateAsm: (token) => [
-            "LDX SP16",
-            "LDA STACKBASE + 1,X",
-            "AND STACKBASE + 3,X",
-            "BEQ and_zero@",
-            "LDA #1",
-            "JMP result@",
-            "and_zero@:",
-            "LDA #0",
-            "result@:",
-            "STA STACKACCESS",
-            "LDA #00",
-            "STA STACKBASE + 2,X",
-            "INX",
-            "INX",
-            "INX",
-            "INX",
-            "STX SP16",
-            "JSR PUSH16",
-        ]
+        generateAsm: (token, target) => {
+            if (target === "c64") {
+                return [
+                    "LDX SP16",
+                    "LDA STACKBASE + 1,X",
+                    "AND STACKBASE + 3,X",
+                    "BEQ and_zero@",
+                    "LDA #1",
+                    "JMP result@",
+                    "and_zero@:",
+                    "LDA #0",
+                    "result@:",
+                    "STA STACKACCESS",
+                    "LDA #00",
+                    "STA STACKBASE + 2,X",
+                    "INX",
+                    "INX",
+                    "INX",
+                    "INX",
+                    "STX SP16",
+                    "JSR PUSH16",
+                ];
+            }
+            if (target === "freebsd") {
+                return [
+                    "pop rbx",
+                    "pop rax",
+                    "and rax, rbx",
+                    "push rax",
+                ]
+            }
+            console.log(`target system '${target}' unknown`);
+            exit();
+        } 
     };
     voc[TokenType.IF] = {
         txt: "if",
