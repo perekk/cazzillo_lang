@@ -6109,12 +6109,12 @@ function checkForUnusedCode(ast: Token) {
             setWordRefInContexts(child);
         }
     }
-    const removeUnusedWordDefinition = (token: Token) => {
+    const removeUnusedWord = (token: Token) => {
         let ret = 0;
         // depth first
         for (let i = token.childs.length - 1; i >= 0; i--) {
             const child = token.childs[i];
-            ret += removeUnusedWordDefinition(child);
+            ret += removeUnusedWord(child);
             if (child.type === TokenType.LIT_WORD && token.type !== TokenType.RECORD) {
                 const def = getWordDefinition(child.context, child.txt);
                 if (def === undefined) {
@@ -6135,12 +6135,24 @@ function checkForUnusedCode(ast: Token) {
         }
         return ret;
     }
+    const removeUnusedDefinition = (token: Token) => {
+        for (let i = token.childs.length - 1; i >= 0; i--) {
+            const child = token.childs[i];
+            removeUnusedDefinition(child);
+        }
+        if (!token.context) return;
+        token.context.varsDefinition = Object.fromEntries(
+            Object.entries(token.context.varsDefinition)
+                .filter(([key, def]) => def.reference.length > 0)
+        );
+    }
     let tryToRemove = true;
     while (tryToRemove) {
         setWordRefInContexts(ast);
-        const numRemoved = removeUnusedWordDefinition(ast);
+        const numRemoved = removeUnusedWord(ast);
         tryToRemove = numRemoved > 0;
     }
+    removeUnusedDefinition(ast);
 }
 
 function getFunctionIndex(): number {
