@@ -1336,11 +1336,22 @@ function getAsmPrintTopOfStack(type: ValueType, newLine: boolean, target: Target
             case "symbol":
             case "record":
                 console.log(`printing '${humanReadableType(type)}' is not implemented`);
-                exit();
-                break;
+                exit();                
             default:
-                console.log(`Impossible to push onto the stack the type: '${humanReadableType(type)}'`);
-                exit();
+                return [
+                    "JSR POP16",
+                    "LDA #91", // [
+                    "JSR $FFD2",
+                    "LDA #46", // dot
+                    "JSR $FFD2",
+                    "LDA #46", // dot
+                    "JSR $FFD2",
+                    "LDA #46", // dot
+                    "JSR $FFD2",
+                    "LDA #93", // ]
+                    "JSR $FFD2",
+                    ...newLineAsm
+                ];
         }
     }
     if (target === "freebsd") {
@@ -1348,6 +1359,7 @@ function getAsmPrintTopOfStack(type: ValueType, newLine: boolean, target: Target
         switch (type) {
             case "number":
             case "byte":
+            case "addr":
                 return [
                     "pop rax",
                     "call print_uint",
@@ -1382,9 +1394,22 @@ function getAsmPrintTopOfStack(type: ValueType, newLine: boolean, target: Target
                     "pop rax",
                     ...newLineAsm
                 ]
-            default:
+            case "void":
+            case "symbol":
+            case "record":
                 console.log(`printing '${humanReadableType(type)}' is not implemented`);
-                exit();
+                exit();                
+
+            default:
+                return [
+                    "pop rax",
+                    "mov rsi, str__cantprint",
+                    "mov rdx, 5",
+                    "mov rax, 4",
+                    "mov rdi, 1",
+                    "syscall",
+                    ...newLineAsm
+                ];
         }
     }
     console.log(`target system '${target}' unknown`);
@@ -1425,11 +1450,11 @@ function createVocabulary(): Vocabulary {
             const structName = valueType[1];
             const structDef = getWordDefinition(token.context, structName);
             if (structDef === undefined) {
-                logError(token.loc, `Cannot find definition for '${token.txt}'`);
+                logError(token.childs[0].loc, `Cannot find definition for '${structName}'`);
                 exit();
             }
             if (structDef.type !== "struct") {
-                logError(token.loc, `'${token.txt}' is not a struct`);
+                logError(token.childs[0].loc, `'${structName}' is not a struct`);
                 exit();
             }
             // print struct
@@ -1467,17 +1492,18 @@ function createVocabulary(): Vocabulary {
             }
 
             if (target === "freebsd") {
-                let ret: string[] = ["pop rax", "push rax"];
+                //let ret: string[] = ["pop rax", "push rax"];
+                let ret: string[] = ["mov rax, [rsp]"];
                 for (let i = 0; i < structDef.elements.length; i++) {
-                    const element = structDef.elements[i];                    
+                    const element = structDef.elements[i];
                     if (i > 0) {
                         const previousElement = structDef.elements[i - 1];
                         ret = ret.concat([
                             // in stackaccess the pointer to the field in the record
                             "pop rax",
-                            `add rax, ${previousElement.size}`,
-                            "push rax",                            
-                        ])
+                            `add rax, ${previousElement.size} ; adding ${previousElement.name} size`,
+                            "push rax",
+                        ]);
                     }
                     ret = ret.concat(["push rax"]);
                     ret = ret.concat(getAsmForGetWordPointedByTOS(element.def.internalType, 0, target));
@@ -1563,7 +1589,6 @@ function createVocabulary(): Vocabulary {
                 ret = ret.concat("JSR POP16");
                 return ret;
             }
-
             if (target === "freebsd") {
                 let ret: string[] = ["pop rax", "push rax"];
                 for (let i = 0; i < structDef.elements.length; i++) {
@@ -2856,6 +2881,7 @@ function createVocabulary(): Vocabulary {
             const varDef = getWordDefinition(token.context, varName);
             if (varDef === undefined) {
                 logError(token.loc, `LIT_WORD generateAsm cannot find declaration for '${varName}', compiler error`);
+                console.log(token.context);
                 exit();
             }
             if (varDef.isGlobalContext) return getAsmForSetWordGlobal(varDef.internalType, getAsmVarName(varName), 0, target);
@@ -3947,6 +3973,9 @@ function createVocabulary(): Vocabulary {
                             return `str${index} db ${strBytes}`;
                         })
                     );
+                // hello	db	'Hello, World!', 0Ah
+                literalStrings.push("str__cantprint db '[...]'");
+
                 const vars = ["section .bss"];
                 if (token.context !== undefined) {
                     for (let i = 0; i < Object.entries(token.context.varsDefinition).length; i++) {
@@ -3956,6 +3985,7 @@ function createVocabulary(): Vocabulary {
                         vars.push(`${variableName}: resb ${size}`);
                     }
                 }
+
                 vars.push("mem_top: resb 8");
                 vars.push("ret_stack_rsp: resb 8");
                 vars.push(`ret_stack: resb ${RET_STACK_CAPACITY}`);
@@ -5313,8 +5343,6 @@ function groupFunctionToken(ast: AST, index: number, vocabulary: Vocabulary, tar
         setStructDefinition(functionElement, target);
     }
 
-
-
     return functionElement;
 }
 
@@ -5552,6 +5580,13 @@ function areTypesEqual(t1: ValueType, t2: ValueType): boolean {
     return areTypesEqual(t1[1], t2[1]);
 }
 
+function getTokenByName(name: string, tokens: Token[]): Token | undefined {
+    for (let i = 0; i < tokens.length; i++) {
+        if (tokens[i].txt === name) return tokens[i];
+    }
+    return undefined;
+}
+
 function typeCheck(token: Token, vocabulary: Vocabulary) {
 
     // if some of the childs has no childs we shuld typecheck them because 
@@ -5611,30 +5646,83 @@ function typeCheck(token: Token, vocabulary: Vocabulary) {
                     return { name, type: varDef.out, token: varDef.token }
                 });
 
-            if (varDefElements.length < recordEntries.length) {
-                const unwantedWord = recordEntries[varDefElements.length];
-                logError(unwantedWord.token.loc, `'${unwantedWord.name}' is not part of '${token.txt}' struct`);
-                exit();
-            }
-
-            if (varDefElements.length > recordEntries.length) {
-                const neededWord = varDefElements[recordEntries.length];
-                logError(childRecord.loc, `'${neededWord.name}' should be in '${token.txt}' struct`);                
-                exit();
-            }
-
-            for (let i = 0; i < varDefElements.length; i++) {
-                const structDef = varDefElements[i];
-                const recordDef = recordEntries[i];
-                if (structDef.name !== recordDef.name) {
-                    logError(recordDef.token.loc, `the word at position ${i + 1} should be '${structDef.name}' but it is '${recordDef.name}'`);
-                    exit();
+            // check if all of the record entries are in the struct definition 
+            for (let i = 0; i < recordEntries.length; i++) {
+                const componentToSearch = recordEntries[i];
+                let found = false;
+                for (let j = 0; j < varDefElements.length; j++) {
+                    if (componentToSearch.name === varDefElements[j].name) {
+                        if (areTypesEqual(componentToSearch.type, varDefElements[j].def.out)) {
+                            found = true;
+                            break;
+                        } else {
+                            logError(componentToSearch.token.loc, `in '${token.txt}' struct '${componentToSearch.name}' is supposed to be '${humanReadableType(varDefElements[j].def.out)}' but here it is '${humanReadableType(componentToSearch.type)}'`);
+                            exit();
+                        }
+                    }
                 }
-                if (!areTypesEqual(structDef.def.internalType, recordDef.type)) {
-                    logError(recordDef.token.loc, `'${recordDef.name}' should be ${humanReadableType(structDef.def.internalType)} but it is ${humanReadableType(recordDef.type)}`);
+                if (!found) {
+                    logError(componentToSearch.token.loc, `'${componentToSearch.name}' is not part of '${token.txt}' struct`);
                     exit();
                 }
             }
+
+            // sobstitute the current context var definitions with the definition of the struct
+            childRecord.context.varsDefinition = Object.fromEntries(
+                varDefElements
+                    .filter(defElem => defElem.def.type !== "function")
+                    .map(defElem => [defElem.name, defElem.def])
+            );
+
+            // change all lit words using the struct template
+            childRecord.childs = varDefElements
+                .filter(defElem => defElem.def.type !== "function")
+                .map(defElem => {
+                    const existingToken = getTokenByName(defElem.name, childRecord.childs);
+                    if (existingToken !== undefined) return existingToken;
+                    if (defElem.def.out?.[0] === "usertype") {
+                        logError(childRecord.loc, `since '${defElem.name}' is a struct, you need to specify a value for it`);
+                        exit();
+                    }
+                    if (defElem.def.out?.[0] === "array") {
+                        logError(childRecord.loc, `since '${defElem.name}' is an array, you need to specify a value for it`);
+                        exit();
+                    }
+                    const valueToAssign = defElem.def.internalType === "string" ? "" : 0;
+                    const valueToken = {
+                        type: TokenType.LITERAL,
+                        loc: defElem.def.token.loc,
+                        context: childRecord.context,
+                        txt: String(valueToAssign),
+                        grabFromStack: false,
+                        expectedArity: 0,
+                        expectedArityOut: 1,
+                        ins: [],
+                        priority: 1000,
+                        position: InstructionPosition.PREFIX,
+                        internalValueType: defElem.def.internalType,
+                        out: defElem.def.out,
+                        childs: [],
+                    } as Token;
+                    const litToken = {
+                        type: TokenType.LIT_WORD,
+                        loc: defElem.def.token.loc,
+                        context: childRecord.context,
+                        txt: defElem.name,
+                        grabFromStack: false,
+                        expectedArity: 1,
+                        expectedArityOut: 0,
+                        ins: [defElem.def.out],
+                        priority: 5,
+                        userFunction: false,
+                        position: InstructionPosition.PREFIX,
+                        internalValueType: defElem.def.internalType,
+                        out: "void",
+                        childs: [valueToken],
+                    } as Token;
+
+                    return litToken;
+                });
         }
     } // end check struct
 
@@ -5793,6 +5881,7 @@ function parseBlock(ast: AST, target: Target, vocabulary: Vocabulary): AST {
         for (let j = 0; j < ast.length; j++) {
         //for (let j = ast.length - 1; j >= 0; j--) {
             const token = ast[j];
+            const tokenPosition = token.position; // save the token position since the original token could be replaced by optimization
             if (token.priority !== priority) continue;
             if (token.type === TokenType.LITERAL) {
                 continue;
@@ -5804,8 +5893,7 @@ function parseBlock(ast: AST, target: Target, vocabulary: Vocabulary): AST {
             }
 
             const group = groupFunctionToken(ast, j, vocabulary, target);
-            if (token.position !== InstructionPosition.PREFIX) j = j - 1; // we already taken as child the token before this
-
+            if (tokenPosition !== InstructionPosition.PREFIX) j = j - 1; // we already taken as child the token before this
 
         }
     }
@@ -6098,13 +6186,15 @@ function checkForUnusedCode(ast: Token) {
         }
         for (let i = 0; i < token.childs.length; i++) {
             const child = token.childs[i];
-            if (child.type === TokenType.WORD) {
+            if (child.type === TokenType.WORD || (child.type === TokenType.LITERAL && child.out === "symbol" && token.type !== TokenType.STRUCT)) {
                 const def = getWordDefinition(child.context, child.txt);
-                if (def === undefined) {
-                    logError(child.loc, `cannot find the definition of word '${child.txt}'`);
-                    exit();
-                }
-                def.reference.push(child);
+                // todo: find component definition in case of a struct
+                // print a -> name , name as word is not found
+                // if (def === undefined) {
+                //     logError(child.loc, `cannot find the definition of word '${child.txt}'`);
+                //     exit();
+                // }
+                if (def) def.reference.push(child);
             }
             setWordRefInContexts(child);
         }
@@ -6136,15 +6226,26 @@ function checkForUnusedCode(ast: Token) {
         return ret;
     }
     const removeUnusedDefinition = (token: Token) => {
+        if ((token.type === TokenType.BLOCK || token.type === TokenType.REF_BLOCK || token.type === TokenType.PROG)) {
+            const context = token.context;
+            if (!context) {
+                logError(token.loc, `'${token.txt}' does not have a context`);
+                exit();
+            }
+            context.varsDefinition = Object.fromEntries(
+                Object.entries(context.varsDefinition)
+                    .filter(([key, def]) => def.reference.length > 0)
+            );
+            // Object.entries(context.varsDefinition).forEach(([key, def]) => {
+            //     console.log(`word: ${key}`, "refs", def.reference.map(ref => ref.loc))
+            // });
+
+
+        }
         for (let i = token.childs.length - 1; i >= 0; i--) {
             const child = token.childs[i];
             removeUnusedDefinition(child);
         }
-        if (!token.context) return;
-        token.context.varsDefinition = Object.fromEntries(
-            Object.entries(token.context.varsDefinition)
-                .filter(([key, def]) => def.reference.length > 0)
-        );
     }
     let tryToRemove = true;
     while (tryToRemove) {
@@ -6152,6 +6253,7 @@ function checkForUnusedCode(ast: Token) {
         const numRemoved = removeUnusedWord(ast);
         tryToRemove = numRemoved > 0;
     }
+    // todo: make it work
     removeUnusedDefinition(ast);
 }
 
@@ -6422,8 +6524,8 @@ function dumpAst(ast: AST | Token, prefix = "") {
         const contextTokenName = contextToken?.txt ?? "";
         const ctxName = contextTokenName.length > 10 ? "[" + contextTokenName.substring(1, 6) + "...]" : "[" + contextTokenName + "]";
         const ctx = element.context?.parent === undefined ? "global" : ctxName;
-        const vars = ""; // getVarsInContext(element.context);
-        const parentVars = ""; // getVarsInContext(element.context?.parent);
+        const vars = getVarsInContext(element.context);
+        const parentVars = ""; //getVarsInContext(element.context?.parent);
         console.log(prefix, element.txt + " " + tokenType + " " + strFun + " " + strType + " ctx:" + ctx + " (" + vars + ") (" + parentVars + ")");
 
         // console.log(prefix, sourceCode.split("\n")[element.loc.row - 1]);

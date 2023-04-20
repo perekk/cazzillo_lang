@@ -1,0 +1,8 @@
+(module
+  (import "env" "print" (func $print (param i32)))
+  (func (export "helloWorld"))
+    (call $print (i32.const 16))
+)
+
+(memory 1)
+(data (i32.const 16) "Hello, world!\n\00")

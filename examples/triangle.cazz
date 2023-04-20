@@ -6,8 +6,8 @@ include "lib/std.cazz"
 
 'star :['n Number
   loop n do 
-  prin "*"
-  prin " "
+    prin "*"
+    prin " "
   end
 ]
 

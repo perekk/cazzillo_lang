@@ -22,7 +22,7 @@ def end [ inc i ) ) ]
   drop syscall3 SYS_nanosleep [array [0 1000000 * msec]] !addr 0
 ]
 
-; STACK
+; STACK OF NUMBERS
 struct Stack [
   'data array Number
   'tos Number

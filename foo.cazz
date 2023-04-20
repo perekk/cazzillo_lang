@@ -1,22 +1,21 @@
-include "lib/std.cazz"
+def SCREEN_START 1024
+def SCREEN_SIZE 1000
+def SCREEN_END [SCREEN_START + SCREEN_SIZE]
 
-'spaces :['n Number
-  loop n do prin " " end
+def loop ['N Number 
 ]
 
-'star :['n Number
-  loop n do 
-  prin "*"
-  prin " "
-  end
+def loop [( 'i 0 while ( i < ]
+def do [ ) ( ]
+def end [ inc i ) ) ]
+
+
+'fill :[
+    'i SCREEN_START
+    while i < SCREEN_END [
+        poke i i !<
+        inc i
+    ]
 ]
 
-'triangle :['n Number
-  loop n do 
-    spaces n - i
-    star i + 1
-    print ""
-  end
-]
-
-triangle 19
+fill
