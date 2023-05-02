@@ -1,6 +1,6 @@
 def mul ['x Number 'y Number
   loop y [yield [x] if i < y - 1 [yield [+]]]
-  x + x + ... + x ; y times
+  ;x + x + ... + x  y times
 ]
 
 print mul 3 2
