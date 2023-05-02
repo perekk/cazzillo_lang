@@ -10,7 +10,9 @@ def DEAD_CHAR [32 !<]
 'c 2
 ['f  :['x Number return x + c]]
 'b c + 1
+print "SHOULD PRINT 1:"
 print a
 
 'test :['x Number 'ret x + 1 'y Number 'z Number ret: ret + z ret]
+print "SHOULD PRINT 5:"
 print test 1 2 3

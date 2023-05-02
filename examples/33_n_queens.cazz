@@ -9,7 +9,8 @@ def DEBUG false
 'is_safe :[
   'x Number
   'y Number
-  if x = 0 [return true]
+  if DEBUG [prin "IS SAFE " prin x prin "-" prin y print " ?"]
+  if x = 0 [if DEBUG [prin "YES IT IS!"] return true]
   'i 0 
   while i < x [
     'posi board at i
@@ -33,7 +34,10 @@ def DEBUG false
     'y [board at x] + 1
     if DEBUG [prin "X: " print x]
     if DEBUG [prin "Y: " print y]
-    while [is_safe x y] ! and y < N [ inc y ]
+    if DEBUG [prin "IS SAFE: " print is_safe x y]
+    if DEBUG [prin "Y" prin y prin " N" print N]
+    while [is_safe x y] ! and y < N [ if DEBUG [print y] inc y ]
+    
     if DEBUG [prin "OUT OF LOOP Y: " print y]
     either y = N [
       change board x 0 - 1

@@ -1,0 +1,23 @@
+include "lib/c64.cazz"
+
+'box :['x Number 'y Number 'w Number 'h Number 'ch Byte 'col Byte 
+    'pos SCREEN_START + x + y * 40
+    'yy 0
+    while yy < h [
+      'xx 0 
+      while xx < w [
+        'ps pos + xx
+        'cp ps + 54272 
+        poke ps ch
+        poke cp col
+        inc xx
+      ]
+      inc yy
+      pos: pos + 40
+    ]
+]
+
+clr
+'t_start time
+box 1 1 38 23 160 !< 1 !<
+prin "ELAPSED:" print time - t_start

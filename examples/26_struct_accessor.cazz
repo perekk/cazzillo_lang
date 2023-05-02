@@ -1,3 +1,4 @@
+[
 struct Point [
   'label String
   'x Number
@@ -50,3 +51,4 @@ struct Couple_of_point [
 
 prin "P2->X=" print [points -> p2] -> x
 prin "STACK:" print stack
+]

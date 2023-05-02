@@ -1,0 +1,6 @@
+def SCREEN_START 1024
+def SCREEN_SIZE 1000
+
+def clr [emit 147 !<]
+
+'time :[[ 256 * peek 161] + peek 162]

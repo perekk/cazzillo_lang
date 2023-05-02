@@ -1,3 +1,4 @@
+[
 struct Point [
   'label String
   'x Number
@@ -53,3 +54,4 @@ print_point pt2
 ;Persona 6
 
 ;davide . eta
+]

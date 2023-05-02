@@ -1,0 +1,28 @@
+include "lib/std.cazz"
+include "lib/ansi.cazz"
+
+ansi_clear
+loop 10 do 
+  ansi_reset_styles_color
+  ansi_toggle_strikethrough i % 2 = 0
+  ansi_set_color i false
+  ansi_goto_xy i + 1 i + 1 prin "@" 
+
+  ansi_reset_styles_color
+  ansi_toggle_strikethrough i % 2 = 0
+  ansi_set_color i true 
+  ansi_goto_xy 11 - i i + 1 prin "@" 
+end
+
+'saved_tio new Termios []
+print ""
+print "-------------"
+
+def TCGETS 21505
+
+'tcgetattr :['fd Number 'tio Termios
+  syscall4 SYS_ioctl fd 9999 tio !addr
+]
+
+print tcgetattr 0 saved_tio
+while true [ ]

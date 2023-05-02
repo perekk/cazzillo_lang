@@ -1,4 +1,5 @@
 def INCLUDED? "YESS"
+def SYS_ioctl     54
 def SYS_nanosleep	240
 
 ; LOOP
@@ -21,6 +22,26 @@ def end [ inc i ) ) ]
 'nanosleep :['msec Number
   drop syscall3 SYS_nanosleep [array [0 1000000 * msec]] !addr 0
 ]
+
+; struct termios {
+; 	tcflag_t	c_iflag;	/* input flags */ 4
+; 	tcflag_t	c_oflag;	/* output flags */ 4 
+; 	tcflag_t	c_cflag;	/* control flags */ 4
+; 	tcflag_t	c_lflag;	/* local flags */ 4
+; 	cc_t		c_cc[NCCS];	/* control chars */ 20
+; 	speed_t		c_ispeed;	/* input speed */ 4
+; 	speed_t		c_ospeed;	/* output speed */ 4
+; };
+
+struct Termios [
+  'io_flags Number 
+  'cl_flags Number
+  'c_cc1 Number 
+  'c_cc2 Number 
+  'c_cc3 Number
+  'io_speeds Number
+]
+
 
 ; STACK OF NUMBERS
 struct Stack [

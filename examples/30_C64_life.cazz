@@ -160,3 +160,4 @@ prin "ELAPSED: " print end - start
 ; 233 index global
 ; 222 optimized EQ with literal (as first child)
 ; 220 optimized SUM with literal (as first child)
+; 210 precalculate offset, separate ctx stack

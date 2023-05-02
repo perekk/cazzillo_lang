@@ -16,4 +16,5 @@ struct Point [
   ]
 ]
 
+print p
 print "DONE"

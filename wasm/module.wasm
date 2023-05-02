@@ -1,8 +1,18 @@
 (module
-  (import "env" "print" (func $print (param i32)))
-  (func (export "helloWorld"))
-    (call $print (i32.const 16))
+  (func $factorial (param $n i32) (result i32)
+    (if (result i32)
+      (get_local $n)
+      (then (i32.const 1))
+      (else
+        (i32.mul
+          (get_local $n)
+          (call $factorial
+            (i32.sub (get_local $n) (i32.const 1)))
+        )
+      )
+    )
+  )
+
+  (export "factorial" (func $factorial))
 )
 
-(memory 1)
-(data (i32.const 16) "Hello, world!\n\00")

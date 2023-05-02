@@ -2,4 +2,5 @@
 
 rm *.o *.asm *.prg *.sym *.core
 rm examples/*.o examples/*.asm examples/*.prg examples/*.sym examples/*.core
-find . -type f -executable -exec rm '{}' \;
+#find . -type f -executable -exec rm '{}' \;
+#find ./examples -type f -executable -exec rm '{}' \;

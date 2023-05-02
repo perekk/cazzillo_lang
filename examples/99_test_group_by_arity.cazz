@@ -49,7 +49,15 @@ struct Point ['y Number]
 
 ['test :[] test]
 
-poke 10000 + 10 + 2 81 !<
+def byte 81 !<
+
+[
+'f :['a Number 'c Bool either c [a + 1] [a + 2]]
+'g :[ f 1 false and true]
+'h :[ 1 + f 2 false ! ! ! !]
+prin "G:" print g 
+prin "H:" print h
+]
 
 'stk stack
 prin "STACK:" print stk

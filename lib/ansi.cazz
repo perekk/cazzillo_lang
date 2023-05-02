@@ -1,0 +1,36 @@
+def emit_esc_paren [emit 27 !< prin "["]
+
+'ansi_goto_xy :['col Number 'line Number
+  emit_esc_paren prin line prin ";" prin col prin "H"
+]
+
+'ansi_goto_relative :[ 'delta Number 'op String
+  emit_esc_paren prin delta prin String
+]
+
+'ansi_goto_up    :[ 'amount Number ansi_goto_relative amount "A"]
+'ansi_goto_down  :[ 'amount Number ansi_goto_relative amount "B"]
+'ansi_goto_right :[ 'amount Number ansi_goto_relative amount "C"]
+'ansi_goto_left  :[ 'amount Number ansi_goto_relative amount "D"]
+
+'ansi_clear :[emit_esc_paren prin "2J"]
+
+'ansi_style :['action String emit_esc_paren prin action prin "m"]
+'ansi_reset_styles_color :[ ansi_style "0" ]
+'ansi_toggle_style :['style String 'flag Bool ansi_style [either flag [""] ["2"]] . style]
+'ansi_toggle_bold :['flag Bool ansi_toggle_style "1" flag]
+'ansi_toggle_dim :['flag Bool ansi_toggle_style "2" flag]
+'ansi_toggle_italic :['flag Bool ansi_toggle_style "3" flag]
+'ansi_toggle_underline :['flag Bool ansi_toggle_style "4" flag]
+'ansi_toggle_blink :['flag Bool ansi_toggle_style "5" flag]
+'ansi_toggle_inverse :['flag Bool ansi_toggle_style "7" flag]
+'ansi_toggle_hidden :['flag Bool ansi_toggle_style "8" flag]
+'ansi_toggle_strikethrough :['flag Bool ansi_toggle_style "9" flag]
+
+'ansi_set_color :['color Number 'background Bool 
+  emit_esc_paren 
+  prin either background ["4"] ["3"] 
+  prin "8;5;" 
+  prin color
+  prin "m"
+]
