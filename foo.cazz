@@ -1,7 +1,18 @@
-def mul ['x Number 'y Number
-  loop y [yield [x] if i < y - 1 [yield [+]]]
+def loop [( 'i 0 while ( i < ]
+def do [ ) ( ]
+def end [ inc i ) ) ]
+loop 5 do print "HI" end
+loop 3 do print "CAZZ" end
+
+def mul :['x Number 'y Number
+  'i 0
+  while i < y [
+    prin x if i < y - 1 [prin " + "]
+    inc i 
+  ]  
+  ; loop y do yield [x] if i < y - 1 [yield [+]] end
   ;x + x + ... + x  y times
 ]
 
-print mul 3 2
-
+;print "ciao"
+print mul 3 5

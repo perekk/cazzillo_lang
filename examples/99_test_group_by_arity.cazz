@@ -1,3 +1,5 @@
+'initial_stack stack
+prin "STARTING STACK:" print initial_stack
 struct Point ['y Number]
 'pt1 new Point ['y 420]
      pt1 -> y: 2   print ""
@@ -47,9 +49,9 @@ struct Point ['y Number]
 ;OUT 0     1    1 
 ]
 
-['test :[] test]
+'test :[] test
 
-def byte 81 !<
+def byte [81 !<]
 
 [
 'f :['a Number 'c Bool either c [a + 1] [a + 2]]
@@ -61,5 +63,5 @@ prin "H:" print h
 
 'stk stack
 prin "STACK:" print stk
-print either stk = 255 ["LOOKS GOOD TO ME!"] ["NO BUENO"]
+print either stk = initial_stack ["LOOKS GOOD TO ME!"] ["NO BUENO"]
 
