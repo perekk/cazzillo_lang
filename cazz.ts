@@ -6273,31 +6273,40 @@ async function preprocess(program: AST, vocabulary: Vocabulary) {
     const doSubstitution = async (program: AST, index: number) => {
         const macroElement = program[index];
         const macroName = macroElement.txt;
+        const filename = macroElement.loc.filename;
         const copyOfDefines = defines[macroName].map(elem => structuredClone(elem));
         if (copyOfDefines[0].type === TokenType.OPEN_REF_BRACKETS) {
             let definesForSim: Token[] = [];
             const macro: Token = {
                 type: TokenType.LIT_WORD,
                 txt: macroName,
-                loc: macroElement.loc,
+                loc: copyOfDefines[0].loc,
                 childs: []
             }
             definesForSim.push(macro);
             definesForSim = definesForSim.concat(copyOfDefines);
-            const macroAST = parse(vocabulary, definesForSim, "sim", macroElement.loc.filename);
-            const macroArity = macroAST.context?.varsDefinition[macroName].ins.length;
-            if (macroArity === undefined) {
-                logError(macroElement.loc, `'${macroElement.txt}' cannot determine the arity of the macro`);
-                exit();
+            let k = index;
+            let parens = 0;
+            while (k < program.length) {
+                if (program[k].type === TokenType.OPEN_BRACKETS || program[k].type === TokenType.OPEN_REF_BRACKETS) {
+                    parens++;
+                } else if (program[k].type === TokenType.CLOSE_BRACKETS) {
+                    parens--;
+                    if (parens < 0) break;
+                }
+                k++;
             }
-            const macroCall = program.slice(index, index + 1 + macroArity);
-            definesForSim = definesForSim.concat(macroCall);
-            const macroCallComplete = parse(vocabulary, definesForSim, "sim", macroElement.loc.filename);
+            const macroCallElement = program[index];
+            const macroCallComplete = definesForSim.concat(program.slice(index, k));
 
-            const returnedCode = sim(vocabulary, macroCallComplete, true);
+            let astMacroCall = groupSequence(filename, macroCallComplete, vocabulary);
+            const macroCallLenght = groupByExpectedArityOutZeroUntilIndex(astMacroCall.childs, "sim", vocabulary, macroCallElement);
+            typeCheckBlock(astMacroCall);
+
+            const returnedCode = sim(vocabulary, astMacroCall, true);
             const returnedTokens = await tokenizer(returnedCode, macroElement.loc.filename, vocabulary);
 
-            program.splice(index, macroArity + 1, ...(returnedTokens !== undefined ? returnedTokens : []));
+            program.splice(index, macroCallLenght, ...(returnedTokens !== undefined ? returnedTokens : []));
             dumpProgram(program);
         } else {
             program.splice(index, 1, ...copyOfDefines);
@@ -6586,12 +6595,10 @@ function typeCheckDataBlock(block: Token) {
         logError(block.loc, `the token '${block.txt}' is not a DATA_BLOCK`);
         exit();
     }
-
     if (block.childs.length === 0) {
         logError(block.loc, `'${block.txt}' is empty. Cannot infer its type`);
         exit();
     }
-
     let elementType;
     for (let i = 0; i < block.childs.length; i++) {
         const child = block.childs[i];
@@ -6602,10 +6609,10 @@ function typeCheckDataBlock(block: Token) {
             exit();
         }
     }
-
 }
 
 function optimize(token: Token, target: Target) {
+    if (target === "sim") return;
     switch (token.type) {
         case TokenType.PLUS:
             if (token.childs[0].type === TokenType.LITERAL && token.childs[1].type === TokenType.LITERAL) {
@@ -7084,6 +7091,139 @@ function getWordUsedButNotDefinedInABlock(token: Token): string[] {
     return freeWords;
 }
 
+function getNumTokensInAst(ast: AST): number {
+    let ret = 0;
+    for (let i = 0; i < ast.length; i++) {
+        if (ast[i].type === TokenType.BLOCK || ast[i].type === TokenType.REF_BLOCK || ast[i].type === TokenType.DATA_BLOCK || ast[i].type === TokenType.RECORD) {
+            ret += 2;
+        } else {
+            ret++;
+        }
+        ret += getNumTokensInAst(ast[i].childs);
+    }
+    return ret;
+}
+
+function groupByExpectedArityOutZeroUntilIndex(sequence: AST, target: Target, vocabulary: Vocabulary, finalToken: Token) {
+
+    let childLeft = 0;
+    let lastPointer = 0;
+    let startingNewSequence = true;
+    for (let j = 0; j < sequence.length; j++) {
+        let token = sequence[j];
+        changeTokenTypeOnContext(vocabulary, token, sequence.slice(token.position === InstructionPosition.PREFIX ? j : j - 1));
+        token = sequence[j];
+        let { ins, out } = getInsOutArity(token);
+        if (token.type === TokenType.REF_BLOCK || token.type === TokenType.BLOCK || token.type === TokenType.RECORD) {
+            const childs = token.childs;
+            groupByExpectedArityOutZero(childs, target, vocabulary);
+            typeCheckBlock(token);
+        }
+        if (token.type === TokenType.DATA_BLOCK) {
+            const childs = token.childs;
+            groupByExpectedArityOutZero(childs, target, vocabulary);
+            typeCheckDataBlock(token);
+        }
+        if (token.type === TokenType.EITHER) out = (childLeft > 0 ? 1 : 0);
+
+        if (childLeft > 0 && out === 0) {
+            logError(token.loc, `expected a value but '${token.txt}' returns 'void'`);
+            exit();
+        }
+
+        // at the start of a new sequence, we dont count out values
+        childLeft = childLeft + ins - (startingNewSequence && ins > 0 ? 0 : out);
+        if (token.position === InstructionPosition.PREFIX) {
+            if (ins > 0 && childLeft < ins) childLeft = ins;
+        } else if (token.position === InstructionPosition.INFIX) {
+            if (ins > 1 && childLeft < ins - 1) childLeft = ins - 1;
+        } else if (token.position === InstructionPosition.POSTFIX) {
+            // no check for additional parameters
+        }
+
+        // naive one:
+        // childLeft = childLeft + ins - out;
+
+        //console.log(`${token.txt} ins: ${ins} out: ${out} childleft: ${childLeft}`);
+        if ((childLeft <= 0 && !startingNewSequence) || j === sequence.length - 1) {
+            let endOfBlock = true;
+            if (j < sequence.length - 1) {
+                if (sequence[j + 1].position === InstructionPosition.INFIX || sequence[j + 1].position === InstructionPosition.POSTFIX) {
+                    endOfBlock = false;
+                } else if (ins > 0 && token.position !== InstructionPosition.POSTFIX) {
+                    endOfBlock = false;
+                }
+            }
+            // if there is one more token that give one result on the stack before the end
+            // this could be part of current sequence as return value of the block
+            if (j === sequence.length - 2) {
+                const nextToken = sequence[j + 1];
+                if (nextToken.type === TokenType.REF_BLOCK || nextToken.type === TokenType.BLOCK ||
+                    nextToken.type === TokenType.RECORD || nextToken.type === TokenType.WORD) {
+
+                    const freeWords = nextToken.type === TokenType.WORD ? [nextToken.txt] : getWordUsedButNotDefinedInABlock(nextToken);
+                    const currentlyDefinedWords = sequence.slice(lastPointer, j + 1)
+                        .filter(token => token.type === TokenType.LIT_WORD)
+                        .map(token => token.txt);
+                    const wordsInBlockDefinedCurrently = freeWords.filter(x => currentlyDefinedWords.includes(x));
+
+                    // If there are words in the block that are defined in the current sequence
+                    // we must parse it before the block. 
+                    // If there are not such words we can grab the last item in the sequence as child
+                    if (wordsInBlockDefinedCurrently.length === 0) {
+                        endOfBlock = false;
+                    }
+                } else {
+                    const { ins, out } = getInsOutArity(sequence[j + 1]);
+                    if (ins === 0 && out === 1) endOfBlock = false
+                }
+            }
+
+            // we check if the remaning part of the sequence yield a value, it could be the
+            // return value for the block
+            // as in the example :['tio Termios syscall4 54 0 21505 tio !addr]
+            // in this case we get childLeft = 0 at token "21505" but the last two tokens are needed
+            // if (j < sequence.length - 2) {
+            //     if (sequence[j + 2].position === InstructionPosition.INFIX || sequence[j + 2].position === InstructionPosition.POSTFIX) {
+            //         endOfBlock = false;
+            //     } else if (ins > 0 && token.position !== InstructionPosition.POSTFIX) {
+            //         endOfBlock = false;
+            //     }
+            // }
+
+            if (endOfBlock) {
+                childLeft = 0;
+                //console.log("----------");
+                const toParse = sequence.slice(lastPointer, j + 1);
+                const reachedTheEnd = toParse.map(token => token.loc).includes(finalToken.loc);
+                const numberToParse = toParse.length;
+                //dumpSequence(toParse, `from ${lastPointer} to ${j} :`);
+                if (toParse.length === 1 && toParse[0].type === TokenType.BLOCK) {
+                    // already parsed
+                } else {
+                    parseBlock(toParse, target, vocabulary);
+                }
+                sequence.splice(lastPointer, numberToParse, ...toParse);
+                j = lastPointer + toParse.length - 1;
+                lastPointer = lastPointer + toParse.length;
+                if (reachedTheEnd) {
+                    sequence = sequence.slice(0, lastPointer);
+                    //  count how many blocks we parsed
+                    const numBlocksInAst = getNumTokensInAst(toParse);
+                    return numBlocksInAst;
+                }
+
+                startingNewSequence = true;
+            }
+        } else {
+            startingNewSequence = false;
+        }
+    }
+
+    logError(finalToken.loc, `'${finalToken.txt}' cannot parse macro expected more tokens`);
+    exit();
+}
+
 function groupByExpectedArityOutZero(sequence: AST, target: Target, vocabulary: Vocabulary) {
 
     let childLeft = 0;
@@ -7320,16 +7460,6 @@ function parse(vocabulary: Vocabulary, program: AST, target: Target, filename: s
     typeCheckBlock(astProgram);
     return astProgram;
 }
-
-// MACRO 
-function domacro(astProgram: Token): Token {
-
-
-
-
-    return astProgram;
-}
-
 
 function checkForUnusedCode(ast: Token) {
     const setWordRefInContexts = (token: Token) => {
@@ -8017,8 +8147,7 @@ async function main() {
     //dumpProgram(program);
     //Deno.exit(1);
 
-    const astProgram = parse(vocabulary, program, target, filename);
-    domacro(astProgram);
+    const astProgram = parse(vocabulary, program, target, filename);    
     //dumpAst(astProgram);
     checkForUnusedCode(astProgram);
 
