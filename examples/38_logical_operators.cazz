@@ -1,0 +1,13 @@
+prin "F AND F = " print false and false
+prin "F AND T = " print false and true
+prin "T AND F = " print true and false
+prin "T AND T = " print true and true
+print ""
+prin "F OR F = " print false or false
+prin "F OR T = " print false or true
+prin "T OR F = " print true or false
+prin "T OR T = " print true or true
+print ""
+prin "NOT F = " print false !
+prin "NOT T = " print true !
+

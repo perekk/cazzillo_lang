@@ -1,7 +1,7 @@
 'i 0
 while i < 1000 [
     poke 53281 i !<
-    poke 53280 i !<  
+    poke 53280 i !<
     poke 1024 + i [1 + peek i] !<
     inc i
 ]

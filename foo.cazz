@@ -1,32 +1,9 @@
-; def loop [( 'i 0 while ( i < ]
-; def do [ ) ( ]
-; def end [ inc i ) ) ]
-; loop 5 do print "HI" end
-; loop 3 do print "CAZZ" end
-
-; def betterloop? :[
-;   'var String
-;   'count Number
-;   'body String
-;   prin "[ '" prin var prin " 0 while " prin var prin " < " prin count prin " [" prin body prin " inc " prin var prin "]]"
-;   ; yield ['var 0 while var < count [body inc var]]
-;   ; '[ 'var 0 while var < count [body inc var] ]
-; ]
-
-def mul :['x Number 'y Number
-  'i 0
-  while i < y [
-    prin x if i < y - 1 [prin " + "]
-    inc i
-  ]
-  ; loop y do yield [x] if i < y - 1 [yield [+]] end
-  ;x + x + ... + x  y times
+print stack
+'txt "CAZZILLO"
+'i 0
+while i < txt # [
+  emit txt at i
+  inc i
 ]
-
-;print "ciao"
-def NUMERO 6
-print mul 3 [4 + [0 - 1]]
-
-;betterloop? "k" 10 "print mul k k"
-
-;['k 0 while k < 10 [print mul k k inc k]]
+print ""
+print stack
