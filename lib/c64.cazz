@@ -4,3 +4,99 @@ def SCREEN_SIZE 1000
 def clr [emit 147 !<]
 
 'time :[[ 256 * peek 161] + peek 162]
+
+// RANDOM
+def start_random [
+  poke 0xd40e 0xff
+  poke 0xd40f 0xff
+  poke 0xd412 0x80
+]
+
+'rand_bit :[
+  'r 0 !<
+  'a 0
+  a: r !addr
+  asm ["LDA $D41B" "AND #1" "STA !a"]
+  r
+]
+
+def rand_byte [[peek 0xD41B]]
+def rand_word [rand_byte * 256 + rand_byte]
+'rnd :['limit Number
+  either limit < 257 [
+    'r rand_byte 
+    while true [
+      if r < limit [return r !n]
+      r: rand_byte
+    ]
+    0
+  ] [
+    'r rand_word 
+    while true [
+      if r < limit [return r]
+      r: rand_word
+    ]
+    0
+  ]
+]  
+
+'gotoxy :['col Byte 'row Byte
+  either col >= 0 !< and col <= 39 !< and row > 0 !< and row < 25 !< [
+    'cursor 1024 + row * 40 + col     
+    'cursorlo cursor !<
+    'cursorhi [cursor / 256] !<
+    asm [
+      "; GOTOXY"
+      "LDA !col"
+      "STA CURX"
+      "LDA !row"
+      "STA CURY"
+      "LDA !cursorlo"
+      "STA CURSOR"
+      "LDA !cursorhi"
+      "STA CURSOR+1"
+    ]    
+    cursorlo: 0 !<
+    cursorhi: 0 !<  
+  ] [
+    print "GOTOXY OUT OF BOUNDS"
+  ]
+]
+
+def box_top :['w Number
+  'hor_char [99  !<]
+  'nw_char  [213 !<]
+  'ne_char  [201 !<]
+  'quote    [34  !<]
+  'concat   " . "
+
+  emit quote
+  emit nw_char 
+  emit quote
+  prin concat
+  loop w - 2 do emit quote emit hor_char emit quote prin concat end
+  emit quote
+  emit nw_char 
+  emit quote
+]
+
+'box :['x Number 'y Number 'w Number 'h Number
+  def hor_char [99 !<]
+  def ver_char [194 !<]
+  def nw_char  [213 !<]
+  def ne_char  [201 !<]
+  def sw_char  [202 !<]
+  def se_char  [203 !<]
+
+  'x2 [x + w - 1] !<
+  'y2 [y + h - 1] !<
+
+  loop w - 2 do 'xx [x + i + 1] !< gotoxy xx y !< emit hor_char gotoxy xx y2 emit hor_char end
+  loop h - 2 do 'yy [y + i + 1] !< gotoxy x !< yy emit ver_char gotoxy x2 yy emit ver_char end
+  gotoxy x !< y !< emit nw_char
+  gotoxy [x + w - 1] !< y !< emit ne_char
+  gotoxy x !< [y + h - 1] !< emit sw_char
+  gotoxy [x + w - 1] !< [y + h - 1] !< emit se_char
+]
+
+def scroll_up [asm "JSR SCROLL_UP"]

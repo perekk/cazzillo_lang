@@ -1,0 +1,191 @@
+def HEIGHT 10
+def WIDTH 10
+def CELL_COUNT [HEIGHT * WIDTH]
+def SCREEN_START 1024
+def BUFFER_START 10000
+def LIFE_CHAR [81 !<]
+def DEAD_CHAR [32 !<]
+
+'time :[[ 256 * peek 161] + peek 162]
+
+'fill :['value Byte 
+    'j BUFFER_START
+    while j < BUFFER_START + CELL_COUNT [
+      poke j value
+      inc j
+    ]
+]
+
+'init :[
+    fill DEAD_CHAR
+    // put a glider on top left
+    poke BUFFER_START + 2 LIFE_CHAR
+    poke BUFFER_START + WIDTH LIFE_CHAR
+    poke BUFFER_START + WIDTH + 2 LIFE_CHAR
+    poke BUFFER_START + WIDTH + WIDTH + 1 LIFE_CHAR
+    poke BUFFER_START + WIDTH + WIDTH + 2 LIFE_CHAR
+]
+
+'buffer BUFFER_START
+'screen SCREEN_START
+'col 0
+
+// copy the buffer on the screen
+'show :[
+  buffer: BUFFER_START
+  screen: SCREEN_START
+  col: 0
+    
+
+
+    while buffer < BUFFER_START + CELL_COUNT [
+        poke screen peek buffer
+        inc buffer
+        inc screen
+        inc col
+        if col = WIDTH [screen: screen + 40 - WIDTH col: 0]
+    ]
+]
+
+'get_num_alive_old :['index Number
+    'n 0 !<
+    'k 9
+    index: index - 41
+    if LIFE_CHAR = peek index [inc n]
+    inc index
+    if LIFE_CHAR = peek index [inc n]
+    inc index
+    if LIFE_CHAR = peek index [inc n]
+    
+    index: index + 38
+    if LIFE_CHAR = peek index [inc n]
+    inc index
+    inc index
+    if LIFE_CHAR = peek index [inc n]
+
+    index: index + 38
+    if LIFE_CHAR = peek index [inc n]
+    inc index
+    if LIFE_CHAR = peek index [inc n]
+    inc index
+    if LIFE_CHAR = peek index [inc n]
+    n
+]
+
+;def addOneIfAlive [n: n + [LIFE_CHAR = peek index] !<]
+def addOneIfAlive [
+  if LIFE_CHAR = peek index [inc n]
+  
+]
+def add_one_if_alive_asm [
+  asm [
+      "LDA V_index"
+      "STA STACKACCESS"
+      "LDA V_index + 1"
+	    "STA STACKACCESS + 1"
+	    "LDY #0"
+	    "LDA (STACKACCESS),Y"
+      "CMP #81"
+      "BNE dead_@"
+      "INC !n"
+      "dead_@:"
+  ]  
+]
+
+'n 0 !<
+'index 0
+'get_num_alive :['index_to_check Number
+    ;n: 0 !<
+    asm ["LDA #0" "STA V_n"]
+
+    index: index_to_check - 41
+    add_one_if_alive_asm    
+    inc index
+    add_one_if_alive_asm
+    inc index
+    add_one_if_alive_asm
+    
+    index: 38 + index
+    add_one_if_alive_asm
+    inc index
+    inc index
+    add_one_if_alive_asm
+
+    index: 38 + index
+    add_one_if_alive_asm
+    inc index
+    add_one_if_alive_asm
+    inc index
+    add_one_if_alive_asm
+    n
+]
+
+'step :[
+    'from_loc SCREEN_START
+    'to_loc BUFFER_START
+    'col 0
+    while to_loc < BUFFER_START + CELL_COUNT [
+        'nalive get_num_alive from_loc 
+        'cell_state peek from_loc        
+        either cell_state = LIFE_CHAR [            
+            either nalive = 2 [
+              poke to_loc LIFE_CHAR
+            ] [
+              either nalive = 3 [
+                poke to_loc  LIFE_CHAR
+              ][
+                poke to_loc DEAD_CHAR
+              ]
+            ]            
+        ] [
+            either nalive = 3 [
+              poke to_loc LIFE_CHAR
+            ] [
+              poke to_loc DEAD_CHAR
+            ]
+        ]
+        ;poke to_loc [nalive + 48] !<
+        inc from_loc
+        inc to_loc
+        inc col 
+        if col = WIDTH [from_loc: 40 + from_loc - WIDTH col: 0]
+    ]
+]
+
+'start time
+init
+
+'i 0 !<
+while i < 10 [
+    show
+    step
+    inc i
+]
+'end time
+print start
+print end
+prin "ELAPSED: " print end - start
+
+; timing: 
+; 686 
+; 469 (with inc)
+; 467 with variables
+; 567 (with macro)
+; 557 optimize count neigb.
+; 498 loop optimization (403 with variables)
+; 386 with preprocess and optimization on MUL
+; 313 with optimize ASM (push pop reduction)
+; 301 with either instead of two if
+; 299 using byte as alive counter
+; 294 optimizing EQ for byte
+; 291 using global variable n in alive counter
+; 287 use poke in either
+; 283 using push in '<' (it will be erased during optimization)
+; 277 avoid calling ADD16, using push in sum
+; 233 index global
+; 222 optimized EQ with literal (as first child)
+; 220 optimized SUM with literal (as first child)
+; 210 precalculate offset, separate ctx stack
+; 155 add_one_if_alive_asm as asm
+; 154 n = 0 as asm in get_num_alive
+; 152 'buffer 'screen 'col as global 

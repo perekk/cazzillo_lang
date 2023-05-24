@@ -1,0 +1,9 @@
+print stack
+'txt "CAZZILLO"
+'i 0
+while i < txt # [
+  emit txt at i
+  inc i
+]
+print ""
+print stack

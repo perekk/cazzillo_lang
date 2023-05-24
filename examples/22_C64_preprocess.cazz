@@ -1,7 +1,7 @@
 def a 10
 def b [a + 1]
 def c [a + b + 2]
-def time_expr :[[ 256 * peek 161] + peek 162]
+def time_expr [[ 256 * peek 161] + peek 162]
 
 'time time_expr
 

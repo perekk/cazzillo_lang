@@ -1,0 +1,25 @@
+[
+  'k 0 
+  while k < 0b1010 [
+    'i 0 !<
+    while i < 0xFF [
+      asm [
+        "LDA !i"
+        "STA 53280"
+        "STA 53281"
+        "INC !i"
+      ]
+    ]
+    asm "INC !k"
+  ]
+  asm "LDA #0"
+  asm "STA 53280"
+  asm "STA 53281"
+
+  k: 1024
+  while k < 2024 [
+    asm "LDA !k"
+    asm "STA !k"
+    inc k
+  ]
+]

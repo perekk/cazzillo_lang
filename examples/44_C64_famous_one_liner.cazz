@@ -1,0 +1,2 @@
+include "lib/c64.cazz"
+start_random while true [emit [205 + rand_bit] !<]

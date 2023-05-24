@@ -1,0 +1,4 @@
+include "lib/std.cazz"
+include "lib/c64.cazz"
+
+loop 256 do if i < 16 [prin "0"] prin hex i prin " " if i % 8 = 7 [nl] end

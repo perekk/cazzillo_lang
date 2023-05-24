@@ -2,3 +2,25 @@ prin 20 < 30 print 40 <  50                // should print YY
 prin 1 = 0   print 255 = 255               // should print NY
 print 90 - 32 > 33                         // should print Y
 print [255 > 1] !                          // should print N
+
+nl
+print "BYTES ------- WORDS -------"
+nl
+'a 1 !< 
+'b 2 !<
+'c 2 !<
+
+'d 1234
+'e 1235
+'f 1235
+
+prin a prin " <  " prin b prin " ? " prin a <  b prin " !  " prin d prin " <  " prin e prin " ? " prin d <  e print " !"
+prin a prin " <= " prin b prin " ? " prin a <= b prin " !  " prin d prin " <= " prin e prin " ? " prin d <= e print " !"
+prin a prin " >  " prin b prin " ? " prin a >  b prin " !  " prin d prin " >  " prin e prin " ? " prin d >  e print " !"
+prin a prin " >= " prin b prin " ? " prin a >= b prin " !  " prin d prin " >= " prin e prin " ? " prin d >= e print " !"
+prin a prin " =  " prin b prin " ? " prin a =  b prin " !  " prin d prin " =  " prin e prin " ? " prin d =  e print " !"
+prin c prin " <  " prin b prin " ? " prin c <  b prin " !  " prin f prin " <  " prin e prin " ? " prin f <  e print " !"
+prin c prin " <= " prin b prin " ? " prin c <= b prin " !  " prin f prin " <= " prin e prin " ? " prin f <= e print " !"
+prin c prin " >  " prin b prin " ? " prin c >  b prin " !  " prin f prin " >  " prin e prin " ? " prin f >  e print " !"
+prin c prin " >= " prin b prin " ? " prin c >= b prin " !  " prin f prin " >= " prin e prin " ? " prin f >= e print " !"
+prin c prin " =  " prin b prin " ? " prin c =  b prin " !  " prin f prin " =  " prin e prin " ? " prin f =  e print " !"

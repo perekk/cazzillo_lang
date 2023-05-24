@@ -21,5 +21,10 @@ print_arr a
 
 print "----------------------"
 
+'int_array array [1 2 3 4 5 ]
+prin "INT ARRAY ADDR: " print int_array !addr
+prin "INT ARRAY LEN: " print int_array #
+
+print "----------------------"
 prin "STACK:" print stack
 

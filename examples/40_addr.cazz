@@ -1,0 +1,29 @@
+;include "lib/std.cazz"
+
+
+'str "ABC"
+'addr str !addr
+print addr
+prin peek addr prin " " prin peek [addr + 1] prin " " print peek [addr + 2]
+poke addr 66 !<
+print str
+
+struct Test ['a Number 'b Byte 'c Bool]
+'struc new Test ['a 240 'b 69 !< 'c true]
+
+'addr2 struc !addr
+print addr2
+prin peek addr2 prin " " prin peek [addr2 + 1] prin " " prin peek [addr2 + 2] prin " " prin peek [addr2 + 3] prin " " print peek [addr2 + 4]
+poke addr2 66 !<
+print struc
+
+
+
+[
+  'i 69
+  'addr i !addr
+  print addr
+  print peek addr
+  poke addr 240 !<
+  print i
+]

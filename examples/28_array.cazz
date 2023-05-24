@@ -1,6 +1,6 @@
-'arr1 array 10 Number
+'arr1 array 100 Number
 'i 0
-while i < 10 [
+while i < 100 [
   change arr1 i i * 2 
   prin i prin ") " print arr1 at i
   inc i  

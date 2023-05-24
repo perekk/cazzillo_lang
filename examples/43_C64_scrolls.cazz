@@ -1,0 +1,88 @@
+include "lib/std.cazz"
+include "lib/c64.cazz"
+
+def asm_clear_bottom_line :[
+  'i 2024 - 40
+  emit 34 !< prin si "LDA #32" emit 34 !< emit 32 !<
+  while i < 2024 [
+    emit 34 !< prin si "STA {i}" emit 34 !< emit 32 !<
+    inc i
+  ]
+]
+
+; time 822
+'scroll :[
+  'row 1  
+  while row < 25 [
+    'col 0
+    while col < 40 [
+      'addr 1024 + row * 40 + col
+      poke addr - 40 peek addr
+      inc col
+    ]
+    inc row
+  ]
+  asm [asm_clear_bottom_line]
+]
+
+; time 192
+'scroll2 :[
+  'loc 1024 + 40  
+  'dest 1024
+  while loc < 2024 [    
+    poke dest peek loc    
+    inc loc
+    inc dest
+  ]
+  asm [asm_clear_bottom_line]
+]
+
+def asm_scroll_screen3 :[
+  'i 1064
+  while i < 2024 [
+    'dest i - 40
+    emit 34 !< prin si "LDA {i}" emit 34 !< emit 32 !< emit 34 !< prin si "STA {dest}" emit 34 !< emit 32 !<
+    inc i
+  ]
+]
+
+; time 7
+'scroll3 :[
+  asm [ 
+    asm_scroll_screen3 
+    asm_clear_bottom_line
+  ]
+]
+
+def N 30
+start_random
+'start1 time
+loop N do  
+  poke 1024 + 24 * 40 + rnd 40 1 !<
+  scroll
+end
+
+'start2 time
+loop N do  
+  poke 1024 + 24 * 40 + rnd 40 1 !<
+  scroll2  
+end
+
+'start3 time
+loop N do  
+  poke 1024 + 24 * 40 + rnd 40 1 !<  
+  asm ["JSR SCROLL_UP"]  
+end
+
+'start4 time
+loop N do  
+  poke 1024 + 24 * 40 + rnd 40 1 !<  
+  scroll3
+end
+
+'end_time time
+
+prin "SCROLL  :" print  start2   - start1
+prin "SCROLL2 :" print  start3   - start2
+prin "SCROLL4 :" print  start4   - start3
+prin "SCROLL3 :" print  end_time - start4

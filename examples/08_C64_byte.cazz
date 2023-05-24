@@ -1,3 +1,6 @@
+print ""
+print "***** CAZZILLO LANG  CAZZILLO LANG *****"
+
 'a 1064 
 while a < 1104 [
     'asciicode 128 + peek a
