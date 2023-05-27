@@ -1,18 +1,12 @@
 include "lib/std.cazz"
-include "lib/c64.cazz"
+;include "lib/c64.cazz"
 
-'start_time time
-loop 10 do box i + 1  i + 1 20 10 end
-loop 18 * 8 do 
-  'x [i % 18 + 11] !<
-  'y [i / 18 + 11] !<
-  gotoxy x y 
-  emit asc "HELLO FROM CAZZILLO " at [i % 20]
-  ; 'j [i + 1] !< gotoxy j j emit [j + 64] !<  
-end
-gotoxy 1 !< 23 !<
-prin "TIME:" print time - start_time
+def t_becomes_nil :['var String
+  'varname var
+  prin si "if {varname} [{varname}: false]"
+]
 
-; time 209
-; time 201 box: bring expression out of the loops
-; time 201 gotoxy optimized compare bytes for >= and > 
+'a true
+print a
+t_becomes_nil a
+print a

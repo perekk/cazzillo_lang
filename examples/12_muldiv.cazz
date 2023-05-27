@@ -1,3 +1,5 @@
+print "MULTIPLICATION"
+nl
 'a 1
 while a < 11 [
     'b 1
@@ -13,18 +15,47 @@ while a < 11 [
 ]
 
 print "------------------------------"
+print "DIVISION BY POWERS OF 2"
+nl
+'b 2
+prin "    "
+while b <= 256 [
+  if b < 10 [prin " "]
+  if b < 100 [prin " "]
+  prin b
+  prin " "            
+  b: b * 2
+]
+nl
 
-a: 7 * 8
-prin "7 * 8 = " print a
+a: 100
+while a < 1000 [
 
-a: 100 * 111
-prin "100 * 111 = " print a
+    b: 1
+    while b <= 256 [
+        'c a / b
+        if c < 10 [prin " "]
+        if c < 100 [prin " "]
+        prin c
+        prin " "
+        b: b * 2
+    ]
+    a: a + 100
+    if a < 1000 [nl]
+]
 
-a: 16 / 2
-prin "16 / 2 = " print a
 
-a: 256 % 50
-prin "256 % 50 = " print a
+; a: 7 * 8
+; prin "7 * 8 = " print a
 
-'b 256 / 4
-prin "256 / 4 = " print b
+; a: 100 * 111
+; prin "100 * 111 = " print a
+
+; a: 16 / 2
+; prin "16 / 2 = " print a
+
+; a: 256 % 50
+; prin "256 % 50 = " print a
+
+; 'b 256 / 4
+; prin "256 / 4 = " print b

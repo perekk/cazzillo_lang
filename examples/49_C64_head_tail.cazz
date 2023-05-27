@@ -1,0 +1,17 @@
+include "lib/std.cazz"
+include "lib/c64.cazz"
+
+'start_time time
+def N 10000
+
+start_random
+'h 0
+loop N do
+  if rand_byte < 128 [inc h]
+end
+'end_time time
+'t N - h
+prin ""
+prin "HEAD: " prin h prin " " prin h * 100 / N  print "%"
+prin "TAIL: " prin t prin " " prin t * 100 / N  print "%"
+prin "TIME: " prin [end_time - start_time] * 100 / 6 print " MSEC"

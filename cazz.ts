@@ -21,7 +21,7 @@ enum TokenType {
     EQ,
     GT,
     GTEQ,
-    AND,
+    AND,    
     OR,
     OPEN_BRACKETS,
     OPEN_REF_BRACKETS,
@@ -255,7 +255,7 @@ function humanReadableToken(t: TokenType | undefined): string {
         case TokenType.EQ: return "EQ";
         case TokenType.GT: return "GT";
         case TokenType.GTEQ: return "GTEQ";
-        case TokenType.AND: return "AND";
+        case TokenType.AND: return "AND";        
         case TokenType.OR: return "OR";
         case TokenType.OPEN_BRACKETS: return "OPEN_BRACKETS";
         case TokenType.OPEN_REF_BRACKETS: return "OPEN_REF_BRACKETS";
@@ -2386,7 +2386,7 @@ function createVocabulary(): Vocabulary {
         priority: 90,
         userFunction: false,
         ins: token => {
-            console.assert(token.childs.length === 2, "The childs of a division operand should be 2, compiler error");
+            assertChildNumber(token, 2);
             const type1 = getReturnTypeOfAWord(token.childs[0]);
             const type2 = getReturnTypeOfAWord(token.childs[1]);
             if ((type1 === "byte" || type1 === "number") && (type2 === "byte" || type2 === "number")) {
@@ -2400,8 +2400,52 @@ function createVocabulary(): Vocabulary {
         },
         generateAsm: (token, target) => {
             if (target === "c64") {
+                assertChildNumber(token, 2);
+                const divisor = token.childs[1];
+                if (divisor.type === TokenType.LITERAL) {
+                    const divisorValue = divisor.txt;
+                    const powersOfTwo: Record<string, number> = {
+                        "1": 0,
+                        "2": 1,
+                        "4": 2,
+                        "8": 3,
+                        "16": 4,
+                        "32": 5,
+                        "64": 6,
+                        "128": 7,
+                        "256": 8,
+                    }
+                    if (divisorValue in powersOfTwo) {
+                        const shiftValue = powersOfTwo[divisorValue];
+                        if (shiftValue === 8) {
+                            return [
+                                "LDX SP16",
+                                "INX",
+                                "INX",
+                                "STX SP16",
+                                "LDA STACKBASE + 2,X",
+                                "STA STACKBASE + 1,X",
+                                "LDA #0",
+                                "STA STACKBASE + 2,X",
+                            ]
+                        }
+                        return [
+                            "LDX SP16",
+                            "INX",
+                            "INX",
+                            "STX SP16",
+                            `LDY #${shiftValue}`,
+                            "LOOP_SHIFT_@:",
+                            "LSR STACKBASE + 2,X",
+                            "ROR STACKBASE + 1,X",
+                            "DEY",
+                            "BNE LOOP_SHIFT_@"
+                        ];
+                    }
+                }
                 return ["JSR DIV16"];
             }
+
             if (target === "freebsd") {
                 return [
                     "pop rbx",
@@ -7295,7 +7339,8 @@ async function preprocess(program: AST, vocabulary: Vocabulary) {
     const doSubstitution = async (program: AST, index: number) => {
         const macroElement = program[index];
         const macroName = macroElement.txt;
-        const filename = macroElement.loc.filename;
+        //const filename = macroElement.loc.filename;
+        const filename = `macro_at_${macroElement.loc.row}:${macroElement.loc.col}`;
         const startOfDefine = defines[macroName][1];
         const codeUntilDefinition = program.slice(0, startOfDefine).map(token => structuredClone(token) as Token);
         const copyOfDefines = defines[macroName][0].map(elem => structuredClone(elem) as Token);
@@ -7332,8 +7377,12 @@ async function preprocess(program: AST, vocabulary: Vocabulary) {
             typeCheckBlock(astMacroCall);
 
             const returnedCode = sim(vocabulary, astMacroCall, true);
-            const returnedTokens = await tokenizer(returnedCode, macroElement.loc.filename, vocabulary);
-            returnedTokens.forEach(token => token.loc = macroCallElement.loc);
+
+
+            sourceCode[filename] = returnedCode;
+            const returnedTokens = await tokenizer(returnedCode, filename, vocabulary);
+
+            //returnedTokens.forEach(token => token.loc = macroCallElement.loc);
 
             program.splice(index, macroCallLenght, ...(returnedTokens !== undefined ? returnedTokens : []));
             dumpProgram(program);
@@ -9042,7 +9091,7 @@ function localizeToken(token: Token) {
 
 function sim(vocabulary: Vocabulary, ast: Token, returnOutput: boolean): string {
 
-    //buildLinks(ast, undefined);
+    buildLinks(ast, undefined);
     const simEnv: SimEnvironment = {
         addresses: [],
         buffer: "",
@@ -9190,14 +9239,13 @@ async function main() {
 
     const astProgram = parse(vocabulary, program, target, filename);
     dumpAst(astProgram);
-    checkForUnusedCode(astProgram);
-    buildLinks(astProgram, undefined);
-
+    checkForUnusedCode(astProgram);    
     if (action === "sim") {
         sim(vocabulary, astProgram, false);
         Deno.exit(0);
     }
 
+    buildLinks(astProgram, undefined);
     const asm = compile(vocabulary, astProgram, target);
     if (target === "c64") {
         optimizeAsm(asm, target);
