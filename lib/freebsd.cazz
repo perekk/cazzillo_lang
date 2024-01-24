@@ -1,5 +1,9 @@
+def SYS_ioctl     54
+def SYS_nanosleep	240
+
 'nanosleep :['msec Number
-  drop syscall3 SYS_nanosleep [array [0 1000000 * msec]] !addr 0
+  'delay array [0 1000000 * msec]
+  drop syscall3 SYS_nanosleep delay !addr 0
 ]
 
 ; struct termios {

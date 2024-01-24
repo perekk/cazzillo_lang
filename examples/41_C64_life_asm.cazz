@@ -1,10 +1,12 @@
+include "lib/std.cazz"
+
 def HEIGHT 10
 def WIDTH 10
-def CELL_COUNT [HEIGHT * WIDTH]
+define CELL_COUNT [HEIGHT * WIDTH]
 def SCREEN_START 1024
 def BUFFER_START 10000
-def LIFE_CHAR [81 !<]
-def DEAD_CHAR [32 !<]
+define LIFE_CHAR [81 !<]
+define DEAD_CHAR [32 !<]
 
 'time :[[ 256 * peek 161] + peek 162]
 
@@ -72,12 +74,12 @@ def DEAD_CHAR [32 !<]
     n
 ]
 
-;def addOneIfAlive [n: n + [LIFE_CHAR = peek index] !<]
-def addOneIfAlive [
-  if LIFE_CHAR = peek index [inc n]
-  
-]
-def add_one_if_alive_asm [
+; def addOneIfAlive [n: n + [LIFE_CHAR = peek index] !<]
+; def addOneIfAlive [
+;   if LIFE_CHAR = peek index [inc n]  
+; ]
+
+define add_one_if_alive_asm [
   asm [
       "LDA V_index"
       "STA STACKACCESS"

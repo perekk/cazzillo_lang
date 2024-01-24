@@ -1,13 +1,12 @@
-include "lib/std.cazz"
 include "lib/c64.cazz"
 
-def asm_clear_bottom_line :[
+'asm_clear_bottom_line :[
   'i 2024 - 40
   emit 34 !< prin si "LDA #32" emit 34 !< emit 32 !<
   while i < 2024 [
     emit 34 !< prin si "STA {i}" emit 34 !< emit 32 !<
     inc i
-  ]
+  ]  
 ]
 
 ; time 822

@@ -1,12 +1,14 @@
+include "lib/std.cazz"
+
 def SCREEN_START 1024
 def SCREEN_SIZE 1000
 
-def clr [emit 147 !<]
+define clr [emit 147 !<]
 
 'time :[[ 256 * peek 161] + peek 162]
 
 // RANDOM
-def start_random [
+define start_random [
   poke 0xd40e 0xff
   poke 0xd40f 0xff
   poke 0xd412 0x80
@@ -20,8 +22,8 @@ def start_random [
   r
 ]
 
-def rand_byte [[peek 0xD41B]]
-def rand_word [rand_byte * 256 + rand_byte]
+define rand_byte [[peek 0xD41B]]
+define rand_word [rand_byte * 256 + rand_byte]
 'rnd :['limit Number
   either limit < 257 [
     'r rand_byte 
@@ -63,7 +65,7 @@ def rand_word [rand_byte * 256 + rand_byte]
   ]
 ]
 
-def box_top :['w Number
+'box_top :['w Number
   'hor_char [99  !<]
   'nw_char  [213 !<]
   'ne_char  [201 !<]
@@ -74,29 +76,32 @@ def box_top :['w Number
   emit nw_char 
   emit quote
   prin concat
-  loop w - 2 do emit quote emit hor_char emit quote prin concat end
+  'w2 w - 2
+  loop i w2 '[emit quote emit hor_char emit quote prin concat]
   emit quote
   emit nw_char 
   emit quote
 ]
 
 'box :['x Number 'y Number 'w Number 'h Number
-  def hor_char [99 !<]
-  def ver_char [194 !<]
-  def nw_char  [213 !<]
-  def ne_char  [201 !<]
-  def sw_char  [202 !<]
-  def se_char  [203 !<]
+  define hor_char [99 !<]
+  define ver_char [194 !<]
+  define nw_char  [213 !<]
+  define ne_char  [201 !<]
+  define sw_char  [202 !<]
+  define se_char  [203 !<]
 
   'x2 [x + w - 1] !<
   'y2 [y + h - 1] !<
-
-  loop w - 2 do 'xx [x + i + 1] !< gotoxy xx y !< emit hor_char gotoxy xx y2 emit hor_char end
-  loop h - 2 do 'yy [y + i + 1] !< gotoxy x !< yy emit ver_char gotoxy x2 yy emit ver_char end
+  
+  'ww w - 2
+  'hh h - 2
+  loop i ww [ 'xx [x + i + 1] !< gotoxy xx y !< emit hor_char gotoxy xx y2 emit hor_char ]
+  loop i hh [ 'yy [y + i + 1] !< gotoxy x !< yy emit ver_char gotoxy x2 yy emit ver_char ]
   gotoxy x !< y !< emit nw_char
   gotoxy [x + w - 1] !< y !< emit ne_char
   gotoxy x !< [y + h - 1] !< emit sw_char
   gotoxy [x + w - 1] !< [y + h - 1] !< emit se_char
 ]
 
-def scroll_up [asm "JSR SCROLL_UP"]
+define scroll_up [asm "JSR SCROLL_UP"]

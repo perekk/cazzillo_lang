@@ -1,0 +1,14 @@
+'def :['w Word 'n Word
+  '[ '{w} :[ '{n}' ]]
+]
+
+'define :['w Word 'n array Word
+  '[ '{w} :[ '[{n}] ] ]
+]
+
+def HEIGHT 10
+def WIDTH 10
+print HEIGHT * WIDTH 
+
+define CELL_COUNT [HEIGHT * WIDTH]
+print CELL_COUNT

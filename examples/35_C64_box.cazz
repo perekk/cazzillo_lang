@@ -1,4 +1,18 @@
-include "lib/c64.cazz"
+//include "lib/c64.cazz"
+
+'def :['w Word 'n Word
+  '['{w} :[ '{n}' ]]
+]
+
+'define :['w Word 'n array Word
+  '['{w} :[ '[{n}] ]]
+]
+
+'time :[[ 256 * peek 161] + peek 162]
+
+
+def SCREEN_START 1024
+define clr [emit 147 !<]
 
 'box :['x Number 'y Number 'w Number 'h Number 'ch Byte 'col Byte 
     'pos SCREEN_START + x + y * 40

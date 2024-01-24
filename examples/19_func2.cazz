@@ -1,4 +1,4 @@
 'const :["SHOULD RETURN: 7 INFACT IS"]
-'double :['x Number   'y   Number [x + y * y]]
-'log    :['msg String 'num Number [prin msg prin "=" print num]]
-log const double 3 2
+'add_and_mul :['x Number   'y   Number [x + y * y]]
+'log :['msg String 'num Number [prin msg prin "=" print num]]
+log const add_and_mul 3 2

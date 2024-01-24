@@ -27,7 +27,7 @@ print "NOT POINT"
 print a
 
 'scale_x 2
-'get_point :['xx Number 'yy Number
+'get_point :['xx Number 'yy Number 'scale_x Number
     'scale_y 3    
     new Point [
       'label "POINT 2"
@@ -37,7 +37,7 @@ print a
     
 ]
 
-'pt2 get_point 1 2
+'pt2 get_point 1 2 scale_x
 print pt2
 
 'print_point :['p Point 

@@ -4,7 +4,7 @@ def DEBUG false
 
 'board array N Number
 
-'init_board :['k 0 - 1 loop N do change board i k end if DEBUG [print "BOARD OK"]]
+'init_board :['k 0 - 1 loop i N [change board i k] if DEBUG [print "BOARD OK"]]
 
 'is_safe :[
   'x Number
@@ -23,7 +23,7 @@ def DEBUG false
 ]
 
 'print_board :[
-  loop N do prin board at i end
+  loop i N [prin board at i]
   print ""
 ]
 

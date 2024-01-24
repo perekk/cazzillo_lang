@@ -1,11 +1,19 @@
-def INCLUDED? "YESS"
-def SYS_ioctl     54
-def SYS_nanosleep	240
+'def :['w Word 'n Word
+  '['{w} :[ '{n}' ]]
+]
+
+'define :['w Word 'n array Word
+  '[ '{w} :[ '[{n}] ] ]  
+]
 
 ; LOOP
-def loop [( 'i 0 while ( i < ]
-def do [ ) ( ]
-def end [ inc i ) ) ]
+; def loop [( 'i 0 while ( i < ]
+; def do [ ) ( ]
+; def end [ inc i ) ) ]
+
+'loop :['var Word 'n Word 'body array Word 
+  '[ [ '{var} 0 while {var} < {n} [{body} inc {var}] ]]
+]
 
 ; 'nanosleep :['msec Number  
 ;   struct timespec [
@@ -51,41 +59,44 @@ struct Stack [
 ]
 
 ; String interpolation
-def si :[
+'si :[
   'txt String
   'i 0
-  emit 34 !<
   'interpol false
+  'buffer ""  
+  buffer: buffer . '"'
   while i < txt # [
-    'code asc txt at i
+    'cc txt at i
+    'code asc cc
     either interpol [
       either code = 36 [
-        prin " !str . "
+        buffer: buffer . " !str . "
       ] [
         either code = 125 [ ; }
-          interpol: false 
-          prin " !str . " 
-          emit 34 !< 
+          interpol: false
+          buffer: buffer . " !str . "
+          buffer: buffer . '"'
         ] [
-          emit code
-        ]        
-      ]      
+          buffer: buffer . cc
+        ]
+      ]
     ] [
       either code = 123 [ ; {
         interpol: true
-        emit 34 !<
-        prin " . "
+        buffer: buffer . '"'
+        buffer: buffer . " . "
       ] [
-        emit code
+        buffer: buffer . cc
       ]
     ]
     inc i
   ]
   either interpol [
-    prin " !str"
+    buffer: buffer . " !str"
   ] [
-    emit 34 !<    
+    buffer: buffer . '"'
   ]
+  buffer !word
 ]
 
 ; HEX

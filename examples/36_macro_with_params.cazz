@@ -1,44 +1,6 @@
-// String interpolation
-def si :[
-  'txt String
-  'i 0
-  emit 34 !<
-  'interpol false
-  while i < txt # [
-    'code txt at i
-    either interpol [
-      either code = 36 [
-        prin " !str . "
-      ] [
-        either code = 125 [ ; }
-          interpol: false 
-          prin " !str . " 
-          emit 34 !< 
-        ] [
-          emit code
-        ]        
-      ]      
-    ] [
-      either code = 123 [ ; {
-        interpol: true
-        emit 34 !<
-        prin " . "
-      ] [
-        emit code
-      ]
-    ]
-    inc i
-  ]
-  either interpol [
-    prin " !str"
-  ] [
-    emit 34 !<    
-  ]
-]
+include "lib/std.cazz"
 
-[
 'a "CAZZ"
 'b "ILLO"
 print si "HELLO {a}{b} THIS IS STRING INTERPOLATION!"
-print si "VIA {a}{b} M{a}CRO"
-]
+print si "VIA {a}{b} MACR{b}"

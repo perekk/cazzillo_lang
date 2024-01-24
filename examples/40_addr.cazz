@@ -1,29 +1,32 @@
 ;include "lib/std.cazz"
 
-
+print "--- STRING"
 'str "ABC"
 'addr str !addr
-print addr
-prin peek addr prin " " prin peek [addr + 1] prin " " print peek [addr + 2]
+prin "ADDR:" print addr
+prin "DUMP:" prin peek addr prin " " prin peek [addr + 1] prin " " print peek [addr + 2]
 poke addr 66 !<
+print "--- STRING AFTER POKE"
 print str
 
+print "--- STRUCT"
 struct Test ['a Number 'b Byte 'c Bool]
 'struc new Test ['a 240 'b 69 !< 'c true]
-
+print struc
 'addr2 struc !addr
-print addr2
-prin peek addr2 prin " " prin peek [addr2 + 1] prin " " prin peek [addr2 + 2] prin " " prin peek [addr2 + 3] prin " " print peek [addr2 + 4]
+prin "ADDR:" print addr2
+prin "DUMP:" prin peek addr2 prin " " prin peek [addr2 + 1] prin " " prin peek [addr2 + 2] prin " " prin peek [addr2 + 3] nl
 poke addr2 66 !<
+print "--- STRUCT AFTER POKE"
 print struc
 
-
-
 [
+  print "--- LOCAL INT"
   'i 69
   'addr i !addr
-  print addr
-  print peek addr
+  prin "ADDR:" print addr
+  prin "DUMP:" print peek addr
   poke addr 240 !<
+  print "--- LOCAL INT AFTER POKE"
   print i
 ]

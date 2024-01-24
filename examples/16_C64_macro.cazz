@@ -1,13 +1,34 @@
+include "lib/std.cazz"
+
 def SCREEN_START 1024
 def SCREEN_SIZE 1000
-def SCREEN_END [SCREEN_START + SCREEN_SIZE]
+define SCREEN_END [SCREEN_START + SCREEN_SIZE]
+
+'inc_var :['w Word
+  '[{w}: {w} + 1]
+] 
+
+'falsify_bool :['w Word
+  prin "CHANGE WORD: " print w
+  '[if {w} [{w}: false]]
+]
+
 
 'fill :[
     'i SCREEN_START
     while i < SCREEN_END [
         poke i i !<
-        inc i
+        inc_var i
     ]
 ]
 
 fill
+
+'c true
+print "              "
+print " FALSIFY BOOL "
+print "              "
+prin " BEFORE: " prin c print "    "
+falsify_bool c
+prin " AFTER : " prin c print "    "
+print "              "

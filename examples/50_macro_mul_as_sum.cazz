@@ -1,0 +1,14 @@
+'mul :['x Number 'y Number
+  'i 0
+  'limit y
+  'buffer ""
+  while i < limit [
+    buffer: buffer . x !str
+    if i < limit - 1 [buffer: buffer . " + "]
+    inc i
+  ]
+  buffer !word
+]
+
+print mul 2 3
+

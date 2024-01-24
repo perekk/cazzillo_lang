@@ -1,14 +1,36 @@
-include "lib/std.cazz"
 include "lib/c64.cazz"
+
+; 'loop :['var Word 'n Word 'body array Word 
+;   '[ [ '{var} 0 while {var} < {n} [{body} inc {var}] ]]
+; ]
+; 'time :[[ 256 * peek 161] + peek 162]
+
+; 'def :['w Word 'n Word
+;   '['{w} :[ '{n}' ]]
+; ]
+
+; 'define :['w Word 'n array Word
+;   '[ '{w} :[ '[{n}] ] ]
+; ]
+
+; define rand_byte [[peek 0xD41B]]
+
+; define start_random [
+;   poke 0xd40e 0xff
+;   poke 0xd40f 0xff
+;   poke 0xd412 0x80
+; ]
+
+
 
 'start_time time
 def N 10000
 
 start_random
 'h 0
-loop N do
+loop i 10000 [
   if rand_byte < 128 [inc h]
-end
+]
 'end_time time
 't N - h
 prin ""

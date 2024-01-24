@@ -1,22 +1,7 @@
-include "lib/std.cazz"
+//include "lib/std.cazz"
 
-def mul :['x Number 'y Number
-  'i 0
-  'limit y
-  while i < limit [
-    prin x if i < limit - 1 [prin " + "]
-    inc i
-  ]  
-  ; loop y do yield [x] if i < y - 1 [yield [+]] end
-  ;x + x + ... + x  y times
+'betterloop? :['var Word 'n Number 'body array Word 
+  '[['{var} 0 while {var} < {n} [{body} inc {var}]]]
 ]
 
-def betterloop? :[
-  'var String
-  'count Number
-  'body String
-  prin si "[ '$var 0 while $var < " prin count  prin si " [$body inc $var]]"  
-]
-
-
-betterloop? "k" 10 / 2 "print mul 2 3"
+betterloop? k 4 [prin k prin ") " print k * 7]

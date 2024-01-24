@@ -1,9 +1,17 @@
+'def :['w Word 'n Word
+  '['{w} :[ '{n}' ]]
+]
+
+'define :['w Word 'n array Word
+  '['{w} :[ '[{n}] ]]
+]
+
 def a 10
-def b [a + 1]
-def c [a + b + 2]
-def time_expr [[ 256 * peek 161] + peek 162]
+define b [a + 1]
+define c [a + b + 2]
+define time_expr [[ 256 * peek 161] + peek 162]
 
 'time time_expr
 
-print c
-print time
+prin "THIS SHOULD BE 23 => " print c
+prin "THIS IS THE TIME  => " print time

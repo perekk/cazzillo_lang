@@ -1,5 +1,11 @@
-def loop [( 'i 0 while ( i < ]
-def do [ ) ( ]
-def end [ inc i ) ) ]
-loop 5 do print "HI" end
-loop 3 do print "CAZZ" end
+'loop :['var Word 'n Number 'body array Word 
+  '[ [ '{var} 0 while {var} < {n} [{body} inc {var}] ]]
+]
+
+// loop 5 do print "HI" end
+// loop 3 do print "CAZZ" end
+
+loop i 5 [print "HI"]
+loop i 3 [print "CAZZ"]
+
+loop i 5 [loop j 5 [prin i * j prin " "] print ""]
