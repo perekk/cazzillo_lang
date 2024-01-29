@@ -1,5 +1,5 @@
 'salute :['name String print "HELLO " . name]
-salute "CAZZILLERS"
+salute "CAZZILLER"
 
 'plusone :['x Number x + 1]
 prin "PLUSONE 11 IS " print plusone 11

@@ -388,7 +388,7 @@ function getArity(token: Token, vocabulary: Vocabulary): number {
     exit();
 }
 
-function getInputParametersValue(token: Token): ValueType[] {
+function getInputParametersType(token: Token): ValueType[] {
     if (token.type === TokenType.WORD) {
         const varDef = getWordDefinition(token.context, token.txt);
         if (varDef === undefined) {
@@ -403,6 +403,23 @@ function getInputParametersValue(token: Token): ValueType[] {
         exit();
     }
     return token.ins;
+}
+
+function getOutputType(token: Token): ValueType {
+    if (token.type === TokenType.LITERAL && token.out === "word") {
+        const varDef = getWordDefinition(token.context, token.txt);
+        if (varDef === undefined) {
+            logError(token.loc, `Unnkown word '${token.txt}'`);
+            exit();
+        }
+        return varDef.out;
+    }
+
+    if (token.out === undefined) {
+        logError(token.loc, `the output type for word '${token.txt}' is not defined`);
+        exit();
+    }
+    return token.out;
 }
 
 function getInstructionPosition(token: Token): InstructionPosition {
@@ -465,7 +482,6 @@ function getWordOffsetAndLevel(context: Context | undefined, varName: string, ta
     exit();
 }
 
-
 function sizeOfContextMetadata(target: Target): number {
     return sizeForValueType("addr", target) + sizeForValueType("addr", target);
 }
@@ -526,7 +542,6 @@ function getWordDefinition(context: Context | undefined, variableName: string): 
     }
     return undefined;
 }
-
 
 function getAsmVarName(varName: string): string {
     return "V_" + varName;
@@ -1717,29 +1732,31 @@ function simGetWordValue(simEnv: SimEnvironment, token: Token, context: Context)
                 break;
         }
     } else {
-        const offset = getWordOffset(context, varName, "sim");
+        // const offset = getWordOffset(context, varName, "sim");
+        const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, "sim");
+        const addressInStack = simGetIndexFromOffsetAndLevel(simEnv, token.context!, offset, levelToSkip);
         switch (varType) {
             case "number":
             case "bool":
             case "byte":
             case "addr":
-                const valueToPush = simEnv.ctxStack.at(-(offset + 1));
+                const valueToPush = simEnv.ctxStack.at(addressInStack);
                 if (valueToPush === undefined) {
-                    logError(token.loc, `'${token.txt}' value in the context stack at position ${-(offset + 1)} is undefined`);
+                    logError(token.loc, `'${token.txt}' value in the context stack at position ${addressInStack} is undefined`);
                     exit();
                 }
                 ret = String(valueToPush);
                 break;
             case "string":
             case "word":
-                const address = simEnv.ctxStack.at(-(offset + 1));
+                const address = simEnv.ctxStack.at(addressInStack);
                 if (address === undefined) {
-                    logError(token.loc, `'${token.txt}' string address in the context stack at position ${-(offset + 1)} is undefined`);
+                    logError(token.loc, `'${token.txt}' string address in the context stack at position ${addressInStack} is undefined`);
                     exit();
                 }
-                const lenght = simEnv.ctxStack.at(-(offset + 2));
+                const lenght = simEnv.ctxStack.at(addressInStack - 1);
                 if (lenght === undefined) {
-                    logError(token.loc, `'${token.txt}' string lenght in the context stack at position ${-(offset + 1)} is undefined`);
+                    logError(token.loc, `'${token.txt}' string lenght in the context stack at position ${addressInStack} is undefined`);
                     exit();
                 }
                 ret = readStringFromHeap(simEnv, address, lenght);
@@ -1752,14 +1769,14 @@ function simGetWordValue(simEnv: SimEnvironment, token: Token, context: Context)
             default:
                 if (varType[0] === "array") {
                     if (varType[1] === "word" || varType[1] === "string") {
-                        const address = simEnv.ctxStack.at(-(offset + 1));
+                        const address = simEnv.ctxStack.at(addressInStack);
                         if (address === undefined) {
-                            logError(token.loc, `'${token.txt}' array address in the context stack at position ${-(offset + 1)} is undefined`);
+                            logError(token.loc, `'${token.txt}' array address in the context stack at position ${addressInStack} is undefined`);
                             exit();
                         }
-                        const lenght = simEnv.ctxStack.at(-(offset + 2));
+                        const lenght = simEnv.ctxStack.at(addressInStack - 1);
                         if (lenght === undefined) {
-                            logError(token.loc, `'${token.txt}' array lenght in the context stack at position ${-(offset + 1)} is undefined`);
+                            logError(token.loc, `'${token.txt}' array lenght in the context stack at position ${addressInStack - 1} is undefined`);
                             exit();
                         }
                         const str: string[] = [];
@@ -1773,9 +1790,9 @@ function simGetWordValue(simEnv: SimEnvironment, token: Token, context: Context)
                         ret = "[ARRAY...]";
                     }
                 } else {
-                    const valueToPush = simEnv.ctxStack.at(-(offset + 1));
+                    const valueToPush = simEnv.ctxStack.at(addressInStack);
                     if (valueToPush === undefined) {
-                        logError(token.loc, `'${token.txt}' value in the context stack at position ${-(offset + 1)} is undefined`);
+                        logError(token.loc, `'${token.txt}' value in the context stack at position ${addressInStack} is undefined`);
                         exit();
                     }
                     ret = String(valueToPush);
@@ -1806,7 +1823,7 @@ function getReturnTypeOfAWord(token: Token): ValueType {
     }
     if (token.type === TokenType.REF_BLOCK) return "addr";
     if (token.type === TokenType.RECORD) return "record";
-    if (token.type === TokenType.WORD_BLOCK) return ["array", "word"];
+    if (token.type === TokenType.WORD_BLOCK) return ["array", "word"];    
     return token.out;
 }
 
@@ -4249,8 +4266,10 @@ function createVocabulary(): Vocabulary {
             }
             if (varDef.isGlobalContext) return simSetWordGlobal(simEnv, varDef.internalType, varName);
 
-            const offset = getWordOffset(token.context, varName, "sim");
-            return simSetWordLocal(simEnv, varDef.internalType, offset);
+            //const offset = getWordOffset(token.context, varName, "sim");
+            const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, "sim");
+            const addressInStack = simGetIndexFromOffsetAndLevel(simEnv, token.context!, offset, levelToSkip);
+            return simSetWordLocal(simEnv, varDef.internalType, addressInStack);
         }
     };
     voc[TokenType.LIT_WORD] = {
@@ -4302,7 +4321,7 @@ function createVocabulary(): Vocabulary {
             } else {                
                 const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, "sim");
                 const addressInStack = simGetIndexFromOffsetAndLevel(simEnv, token.context!, offset, levelToSkip);
-                simSetWordLocal(simEnv, varDef.internalType, addressInStack);                
+                simSetWordLocal(simEnv, varDef.internalType, addressInStack);
             }
         },
     };
@@ -4439,6 +4458,7 @@ function createVocabulary(): Vocabulary {
 
             //if (varDef === undefined || varDef.type !== "function" || !varDef.isMacro) return;
             if (varDef?.type === "function" && varDef?.isMacro) {
+                sequence[0].priority = 1000;
                 for (let i = 0; i < varDef.ins.length; i++) {
                     const paramType = varDef.ins[i];
                     const token = sequence[1 + i];
@@ -6125,9 +6145,12 @@ function createVocabulary(): Vocabulary {
                 storeNumberOnHeap(simEnv, readNumberFromHeap(simEnv, addr) + 1, addr);
             } else {
                 // LOCAL CONTEXT
-                const offset = getWordOffset(token.context, varName, "sim");
-                const indexOnCtxStack = simEnv.ctxStack.length - 1 - offset;
-                simEnv.ctxStack[indexOnCtxStack]++;
+                // const offset = getWordOffset(token.context, varName, "sim");
+                // const indexOnCtxStack = simEnv.ctxStack.length - 1 - offset;
+
+                const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, "sim");
+                const addressInStack = simGetIndexFromOffsetAndLevel(simEnv, token.context!, offset, levelToSkip);
+                simEnv.ctxStack[addressInStack]++;
             }
         },
         generateAsm: (token, target) => {
@@ -7929,13 +7952,6 @@ function getDefinitionNeeded(macroCall: Token, sequence: AST) {
 }
 
 async function doMacro(vocabulary: Vocabulary, sequence: AST, macroCall: Token): Promise<AST> {
-    const completeCode = sequence.filter(token =>
-        token.type === TokenType.LIT_WORD
-        && getWordDefinition(macroCall.context, token.txt)?.type !== "value"
-    );
-    //const completeCode = getDefinitionNeeded(macroCall, sequence);
-
-    completeCode.push(macroCall);
     const prog: Token = {
         loc: { col: 1, row: 1, filename: macroCall.loc.filename },
         txt: "[PROG]",
@@ -7948,17 +7964,40 @@ async function doMacro(vocabulary: Vocabulary, sequence: AST, macroCall: Token):
         priority: 0,
         position: InstructionPosition.PREFIX,
         functionIndex: undefined,
-        childs: completeCode,
-        context: macroCall.context
+        childs: [],
+        //context: macroCall.context
+        context: createNewContext(undefined)
     };
+    // copy the ast
+    const copyOfCode = structuredClone(sequence) as AST;
+
+    const completeCode = copyOfCode
+        .filter(token =>
+            token!.type === TokenType.LIT_WORD
+            && getWordDefinition(macroCall.context, token.txt)?.type !== "value"
+        );
+    //const completeCode = getDefinitionNeeded(macroCall, sequence);
+
+    // adjust the context of the child (context of recursive childs is ok)
+    // and define every lit word
+    completeCode.forEach(token => {
+        token.context = prog.context;
+        setWordDefinition(token);
+    });
+    const newCall = structuredClone(macroCall) as Token;
+    newCall.context = prog.context;
+    completeCode.push(newCall);
+
+    prog.childs = completeCode;
+
     const returnedCode = sim(vocabulary, prog, true);
     const filename = `macro_at_${macroCall.loc.row}:${macroCall.loc.col}`;
     sourceCode[filename] = returnedCode;
     const tokens = await tokenizer(returnedCode, filename, vocabulary);
     const callStr = (macroCall.txt + " " + macroCall.childs.map(t => getSourceRapresentationOfAToken(t)).join(" ")).trim();
     const expandStr = tokens.map(token => getSourceRapresentationOfAToken(token)).join(" ");
-    console.log(`macro [${callStr}] expanded as [${expandStr}]`);
-    const ast = groupSequence(filename, tokens, vocabulary, macroCall.context);
+    console.log(`macro ${callStr} expanded as ${expandStr}`);
+    const ast = groupSequence(filename, tokens, vocabulary, macroCall.context);    
     return ast.childs;
 }
 
@@ -8170,7 +8209,9 @@ function getReturnValueByBlock(block: Token): ValueType {
             logError(block.childs[i + 1].loc, `'${block.childs[i + 1].txt}' is unreachable code`);
             exit();
         } else if (block.childs[i].out !== "void") {
+            dumpAst(block);
             logError(block.childs[i].loc, `the expression '${block.childs[i].txt}' should not return unhandled data, currently it returns ${humanReadableType(block.childs[i].out)}`);
+
             exit();
         }
     }
@@ -8394,7 +8435,7 @@ function typeCheck(token: Token, vocabulary: Vocabulary) {
         }
     }
 
-    const ins = getInputParametersValue(token);
+    const ins = getInputParametersType(token);
     for (let i = 0; i < ins.length; i++) {
         //if (!areTypesEqual(ins[i], getReturnTypeOfAWord(token.childs[i]))) {
         if (!areTypesCompatible(ins[i], token.childs[i])) {            
@@ -8558,7 +8599,7 @@ function setWordDefinition(token: Token) {
             internalType: "addr",            
             reference: []
         };        
-        if (isMacro) console.log(`define macro: ${token.txt}:${getFunctionSignature(token)}`);
+        if (isMacro) console.log(`define macro: ${token.txt}:${getFunctionSignature(Object.assign({}, token, { type: TokenType.WORD }))}`);
     } else {
         // if (child.internalValueType === undefined) {
         //     logError(child.loc, `the internal type of '${child.txt}' is undefined`);
@@ -9062,7 +9103,8 @@ function groupSequence(filename: string, program: AST, vocabulary: Vocabulary, s
                 ast.push(token);
                 continue;
             }
-            currentContext = createNewContext(currentContext);
+            // dont need new context here !
+            //currentContext = createNewContext(currentContext);
             inLitBlock = pos;
         } else if (token.type === TokenType.CLOSE_BRACKETS) {
             const state = stack.pop();

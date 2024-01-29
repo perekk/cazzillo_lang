@@ -1,14 +1,14 @@
-include "lib/std.cazz"
 include "lib/c64.cazz"
 
 'start_time time
-loop 10 do box i i 20 10 end
-loop 18 * 8 do 
+loop i 10 [box i i 20 10]
+'N 18 * 8
+loop i N [ 
   'x [i % 18 + 10] !<
   'y [i / 18 + 10] !<
   gotoxy x y 
   emit asc "HELLO FROM CAZZILLO " at [i % 20]
-end
+]
 gotoxy 1 !< 23 !<
 prin "TIME:" print time - start_time
 

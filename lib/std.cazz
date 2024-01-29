@@ -9,7 +9,6 @@
 ; LOOP
 ; def loop [( 'i 0 while ( i < ]
 ; def do [ ) ( ]
-; def end [ inc i ) ) ]
 
 'loop :['var Word 'n Word 'body array Word 
   '[ [ '{var} 0 while {var} < {n} [{body} inc {var}] ]]

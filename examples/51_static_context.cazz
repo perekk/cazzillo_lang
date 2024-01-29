@@ -1,0 +1,49 @@
+[
+  print stack
+  'a 10  
+  'sum_one :[    
+    prin "A=" prin a + 1 print " <-- THIS SHOULD BE 11"
+    [      
+      'z 100      
+      'sum_two :[        
+        prin "A=" prin a + 1 print " <-- THIS SHOULD BE 11"
+        prin "Z=" prin z + 2 print " <-- THIS SHOULD BE 102"        
+      ] 
+      'call_sum_two :[
+        'w 69
+        sum_two
+        prin "W=" prin w print " <-- THIS SHOULD BE 69"
+      ]      
+      call_sum_two
+    ]
+  ]
+  'call_sum :[    
+    'b 1    
+    sum_one
+    prin "B=" prin b print " <-- THIS SHOULD BE 1"
+  ]
+  sum_one  
+  call_sum
+  print stack
+]
+
+; [
+;   'x 101 
+;   'y 102
+;   'a 240 
+;   'w 103
+;   'z 104
+;   'sum_one :[
+;     prin "A=" prin a + 1 print " <-- THIS SHOULD BE 241"
+;   ]
+;   'call_sum :[
+;     'b 69
+;     sum_one
+;     prin "B=" print b 
+;   ]
+;   call_sum  
+;   print x
+;   print y
+;   print w
+;   print z
+; ]

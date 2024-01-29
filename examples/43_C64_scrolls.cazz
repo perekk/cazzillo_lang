@@ -36,13 +36,22 @@ include "lib/c64.cazz"
   asm [asm_clear_bottom_line]
 ]
 
-def asm_scroll_screen3 :[
+'asm_scroll_screen3 :[
   'i 1064
+  'buffer ""
   while i < 2024 [
     'dest i - 40
-    emit 34 !< prin si "LDA {i}" emit 34 !< emit 32 !< emit 34 !< prin si "STA {dest}" emit 34 !< emit 32 !<
+    buffer: buffer . '"'    
+    buffer: buffer . si "LDA {i}"
+    buffer: buffer . '"'
+    buffer: buffer . " "
+    buffer: buffer . '"'
+    buffer: buffer . si "STA {dest}"
+    buffer: buffer . '"'
+    buffer: buffer . " "
     inc i
   ]
+  buffer !word
 ]
 
 ; time 7
