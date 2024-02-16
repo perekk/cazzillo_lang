@@ -1,4 +1,3 @@
-[
 struct Point [
   'label String
   'x Number
@@ -33,8 +32,7 @@ print a
       'label "POINT 2"
       'x xx * scale_x
       'y yy * scale_y
-    ]
-    
+    ]   
 ]
 
 'pt2 get_point 1 2 scale_x
@@ -54,4 +52,3 @@ print_point pt2
 ;Persona 6
 
 ;davide . eta
-]

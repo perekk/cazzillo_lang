@@ -28,7 +28,7 @@ def N 10000
 
 start_random
 'h 0
-loop i 10000 [
+loop i N [
   if rand_byte < 128 [inc h]
 ]
 'end_time time

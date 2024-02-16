@@ -69,6 +69,7 @@ enum TokenType {
     SYSCALL4,
     DROP,
     ASM,
+    DEBUG,
     TOKEN_COUNT,
 }
 enum InstructionPosition {
@@ -259,7 +260,7 @@ function isABlock(type: TokenType): boolean {
 
 function humanReadableToken(t: TokenType | undefined): string {
     if (t === undefined) return "undefined";
-    console.assert(TokenType.TOKEN_COUNT === 64, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 65, "Exaustive token types count");
     switch (t) {
         case TokenType.LITERAL: return "LITERAL";
         case TokenType.PLUS: return "PLUS";
@@ -325,6 +326,7 @@ function humanReadableToken(t: TokenType | undefined): string {
         case TokenType.SYSCALL4: return "SYSCALL4";
         case TokenType.DROP: return "DROP";
         case TokenType.ASM: return "ASM";
+        case TokenType.DEBUG: return "DEBUG";
         default:
             throw new Error(`Token Type ${t} not defined`);
     }
@@ -448,7 +450,7 @@ function getWordOffset(context: Context | undefined, varName: string, target: Ta
         if (currentContext.element?.type === TokenType.BLOCK ||
             currentContext.element?.type === TokenType.REF_BLOCK
         ) {
-            offset += sizeOfContextMetadata(target);
+            offset += sizeOfContextMetadata(currentContext, target);
         }
         currentContext = currentContext.parent;
 
@@ -470,6 +472,7 @@ function getWordOffsetAndLevel(context: Context | undefined, varName: string, ta
     let currentContext: Context | undefined = context;
     while (currentContext !== undefined) {
         for (const [key, varDef] of Object.entries(currentContext.varsDefinition)) {
+            if (varDef.type === "struct") continue;
             if (key === varName) return { offset, levelToSkip };
             offset += sizeForValueType(varDef.internalType, target);
         }
@@ -482,23 +485,31 @@ function getWordOffsetAndLevel(context: Context | undefined, varName: string, ta
     exit();
 }
 
-function sizeOfContextMetadata(target: Target): number {
+function sizeOfContextMetadata(context: Context, target: Target): number {
+
+    if (context.parent === undefined) return 0;
+
+    if (target === "c64") {
+        return 1; // 1 byte for the static context in <CTX_PAGE> page
+    }
+
     return sizeForValueType("addr", target) + sizeForValueType("addr", target);
+
 }
 
-function sizeOfContextWithMetadata(context: Context, target: Target): number {
-    // in context we need a pointer to the static and dynamic parent context
-    return sizeOfContextMetadata(target) + sizeOfRecord(context, target);
+function sizeOfContextWithMetadata(context: Context, target: Target): number {    
+    return sizeOfContextMetadata(context, target) + sizeOfContext(context, target);
 }
 
 function sizeOfContext(context: Context, target: Target): number {    
+    if (context.parent === undefined) return 0;
     return sizeOfRecord(context, target);
 }
 
 function sizeOfRecord(context: Context, target: Target): number {
     let size = 0;
     Object.values(context.varsDefinition).forEach(varDef => {
-        size += sizeForValueType(varDef.internalType, target);
+        if (varDef.type !== "struct") size += sizeForValueType(varDef.internalType, target);
     });
     return size;
 }
@@ -586,50 +597,69 @@ function simSetWordPointedByTOS(simEnv: SimEnvironment, varType: ValueType, offs
     }
 }
 
-function getAsmForSetWordPointedByTOS(varType: ValueType, offset: number, target: Target): Assembly {
+function getAsmForSetWordPointedByTOS(varType: ValueType, offset: number, dereference: "YES" | "NO" | "AUXISONSTACK", target: Target): Assembly {
     if (target === "c64") {
+
+        let getAddress: Assembly;
+        switch (dereference) {
+            case "NO":
+                getAddress = [
+                    `JSR POP16`,
+                    `LDA STACKACCESS`,
+                    "STA AUX",
+                    `LDA STACKACCESS+1`,
+                    "STA AUX + 1",
+                ];
+                break;
+            case "YES":
+                getAddress = [
+                    "JSR POP16",
+                    "LDY #0",
+                    "LDA (STACKACCESS),Y",
+                    "STA AUX",
+                    "INY",
+                    "LDA (STACKACCESS),Y",
+                    "STA AUX + 1",
+                ];
+                break;
+            case "AUXISONSTACK":
+                getAddress = [
+                    "PLA",
+                    "STA AUX + 1",
+                    "PLA",
+                    "STA AUX",
+                ];
+                break;
+        }
+
         switch (varType) {
             case "bool":
             case "byte":
-                return [
-                    `JSR POP16`,
-                    "LDA STACKBASE + 1,X",
-                    "STA AUX",
-                    "LDA STACKBASE + 2,X",
-                    "STA AUX + 1",
-                    `LDY #${offset}`,
-                    `LDA STACKACCESS`,
-                    `STA (AUX),Y`,
+                return getAddress.concat([
+                    // NO_PEEPHOLE_OPT_DIRECTIVE,
                     "JSR POP16",
-                ];
-            case "number":
-            case "addr":
-                return [
-                    NO_PEEPHOLE_OPT_DIRECTIVE,
-                    `JSR POP16`,
-                    "LDA STACKBASE + 1,X",
-                    "STA AUX",
-                    "LDA STACKBASE + 2,X",
-                    "STA AUX + 1",
                     `LDY #${offset}`,
-                    `LDA STACKACCESS`,
+                    "LDA STACKACCESS",
+                    `STA (AUX),Y`,
+                ]);
+            case "number":
+            case "addr":                
+                return getAddress.concat([
+                    // NO_PEEPHOLE_OPT_DIRECTIVE,
+                    "JSR POP16",
+                    `LDY #${offset}`,
+                    "LDA STACKACCESS",
                     `STA (AUX),Y`,
                     "INY",
-                    `LDA STACKACCESS + 1`,
+                    "LDA STACKACCESS + 1",
                     `STA (AUX),Y`,
-                    "JSR POP16",
-                ];
+                ]);
             case "string":
             case "word":
-                return [
-                    "JSR POP16",
-                    "LDA STACKBASE + 3,X",
-                    "STA AUX",
-                    "LDA STACKBASE + 4,X",
-                    "STA AUX + 1",
-
+                return getAddress.concat([
                     `LDY #${offset}`,
-                    `LDA STACKACCESS`,
+                    `JSR POP16`,
+                    "LDA STACKACCESS",
                     `STA (AUX),Y`,
                     "INY",
                     `LDA STACKACCESS + 1`,
@@ -642,22 +672,18 @@ function getAsmForSetWordPointedByTOS(varType: ValueType, offset: number, target
                     "INY",
                     `LDA STACKACCESS + 1`,
                     `STA (AUX),Y`,
-                    `JSR POP16`,
-                ];
+                ]);
+
             case "record":
-            case "void":            
-                return [];
+            case "void":                            
+                console.log(`cannot compile set word for type ${varType}`);
+                exit();
             default:
                 if (varType[0] === "array") {
-                    return [
-                        "JSR POP16",
-                        "LDA STACKBASE + 3,X",
-                        "STA AUX",
-                        "LDA STACKBASE + 4,X",
-                        "STA AUX + 1",
-
+                    return getAddress.concat([
                         `LDY #${offset}`,
-                        `LDA STACKACCESS`,
+                        `JSR POP16`,
+                        "LDA STACKACCESS",
                         `STA (AUX),Y`,
                         "INY",
                         `LDA STACKACCESS + 1`,
@@ -670,23 +696,17 @@ function getAsmForSetWordPointedByTOS(varType: ValueType, offset: number, target
                         "INY",
                         `LDA STACKACCESS + 1`,
                         `STA (AUX),Y`,
-                        `JSR POP16`,
-                    ]
+                    ]);
                 }
-                return [
-                    `JSR POP16`,
-                    "LDA STACKBASE + 1,X",
-                    "STA AUX",
-                    "LDA STACKBASE + 2,X",
-                    "STA AUX + 1",
+                return getAddress.concat([
+                    "JSR POP16",
                     `LDY #${offset}`,
-                    `LDA STACKACCESS`,
+                    "LDA STACKACCESS",
                     `STA (AUX),Y`,
                     "INY",
-                    `LDA STACKACCESS + 1`,
+                    "LDA STACKACCESS + 1",
                     `STA (AUX),Y`,
-                    "JSR POP16",
-                ];
+                ]);
         }
     }
     if (target === "freebsd") {
@@ -785,7 +805,7 @@ function getAsmForGetWordPointedByTOS(varType: ValueType, offset: number, target
                 ];
             case "number":
             case "addr":
-                return [
+                return [                    
                     "JSR POP16",
                     "LDA STACKACCESS",
                     "STA AUX",
@@ -1097,7 +1117,7 @@ function getAsmForSetWordLocal(varType: ValueType, offset: number, target: Targe
             "LDX CTX_SP16",
         ];
         const contextPage = CTX_PAGE * 256;
-        const finalAddress = contextPage + offset;
+        const finalAddress = contextPage + offset + 1;
         switch (varType) {
             case "number":
                 return popAndOffsetStack.concat([
@@ -1213,6 +1233,110 @@ function getAsmForSetWordLocal(varType: ValueType, offset: number, target: Targe
     exit();
 }
 
+function getAsmPutWordAddressOnTOS(valueType: ValueType, caller: Token, callee: Token, offset: number, saveStaticContextOnStack: boolean, target: Target): Assembly {
+    if (target !== "c64") {
+        console.log(`target system '${target}' unknown`);
+        exit();
+    }
+
+    const callerLevel = caller.context?.level!;
+    const calleeLevel = callee.context?.level!;
+
+    if (calleeLevel === undefined || callerLevel === undefined) {
+        logError(caller.loc, `Cannot find levels in context: caller level ${callerLevel}, callee level ${calleeLevel}`);
+        exit();
+    }
+
+    if (callerLevel < calleeLevel) {
+        logError(caller.loc, `caller context level could not be lesser than callee context level: caller level ${callerLevel}, callee level ${calleeLevel}`);
+        exit();
+    }
+
+    let levelsToClimb = callerLevel - calleeLevel;
+    let currentContext: Context | undefined = caller.context!;
+    const ret: Assembly = [];
+    const sizeOfCurrentContext = sizeOfContextWithMetadata(currentContext, target);
+
+
+    // todo: make this optimization works !
+    // if (levelsToClimb === 0) {
+    //     const offsetFromBottom = sizeOfContextWithMetadata(currentContext!, target) - offset - 1;
+    //     if (saveStaticContextOnStack) {
+    //         ret.push(...[
+    //             `LDA #${CTX_PAGE}`,
+    //             "STA STACKACCESS + 1",
+    //             "LDA CTX_SP16",
+    //             "CLC",
+    //             `ADC #${sizeOfCurrentContext}`,
+    //             "; save the start of the static context on the 6502 stack",
+    //             "PHA",
+    //             "SEC",
+    //             `SBC #${offsetFromBottom}`,
+    //             "STA STACKACCESS"
+    //         ]);
+    //     } else {
+    //         ret.push(...[
+    //             `LDA #${CTX_PAGE}`,
+    //             "STA STACKACCESS + 1",
+    //             "LDA CTX_SP16",
+    //             "CLC",
+    //             `ADC #${sizeOfCurrentContext - offsetFromBottom}`,
+    //             "STA STACKACCESS"
+    //         ]);
+    //     }
+    //     return ret;
+    // }
+
+    //let currentAddress = simEnv.ctxStack.length - sizeOfContextWithMetadata(currentContext, "sim");
+
+    ret.push(...[
+        "LDY #0",
+        `LDA #${CTX_PAGE}`,
+        "STA STACKACCESS + 1",
+        "LDA CTX_SP16",
+        "CLC",
+        `ADC #${sizeOfCurrentContext}`,
+        "STA STACKACCESS",
+    ]);
+
+    while (levelsToClimb > 0) {
+        if (currentContext === undefined) {
+            logError(caller.loc, `cannot climb thru the contexts: caller level ${callerLevel}, callee level ${calleeLevel}, levels to climb: ${levelsToClimb}`);
+            exit();
+        }
+        currentContext = currentContext.parent;
+        levelsToClimb--;
+
+        //currentAddress = simEnv.ctxStack[currentAddress];
+        ret.push("LDA (STACKACCESS),Y");
+        if (levelsToClimb > 0) ret.push("STA STACKACCESS");
+    }
+
+    // In case of a function call, push the start of static context in the stack
+    ret.push(saveStaticContextOnStack ? `; word '${caller.txt}' is a function` : `; no need to save the static context address on stack for word '${caller.txt}'`);
+    if (saveStaticContextOnStack) ret.push(...[
+        "; save the start of the static context on the 6502 stack",
+        "PHA",
+    ]);
+
+    // in stackaccess now we have the start of the static context containing the word
+    // now is time to add the offset
+    // currentAddress += sizeOfContextWithMetadata(currentContext!, "sim") - offset - 1;
+    const offsetFromBottom = sizeOfContextWithMetadata(currentContext!, target) - offset - 1;
+    if (offsetFromBottom !== 0) {
+        ret.push(...[
+            "SEC",
+            `SBC #${offsetFromBottom}`,
+            "STA STACKACCESS",
+        ]);
+    }
+    ret.push(...[
+        "JSR PUSH16"
+    ]);
+
+    return ret;
+}
+
 function simSetWordLocal(simEnv: SimEnvironment, varType: ValueType, indexInStack: number) {
     switch (varType) {
         case "number":
@@ -1255,6 +1379,16 @@ function getAsmForGetWordGlobal(token: Token, varType: ValueType, asmVarName: st
                 `STA CALL_FUN_@ + 1`,
                 `LDA ${asmVarName} + 1`,
                 `STA CALL_FUN_@ + 2`,
+
+                // Push the static context address onto stack
+                // since we are getting a global function we store 0
+                "; Push the static context address onto stack (1 byte)",
+                "LDY CTX_SP16",
+                "LDA #0",
+                `STA ${CTX_PAGE * 256},Y`,
+                "DEY",
+                "STY CTX_SP16",
+
                 "CALL_FUN_@:",
                 `JSR $1111 ; will be overwritten`
             ];
@@ -1594,6 +1728,46 @@ function getAsmForGetWordLocal(varType: ValueType, offset: number, isFunction: b
     }
     console.log(`target system '${target}' unknown`);
     exit();
+}
+
+function getAsmForGetWordLocalUsingOffsetAndLevel(valueType: ValueType, caller: Token, callee: Token, isFunction: boolean, offset: number, target: Target): Assembly {
+
+    if (target !== "c64") {
+        console.log(`target system '${target}' unknown`);
+        exit();
+    }
+
+    const ret: Assembly = [];
+
+    ret.push(...getAsmPutWordAddressOnTOS(valueType, caller, callee, offset, isFunction, target));
+    ret.push(...getAsmForGetWordPointedByTOS(isFunction ? "addr" : valueType, 0, target));
+
+    if (isFunction) {
+        ret.push(...[
+            // set the address for the call
+            "JSR POP16",
+            `LDA STACKACCESS`,
+            `STA CALL_FUN_@ + 1`,
+            `LDA STACKACCESS + 1`,
+            `STA CALL_FUN_@ + 2`,
+
+            // Push the static context address onto stack
+            // CTXPAGE * 256,X
+            "; Push the static context address onto stack (1 byte)",
+            "LDY CTX_SP16",
+
+            "PLA",
+            `STA ${CTX_PAGE * 256},Y`,
+            "DEY",
+            "STY CTX_SP16",
+
+            "CALL_FUN_@:",
+            `JSR $1111 ; will be overwritten`
+        ]);
+    }
+
+    return ret;
+
 }
 
 function simGetWordLocal(simEnv: SimEnvironment, token: Token, varType: ValueType, indexInStack: number) {
@@ -2048,7 +2222,54 @@ function simPrintStruct(simEnv: SimEnvironment, token: Token, structName: string
     }
 }
 
-function getAsmAddressOfWord(context: Context | undefined, varDef: VarDefinitionSpecAndContext, varName: string, target: Target) {
+function getAsmAddressOfLiteral(type: ValueType, target: Target) {
+    if (target === "c64") {
+        switch (type) {
+            case "addr":
+            case "bool":
+            case "byte":
+            case "number":
+                const size = sizeForValueType(type, target);
+                const ret: Assembly = [];
+                ret.push(...[
+                    NO_PEEPHOLE_OPT_DIRECTIVE,
+                    "JSR POP16",
+                    "LDX SP16",
+                    "DEX",
+                    "STX STACKACCESS",
+                    "LDX #0",
+                    "STX STACKACCESS + 1",
+                    "JSR PUSH16",
+                    //"INX",
+                ]);
+                return ret;
+            case "record":
+            case "string":
+            case "word":
+                return [
+                    "LDX SP16",
+                    "LDA STACKBASE + 1,X",
+                    "STA STACKBASE + 3,X",
+                    "LDA STACKBASE + 2,X",
+                    "STA STACKBASE + 4,X",
+                    "INX",
+                    "INX",
+                    "STX SP16",
+                ];
+            default:
+                console.log(`unable to get address for word of type ${humanReadableType(type)}`);
+                exit();
+        }
+    }
+    if (target === "freebsd") {
+        console.log(`address of literal is not implemented yet!`);
+        exit();
+    }
+    console.log(`target system '${target}' unknown`);
+    exit();
+}
+
+function getAsmAddressOfWord(token: Token, varDef: VarDefinitionSpecAndContext, varName: string, target: Target) {
 
     if (varDef.isGlobalContext) {
         const asmVarName = getAsmVarName(varName);
@@ -2080,31 +2301,33 @@ function getAsmAddressOfWord(context: Context | undefined, varDef: VarDefinition
         console.log(`target system '${target}' unknown`);
         exit();
     } else {
-        const offset = getWordOffset(context, varName, target);
-        if (target === "c64") {
-            const contextPage = CTX_PAGE * 256;
-            const finalAddress = contextPage + offset;
-            if (varDef.internalType === "addr" || varDef.internalType === "bool" || varDef.internalType === "byte" || varDef.internalType === "number") {
-                return [
-                    "CLC",
-                    "LDA CTX_SP16",
-                    `ADC #<${finalAddress}`,
-                    "STA STACKACCESS",
-                    "LDA #0",
-                    `ADC #>${finalAddress}`,
-                    "STA STACKACCESS+1",
-                    "JSR PUSH16",
-                ];
-            } else {
-                return [
-                    "CLC",
-                    "LDX CTX_SP16",
-                    `LDA ${finalAddress + 0},X`,
-                    "STA STACKACCESS",
-                    `LDA ${finalAddress + 1},X`,
-                    "STA STACKACCESS + 1",
-                    "JSR PUSH16",
-                ];
+        const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, target);
+        if (target === "c64") {            
+            switch (varDef.internalType) {
+                case "addr":
+                case "bool":
+                case "byte":
+                case "number":
+                    return getAsmPutWordAddressOnTOS(varDef.internalType, token, varDef.token, offset, false, target);
+                case "record":
+                case "string":
+                case "word":
+                    const ret = getAsmPutWordAddressOnTOS(varDef.internalType, token, varDef.token, offset, false, target);
+                    ret.push(...getAsmForGetWordPointedByTOS(varDef.internalType, 0, target));
+                    ret.push(...[
+                        "LDX SP16",
+                        "LDA STACKBASE + 1,X",
+                        "STA STACKBASE + 3,X",
+                        "LDA STACKBASE + 2,X",
+                        "STA STACKBASE + 4,X",
+                        "INX",
+                        "INX",
+                        "STX SP16",
+                    ]);
+                    return ret;
+                default:
+                    console.log(`unable to get address for word '${token.txt}' of type ${humanReadableType(varDef.internalType)}`);
+                    exit();
             }
         }
         if (target === "freebsd") {
@@ -2261,8 +2484,10 @@ function simPrintContextStack(simEnv: SimEnvironment, context: Context) {
     console.log(parts);
 }
 
+
+let nStrJoin = 0;
 function createVocabulary(): Vocabulary {
-    console.assert(TokenType.TOKEN_COUNT === 64, "Exaustive token types count");
+    console.assert(TokenType.TOKEN_COUNT === 65, "Exaustive token types count");
     const voc: Vocabulary = {};
     voc[TokenType.PRINT] = {
         txt: "print",
@@ -3804,22 +4029,43 @@ function createVocabulary(): Vocabulary {
                 logError(token.loc, `can't find context for ${token.txt}, compiler error`);
                 exit();
             }
+            const context = token.context;
+            if (context.parent === undefined) return []; // the global context
 
-            if (token.context.parent === undefined) return []; // the global context
+            const sizeToReserve = sizeOfContextWithMetadata(context, target);
 
-            const sizeToReserve = sizeOfContextWithMetadata(token.context, target);
-
-            const strVariables = Object.values(token.context.varsDefinition).map(varDef => varDef.token.txt + " (" + humanReadableType(varDef.out) + ")").join(", ");
+            const strVariables = Object.entries(context.varsDefinition)
+                .filter(([_name, varDef]) => varDef.type !== "struct")
+                .map(
+                    ([name, varDef]) => name + ` (${sizeOfContextWithMetadata(context, target) - getWordOffsetAndLevel(token.context, name, target).offset - 1
+                        }: ${humanReadableType(varDef.internalType)})`
+                ).join(", ");
             if (sizeToReserve === 0) return ["; no stack memory to reserve"];
 
+            const sizeOfParentContext = sizeOfContextWithMetadata(context.parent, target);
+
             if (target === "c64") {
-                return [
-                    `; reserve ${sizeToReserve} on the stack for: ${strVariables}`,
+                const ret: Assembly = sizeOfParentContext > 0 ? [
+                    "; save the address of the parent context",
+                    "LDA CTX_SP16",
+                    "TAY",
+                    "CLC",
+                    `ADC #${sizeOfParentContext}`,
+                    `STA ${CTX_PAGE * 256},Y`,
+                ] : [
+                    "; this is the top context pointer is 0",
+                    "LDY CTX_SP16",
+                    "LDA #0",
+                    `STA ${CTX_PAGE * 256},Y`,
+                ]
+                ret.push(...[
+                    `; reserve ${sizeToReserve} on the stack for: context metadata, ${strVariables}`,
                     "LDA CTX_SP16",
                     "SEC",
                     `SBC #${sizeToReserve}`,
                     "STA CTX_SP16"
-                ];
+                ]);
+                return ret;
             }
             if (target === "freebsd") {
                 return [
@@ -3897,20 +4143,28 @@ function createVocabulary(): Vocabulary {
             // for (const [key, varDef] of Object.entries(token.context.varsDefinition)) {                
             //     sizeToReserve += sizeForValueType(varDef.internalType, target);
             // }
-            const sizeToReserve = sizeOfContextWithMetadata(token.context, target);
-            const strVariables = Object.values(token.context.varsDefinition).map(varDef => varDef.token.txt + " (" + humanReadableType(varDef.internalType) + ")").join(", ");
+            const sizeToReserve = sizeOfContext(token.context, target);
+            const strVariables = Object.entries(token.context.varsDefinition)
+                .filter(([_name, varDef]) => varDef.type !== "struct")
+                .map(
+                    ([name, varDef]) => name + ` (${sizeOfContextWithMetadata(token.context!, target) - getWordOffsetAndLevel(token.context, name, target).offset - 1
+                        }: ${humanReadableType(varDef.internalType)})`
+                ).join(", ");
+
             token.functionIndex = getFunctionIndex();
             const asmFunctionName = getFunctionName(token.functionIndex);
             const asmAfterFunctionName = getAfterFunctionName(token.functionIndex);
 
             if (target === "c64") {
-                const asmReserveStackSpace = sizeToReserve === 0 ? ["; no stack memory to reserve"] : [
-                    `; reserve ${sizeToReserve} on the stack for: ${strVariables}`,
-                    "LDA CTX_SP16",
-                    "SEC",
-                    `SBC #${sizeToReserve}`,
-                    "STA CTX_SP16"
-                ];
+                const asmReserveStackSpace = sizeToReserve === 0 ?
+                    ["; no stack memory to reserve"] :
+                    [
+                        `; reserve ${sizeToReserve} on the stack for: ${strVariables}`,
+                        "LDA CTX_SP16",
+                        "SEC",
+                        `SBC #${sizeToReserve}`,
+                        "STA CTX_SP16"
+                    ];
                 return [
                     `JMP ${asmAfterFunctionName}`,
                     `${asmFunctionName}:`,
@@ -4024,7 +4278,7 @@ function createVocabulary(): Vocabulary {
                 simEnv.ctxStack.length -= sizeOfContext(token.context, "sim");
 
                 // release the metadata context stack                
-                simEnv.ctxStack.length -= sizeOfContextMetadata("sim");
+                simEnv.ctxStack.length -= sizeOfContextMetadata(token.context, "sim");
 
                 // when closing a block we need to assign token.functionIndex = undefined for each ref block
                 // because their context is closed 
@@ -4296,17 +4550,28 @@ function createVocabulary(): Vocabulary {
         },
         out: () => "void",
         generateAsm: (token, target) => {
+            if (target !== "c64") {
+                console.log(`target system '${target}' not yet implemented`);
+                exit();
+            }
+
             const varName = token.txt;
             const varDef = getWordDefinition(token.context, varName);
             if (varDef === undefined) {
-                logError(token.loc, `LIT_WORD generateAsm cannot find declaration for '${varName}', compiler error`);
-                console.log(token.context);
+                logError(token.loc, `LIT_WORD generateAsm cannot find declaration for '${varName}', compiler error`);                
                 exit();
             }
             if (varDef.isGlobalContext) return getAsmForSetWordGlobal(varDef.internalType, getAsmVarName(varName), 0, target);
 
-            const offset = getWordOffset(token.context, varName, target);
-            return getAsmForSetWordLocal(varDef.internalType, offset, target);
+            //const offset = getWordOffset(token.context, varName, target);
+            //return getAsmForSetWordLocal(varDef.internalType, offset, target);
+            const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, target);
+
+            const ret: Assembly = [];
+            ret.push(...getAsmPutWordAddressOnTOS(varDef.internalType, token, varDef.token, offset, false, target));
+            ret.push(...getAsmForSetWordPointedByTOS(varDef.internalType, 0, "NO", target));
+            return ret;
+
         },
         sim: (simEnv, token) => {
             const varName = token.txt;
@@ -4389,8 +4654,11 @@ function createVocabulary(): Vocabulary {
 
             if (varDef.isGlobalContext) return getAsmForGetWordGlobal(token, valueType, getAsmVarName(varName), varDef.type === "function", target);
 
-            const offset = getWordOffset(token.context, varName, target);
-            return getAsmForGetWordLocal(valueType, offset, varDef.type === "function", target);
+            //const offset = getWordOffset(token.context, varName, target);
+            const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, target);
+            return getAsmForGetWordLocalUsingOffsetAndLevel(valueType, token, varDef.token, varDef.type === "function", offset, target);
+
+            //return getAsmForGetWordLocal(valueType, offset, varDef.type === "function", target);
         },
         sim: (simEnv, token) => {
             const varName = token.txt;
@@ -4868,26 +5136,32 @@ function createVocabulary(): Vocabulary {
         ins: token => {
             assertChildNumber(token, 1);
             const childReturnType = getReturnTypeOfAWord(token.childs[0]);
-            if (childReturnType === "word" || childReturnType === "void") {
+            //if (childReturnType === "word" || childReturnType === "void") {
+            if (childReturnType === "void") {
                 logError(token.childs[0].loc, `'${token.childs[0].txt}' cannot get the address of ${humanReadableType(childReturnType)}`);
                 exit();
             }
             return [childReturnType];
         },
         out: () => "number",
-        generateChildPreludeAsm: () => {
+        generateChildPreludeAsm: (token) => {
+            const tokenVar = token.childs[0];
+            if (tokenVar.type === TokenType.LITERAL) return [];
             return undefined;
         },
         generateAsm: (token, target) => {
             assertChildNumber(token, 1);
             const tokenVar = token.childs[0];
+            if (tokenVar.type === TokenType.LITERAL) {
+                return getAsmAddressOfLiteral(tokenVar.internalValueType!, target);
+            }
             const varName = tokenVar.txt;
             const varDef = getWordDefinition(token.context, varName);
             if (varDef === undefined) {
                 logError(token.loc, `addr! generateAsm cannot find declaration for '${varName}', compiler error`);
                 exit();
             }
-            return getAsmAddressOfWord(token.context, varDef, varName, target);
+            return getAsmAddressOfWord(token, varDef, varName, target);
         },
         sim: (simEnv, token) => {
             const childReturnType = getReturnTypeOfAWord(token.childs[0]);
@@ -5018,14 +5292,27 @@ function createVocabulary(): Vocabulary {
             exit();
         },
         sim: (simEnv, _token) => {
+            nStrJoin++;
             const addr2 = stackPop(simEnv);
             const len2 = stackPop(simEnv);
             const addr1 = stackPop(simEnv);
             const len1 = stackPop(simEnv);
-            const result = readStringFromHeap(simEnv, addr1, len1) + readStringFromHeap(simEnv, addr2, len2);
-            const addr = storeStringOnHeap(simEnv, result);
-            simEnv.dataStack.push(len1 + len2);
-            simEnv.dataStack.push(addr);
+            const lastHeapTop = simEnv.heapTop;
+            // if the two strings are adjacent then simply returns the address of the first and the sum of the lenghts
+            if (addr2 === addr1 + len1) {
+                simEnv.dataStack.push(len1 + len2);
+                simEnv.dataStack.push(addr1);
+            } else if (addr1 + len1 === simEnv.heapTop) {
+                const newAddr2 = storeStringOnHeap(simEnv, readStringFromHeap(simEnv, addr2, len2));
+                simEnv.dataStack.push(len1 + len2);
+                simEnv.dataStack.push(addr1);
+            } else {
+                const result = readStringFromHeap(simEnv, addr1, len1) + readStringFromHeap(simEnv, addr2, len2);
+                const addr = storeStringOnHeap(simEnv, result);
+                simEnv.dataStack.push(len1 + len2);
+                simEnv.dataStack.push(addr);
+            }
+            //console.log("JOIN n.", nStrJoin, "HEAP TOP:", simEnv.heapTop);
         }
     };
     voc[TokenType.STACK] = {
@@ -5232,9 +5519,6 @@ function createVocabulary(): Vocabulary {
                     "STA STACKBASE + 5,X",
                     "LDA STACKBASE + 2,X",
                     "STA STACKBASE + 6,X",
-                    "INX",
-                    "INX",
-                    "STX SP16",
                     "RTS",
 
                     "ADD16:",
@@ -5938,12 +6222,18 @@ function createVocabulary(): Vocabulary {
                 ];
 
                 const literalStrings = stringTable.map((str, index) => {
-                    const bytes: string[] = [];
-                    for (let i = 0; i < str.length; i++) {
-                        bytes.push(String(str[i].charCodeAt(0) & 255));
+                    const parts = str.match(/(.{0,50})/g);
+                    if (parts === null) return "";
+                    let strAsBytes = `str${index}:` + "\n";
+                    for (let j = 0; j < parts!.length; j++) {
+                        const bytes: string[] = [];
+                        for (let i = 0; i < parts[j].length; i++) {
+                            bytes.push(String(parts[j][i].charCodeAt(0) & 255));
+                        }
+                        const strBytes = bytes.join(",");
+                        strAsBytes += `    BYTE ${strBytes}` + "\n";
                     }
-                    const strBytes = bytes.join(",");
-                    return `str${index}: BYTE ${strBytes}`;
+                    return strAsBytes;
                 });
                 const vars: string[] = [];
                 if (token.context !== undefined) {
@@ -6093,7 +6383,7 @@ function createVocabulary(): Vocabulary {
             simEnv.buffer = "";
             simEnv.dataStack = [];
             simEnv.ctxStack = [];
-            simEnv.memory = new Uint8Array(640 * 1024);
+            simEnv.memory = new Uint8Array(640 * 1024 * 1024);
             simEnv.heapTop = 0;
             simEnv.vars = {};
         },
@@ -6162,7 +6452,7 @@ function createVocabulary(): Vocabulary {
                 logError(child.loc, `INC generateAsm cannot find declaration for '${varName}', compiler error`);
                 exit();
             }
-            const offset = getWordOffset(token.context, varName, target);
+            const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, target);
             if (target === "c64") {
                 if (varDef.isGlobalContext) {
                     const asmVarName = getAsmVarName(varName);
@@ -6180,20 +6470,33 @@ function createVocabulary(): Vocabulary {
                 }
 
                 // LOCAL CONTEXT
+                const ret: Assembly = [];
+                ret.push(...getAsmPutWordAddressOnTOS(varDef.internalType, token, varDef.token, offset, false, target));
 
                 if (varDef.internalType === "byte") {
-                    return [
-                        "LDX CTX_SP16",
-                        `INC ${CTX_PAGE * 256 + offset},X`
-                    ];
-                }
-                return [
-                    "LDX CTX_SP16",
-                    `INC ${CTX_PAGE * 256 + offset},X`,
-                    "BNE not_carry_@",
-                    `INC ${CTX_PAGE * 256 + offset + 1},X`,
-                    `not_carry_@:`,
-                ]
+                    ret.push(...[
+                        "JSR POP16",
+                        "LDY #0",
+                        "CLC",
+                        "LDA (STACKACCESS),Y",
+                        "ADC #1",
+                        "STA (STACKACCESS),Y",
+                    ]);
+                } else {
+                    ret.push(...[
+                        "JSR POP16",
+                        "LDY #0",
+                        "CLC",
+                        "LDA (STACKACCESS),Y",
+                        "ADC #1",
+                        "STA (STACKACCESS),Y",
+                        "INY",
+                        "LDA (STACKACCESS),Y",
+                        "ADC #0",
+                        "STA (STACKACCESS),Y"
+                    ]);
+                }            
+                return ret;    
             }
             if (target === "freebsd") {
                 if (varDef.isGlobalContext) {
@@ -6492,7 +6795,7 @@ function createVocabulary(): Vocabulary {
             return "void";
         },
         generateChildPreludeAsm: (_token, n, _target) => {
-            if (n === 0) return []; // struct name
+            if (n === 0) return undefined; // struct name
             if (n === 1) return undefined; //set word
             if (n === 2) return [];
         },
@@ -6506,6 +6809,12 @@ function createVocabulary(): Vocabulary {
                 logError(structChild.loc, `'${structChild.txt}' is not a struct`);
                 exit();
             }
+            const varDef = getWordDefinition(structChild.context, structChild.txt);
+            if (varDef === undefined) {
+                logError(structChild.loc, `cannot find definition for '${structChild.txt}'`);
+                exit();
+            }
+
             const structName = structChild.out[1];
             const structDef = getWordDefinition(structChild.context, structName);
             if (structDef?.type !== "struct") {
@@ -6532,7 +6841,18 @@ function createVocabulary(): Vocabulary {
                 logError(componentChild.loc, `'${componentChild.txt}' is not part of ${structChild.txt}`);
                 exit();
             }
-            return getAsmForSetWordPointedByTOS(type.internalType, offset, target);
+            if (varDef.isGlobalContext) {
+                const asmVarName = getAsmVarName(structChild.txt);
+                return [
+                    `LDA ${asmVarName}`,
+                    `STA STACKACCESS`,
+                    `LDA ${asmVarName} + 1`,
+                    `STA STACKACCESS+1`,
+                    "JSR PUSH16"
+                ].concat(getAsmForSetWordPointedByTOS(type.internalType, offset, "NO", target));
+            }
+            return getAsmPutWordAddressOnTOS("addr", structChild, varDef.token, 0, false, target)
+                .concat(getAsmForSetWordPointedByTOS(type.internalType, offset, "YES", target));
         },
         simPreludeChild: (_simEnv, _token, n) => {
             if (n === 1) return false; //set word
@@ -6641,8 +6961,9 @@ function createVocabulary(): Vocabulary {
             }
             if (token.context.parent === undefined) return []; // the global context
 
-            let sizeToRelease = sizeOfRecord(token.context, target);
-            if (sizeToRelease === 0) return ["; no stack memory to release"];
+            let recordSize = sizeOfRecord(token.context, target);
+            let sizeToRelease = sizeOfContextWithMetadata(token.context, target);
+            if (recordSize === 0) return ["; no stack memory to release"];
             if (target === "c64") {
                 return [
                     "; push the heap",
@@ -6656,14 +6977,15 @@ function createVocabulary(): Vocabulary {
                     "JSR PUSH16",
                     "; copy mem",
                     "LDX CTX_SP16",
+                    "INX", // CTX_SP16 POINTS TO THE FIRST FREE BYTE SO MUST INCREMENTED
                     "STX FROMADD+1",
                     `LDA #${CTX_PAGE}`,
                     "STA FROMADD+2",
-                    `LDY #${sizeToRelease}`,
+                    `LDY #${recordSize}`,
                     "JSR COPYMEM",
                     "CLC",
                     "LDA HEAPTOP",
-                    `ADC #${sizeToRelease}`,
+                    `ADC #${recordSize}`,
                     "STA HEAPTOP",
                     `; release ${sizeToRelease} on the stack`,
                     "LDA CTX_SP16",
@@ -6674,15 +6996,15 @@ function createVocabulary(): Vocabulary {
             }
             if (target === "freebsd") {
                 return [
-                    `mov rax, ${sizeToRelease}`,
+                    `mov rax, ${recordSize}`,
                     "call allocate",
                     "mov rdi, rbx",
                     "mov rsi, [ctx_stack_rsp]",
-                    `mov rcx, ${sizeToRelease}`,
+                    `mov rcx, ${recordSize}`,
                     "rep movsb",
-                    `; release ${sizeToRelease} on the stack`,
+                    `; release ${recordSize} on the stack`,
                     "mov rax, [ctx_stack_rsp]",
-                    `add rax, ${sizeToRelease}`,
+                    `add rax, ${recordSize}`,
                     "mov [ctx_stack_rsp], rax",
                     "push rbx",
                 ];
@@ -6697,21 +7019,40 @@ function createVocabulary(): Vocabulary {
                 exit();
             }
 
-            if (token.context.parent === undefined) return []; // the global context
-
-            const sizeToReserve = sizeOfRecord(token.context, target);
-
-            const strVariables = Object.values(token.context.varsDefinition).map(varDef => varDef.token.txt + " (" + humanReadableType(varDef.out) + ")").join(", ");
+            const context = token.context;
+            if (context.parent === undefined) return []; // the global context
+            const sizeToReserve = sizeOfContextWithMetadata(context, target);
+            const strVariables = Object.entries(context.varsDefinition).map(
+                ([name, varDef]) => name + ` (${sizeOfContextWithMetadata(context, target) - getWordOffsetAndLevel(token.context, name, target).offset - 1
+                    }: ${humanReadableType(varDef.internalType)})`
+            ).join(", ");
             if (sizeToReserve === 0) return ["; no stack memory to reserve"];
+
+            const sizeOfParentContext = sizeOfContextWithMetadata(context.parent, target);
+
             if (target === "c64") {
-                return [
-                    `; reserve ${sizeToReserve} on the stack for: ${strVariables}`,
+                const ret: Assembly = sizeOfParentContext > 0 ? [
+                    "; save the address of the parent context",
+                    "LDA CTX_SP16",
+                    "TAY",
+                    "CLC",
+                    `ADC #${sizeOfParentContext}`,
+                    `STA ${CTX_PAGE * 256},Y`,
+                ] : [
+                    "; this is the top context pointer is 0",
+                    "LDY CTX_SP16",
+                    "LDA #0",
+                    `STA ${CTX_PAGE * 256},Y`,
+                ]
+                ret.push(...[
+                    `; reserve ${sizeToReserve} on the stack for: context metadata, ${strVariables}`,
                     "LDA CTX_SP16",
                     "SEC",
                     `SBC #${sizeToReserve}`,
-                    "STA CTX_SP16",
-                ];
-            }
+                    "STA CTX_SP16"
+                ]);
+                return ret;
+            }        
             if (target === "freebsd") {
                 return [
                     "mov rax, [ctx_stack_rsp]",
@@ -7004,11 +7345,19 @@ function createVocabulary(): Vocabulary {
                         "JSR PUSH16",               // len, address, index, sizeof(el)
                         "JSR MUL16",                // len, address, index * sizeof(el)
                         "JSR ADD16",                // len, address + index * sizeof(el)
-                        "LDA STACKBASE + 1,X",     // copy the final address over the len
-                        "STA STACKBASE + 3,X",
-                        "LDA STACKBASE + 2,X",
-                        "STA STACKBASE + 4,X",
-                        "JSR POP16",                // only the address on the stack
+
+                        "LDX SP16",
+                        "; HERE WE STORE AUX!",
+                        "LDA STACKBASE + 1,X",     // save the final address on the normal stack
+                        "PHA",
+                        "INX",
+                        "LDA STACKBASE + 1,X",
+                        "PHA",
+                        "INX",
+
+                        "INX",
+                        "INX",
+                        "STX SP16"                  // empty the stack 
                     ];
                 }
                 if (target === "freebsd") {
@@ -7056,7 +7405,7 @@ function createVocabulary(): Vocabulary {
                 logError(token.childs[0].loc, `'${token.childs[0].txt}' should be an array, it's a ${humanReadableType(arrayType)}`);
                 exit();
             }
-            return getAsmForSetWordPointedByTOS(arrayType[1], 0, target);
+            return ["; HERE WE NEED AUX!"].concat(getAsmForSetWordPointedByTOS(arrayType[1], 0, "AUXISONSTACK", target));
         },
         sim: (simEnv, token) => {
             assertChildNumber(token, 3);
@@ -7445,7 +7794,7 @@ function createVocabulary(): Vocabulary {
         },
         generateAsm: (token, target) => {
             assertChildNumber(token, 1);
-            const allCode = token.childs[0].type === TokenType.LITERAL ? [token.childs[0].txt] : token.childs[0].childs.map(token => token.txt);
+            const allCode = token.childs[0].type === TokenType.LITERAL ? [token.childs[0].txt] : token.childs[0].childs.map(token => token.txt).reverse();
 
             const regex = /\!(\w+)\b/m;
             const ret = [];
@@ -7462,94 +7811,75 @@ function createVocabulary(): Vocabulary {
                     exit();
                 }
 
+                ret.push(`; ASM FOR '${code}'`);
                 const varName = result[1];
                 const varDef = getWordDefinition(token.context, varName);
-                const offset = getWordOffset(token.context, varName, target);        
                 if (varDef === undefined) {
-                    logError(token.loc, `INC generateAsm cannot find declaration for '${varName}', compiler error`);
+                    logError(token.loc, `Cannot find declaration for word '${varName}' inside ASM instruction '${code}', compiler error`);
                     exit();
-                }                
+                }
+                //const offset = getWordOffset(token.context, varName, target);        
+                const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, target);
                 if (target === "c64") {
-                    const newCode = code.replace("!" + varName, "(STACKACCESS),Y");
                     const instruction = code.trim().substring(0, 3).toUpperCase();
-                    if (instruction === "INC") {
-                        if (varDef.isGlobalContext) {
-                            ret.push(
-                                `INC ${getAsmVarName(varName)}`
-                            );
-                        } else {
-                            ret.push(
-                                "LDX CTX_SP16",
-                                `INC ${CTX_PAGE * 256 + offset},X`
-                            );
-                        }                        
-                        continue;
-                    }
-                    if (instruction === "LDA") {
-                        if (varDef.isGlobalContext) {
-                            ret.push(`LDA ${getAsmVarName(varName)}`);
-                            continue;
+                    if (varDef.isGlobalContext) {
+                        switch (instruction) {
+                            case "INC":
+                                ret.push(`INC ${getAsmVarName(varName)}`);
+                                break;
+                            case "LDA":
+                                ret.push(`LDA ${getAsmVarName(varName)}`);
+                                break;
+                            case "STA":
+                                ret.push(
+                                    `LDY ${getAsmVarName(varName)}`,
+                                    `STY STACKACCESS`,
+                                    `LDY ${getAsmVarName(varName)}+1`,
+                                    `STY STACKACCESS+1`,
+                                    "LDY #0",
+                                    "STA (STACKACCESS),Y"
+                                );
+                                break;
+                            default:
+                                logError(token.loc, `No var interpolation for this asm code '${code}' `);
+                                exit();
                         }
-                        if (offset === undefined) {
-                            logError(token.loc, `LDA generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
-                            exit();
-                        }
-                        ret.push(
-                            "LDX CTX_SP16",
-                            `LDA ${CTX_PAGE * 256 + offset},X`
-                        );
-                        continue;
-                    }
-                    if (instruction === "STA") {
-                        if (varDef.isGlobalContext) {
-                            ret.push(
-                                `LDY ${getAsmVarName(varName)}`,
-                                `STY STACKACCESS`,
-                                `LDY ${getAsmVarName(varName)}+1`,
-                                `STY STACKACCESS+1`,
-                                "LDY #0",
-                                "STA (STACKACCESS),Y"
-                            );
-                            continue;
-                        }
-                        if (offset === undefined) {
-                            logError(token.loc, `STA generateAsm can't compute the offset of '${varName}' onto the stack, compiler error`);
-                            exit();
-                        }
-                        const finalAddress = CTX_PAGE * 256 + offset;
-                        ret.push(
-                            "LDX CTX_SP16",
-                            "PHA",
-                            `LDA ${finalAddress + 0},X`,
-                            "STA STACKACCESS",
-                            `LDA ${finalAddress + 1},X`,
-                            "STA STACKACCESS + 1",
-                            "PLA",
-                            "LDY #0",
-                            "STA (STACKACCESS),Y"
-                        );
-                        continue;
-                    }
+                    } else {
+                        switch (instruction) {
+                            case "INC":
+                                ret.push(
+                                    "LDX CTX_SP16",
+                                    `INC ${CTX_PAGE * 256 + offset},X`
+                                );
+                                break;
 
-                    let prelude: string[] = [];
-                    switch (instruction) {
-                        case "STA":
-                            prelude = getAsmValueOfWord(token.context, varDef, varName, target);
-                            break;
-                        default:
-                            prelude = getAsmAddressOfWord(token.context, varDef, varName, target);
-                            break;
+                            case "LDA":
+                                const asm = getAsmPutWordAddressOnTOS(varDef.internalType, token, varDef.token, offset, false, target);
+                                ret.push(...asm);
+                                ret.push(
+                                    "JSR POP16",
+                                    "LDY #0",                                    
+                                    "LDA (STACKACCESS),Y"
+                                );
+                                break;
+                            case "STA":
+                                ret.push("PHA");                            
+                                ret.push(...getAsmForGetWordLocalUsingOffsetAndLevel(varDef.internalType, token, varDef.token, varDef.type === "function", offset, target));
+                                ret.push(
+                                    "JSR POP16",
+                                    "LDY #0",
+                                    "PLA",
+                                    "STA (STACKACCESS),Y"
+                                );                            
+                                break;
+                            default:
+                                logError(token.loc, `No var interpolation for this asm code '${code}' `);
+                                exit();
+
+                        }
                     }
-                    ret.push("PHA");
-                    ret.push(...prelude);
-                    ret.push(
-                        "JSR POP16",
-                        "LDY #0",
-                        "PLA",
-                        newCode
-                    );
                 } else if (target === "freebsd") {
-                    const asmGetAddr = getAsmAddressOfWord(token.context, varDef, varName, target);
+                    const asmGetAddr = getAsmAddressOfWord(token, varDef, varName, target);
                     logError(token.loc, `'${token.txt}' asm in freebsd tbd`);
                     exit();
                 } else {
@@ -7569,7 +7899,27 @@ function createVocabulary(): Vocabulary {
             }
         }
 
-    }
+    };
+    voc[TokenType.DEBUG] = {
+        txt: "debug",
+        expectedArity: 0,
+        expectedArityOut: 0,
+        grabFromStack: false,
+        position: InstructionPosition.PREFIX,
+        priority: 1000,
+        userFunction: false,
+        ins: () => [],
+        out: () => "void",
+        generateAsm: (token, target) => {
+            return [
+                "__debug:",
+                "JMP __debug"
+            ];
+        },
+        sim: (simEnv, ast) => {
+
+        },
+    };
     return voc;
 }
 
@@ -8486,11 +8836,12 @@ function typeCheck(token: Token, vocabulary: Vocabulary) {
             }
 
             // sobstitute the current context var definitions with the definition of the struct
-            childRecord.context.varsDefinition = Object.fromEntries(
-                varDefElements
-                    .filter(defElem => defElem.def.type !== "function")
-                    .map(defElem => [defElem.name, defElem.def])
-            );
+            // WHYYY ???
+            // childRecord.context.varsDefinition = Object.fromEntries(
+            //     varDefElements
+            //         .filter(defElem => defElem.def.type !== "function")
+            //         .map(defElem => [defElem.name, defElem.def])
+            // );
 
             // change all lit words using the struct template
             childRecord.childs = varDefElements
@@ -8585,20 +8936,22 @@ function setWordDefinition(token: Token) {
 
     const isUserFunction = child.type === TokenType.REF_BLOCK;
     const ins = isUserFunction ? getParametersRequestedByBlock(token.childs[0]) : [];
+
     if (isUserFunction) {
         const outType = getReturnValueByBlock(child);
-        const isMacro = outType === "word" || areTypesEqual(outType, ["array", "word"]);
+        const isMacro = outType === "word" || areTypesEqual(outType, ["array", "word"]);        
         token.context.varsDefinition[token.txt] = {
             type: "function",
             ins,
             out: getReturnValueByBlock(child),
+            //token: structuredClone(token),
             token,
             isMacro,
             position: InstructionPosition.PREFIX,
             priority: child.priority,
             internalType: "addr",            
             reference: []
-        };        
+        };
         if (isMacro) console.log(`define macro: ${token.txt}:${getFunctionSignature(Object.assign({}, token, { type: TokenType.WORD }))}`);
     } else {
         // if (child.internalValueType === undefined) {
@@ -8616,7 +8969,9 @@ function setWordDefinition(token: Token) {
             internalType: child.internalValueType ?? child.out,            
             reference: []
         };        
+
     }
+
 
 }
 
@@ -8685,7 +9040,9 @@ function setStructDefinition(token: Token) {
 
 async function parseBlock(ast: AST, vocabulary: Vocabulary, sequence: AST): Promise<AST> {
 
-    // preprocess macro with no params 
+
+
+    // preprocess macro with no params
     for (let i = 0; i < ast.length; i++) {
         const token = ast[i];
         if (token.type === TokenType.WORD) {
@@ -8927,7 +9284,8 @@ function getNumTokensInAst(ast: AST): number {
 //     exit();
 // }
 
-async function groupByExpectedArityOutZero(sequence: AST, vocabulary: Vocabulary, definitions: AST) {
+
+async function groupByExpectedArityOutZero(sequence: AST, vocabulary: Vocabulary, definitions: AST) {    
     let childLeft = 0;
     let lastPointer = 0;
     let startingNewSequence = true;
@@ -9192,9 +9550,15 @@ function changeTokenTypeOnContext(vocabulary: Vocabulary, token: Token, ast: AST
 }
 
 async function parse(vocabulary: Vocabulary, program: AST, filename: string): Promise<Token> {
+
     let astProgram = groupSequence(filename, program, vocabulary);
+
+    console.time("groupByExpectedArityOutZero");
     await groupByExpectedArityOutZero(astProgram.childs, vocabulary, []);
+    console.timeEnd("groupByExpectedArityOutZero");    
+
     typeCheckBlock(astProgram);
+
     return astProgram;
 }
 
@@ -9445,7 +9809,7 @@ function compile(vocabulary: Vocabulary, ast: Token, target: Target): Assembly {
     const loc = `${ast.loc.row}: ${ast.loc.col}`;
     const wordtype = getFunctionSignature(ast);
     const tokenType = humanReadableToken(ast.type);
-    const instructionLabel = `; ${loc} ${tokenType} ${ast.txt.substring(0, 20) + (ast.txt.length > 20 ? "..." : "")} type: ${wordtype}`;
+    const instructionLabel = `; ${loc} ${tokenType} ${ast.sourceTxt.substring(0, 20) + (ast.sourceTxt.length > 20 ? "..." : "")} type: ${wordtype}`;
 
     // PRELUDE
     if (ast.type !== TokenType.LITERAL) {
@@ -9771,7 +10135,7 @@ function sim(vocabulary: Vocabulary, ast: Token, returnOutput: boolean): string 
         ctxStack: [],
         retStack: [],
         pc: undefined,
-        memory: new Uint8Array(640 * 1024),
+        memory: new Uint8Array(0),
         heapTop: 0,
         vars: {},
         returnOutput
@@ -9939,7 +10303,9 @@ async function main() {
     // dumpProgram(program);
     // Deno.exit(1);
 
+
     const astProgram = await parse(vocabulary, program, filename);
+
     checkForUnusedCode(astProgram);
 
     dumpAst(astProgram);

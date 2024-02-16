@@ -1,6 +1,6 @@
 include "lib/std.cazz"
 
-'stk new Stack ['data array 100 Number]
+'stk new_stack 100
 
 prin "STACK: " print stack
 

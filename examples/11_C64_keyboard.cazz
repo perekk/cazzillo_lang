@@ -1,10 +1,11 @@
 'keyboard_loc 197
 'quit false
 print "PRESS KEY - Q TO QUIT"
+'i 0
 while quit ! [
     'key peek keyboard_loc
     key: [key + 64] !<
-    quit: key = 126
+    quit: key = 126 or i > 10
     if [key = 128] ! [
         prin "YOU PRESSED: "
         emit key
@@ -12,4 +13,5 @@ while quit ! [
         prin key
         print " !"
     ]
+    inc i
 ]

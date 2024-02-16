@@ -1,5 +1,11 @@
-include "lib/std.cazz"
-loop i 18 * 8 [ 
-  'x [i % 18 + 10] !<
-  print x
-]
+
+  'value 240 !<
+  'r 69 !<
+  'a r !addr  
+  print a
+  print peek a
+  asm ["LDA !value" "STA !a"]  
+  ;debug
+  prin "CHANGED (SHOULD BE 240): " print peek a
+  print value
+

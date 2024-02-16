@@ -37,16 +37,13 @@ define DEAD_CHAR [32 !<]
   buffer: BUFFER_START
   screen: SCREEN_START
   col: 0
-    
-
-
-    while buffer < BUFFER_START + CELL_COUNT [
-        poke screen peek buffer
-        inc buffer
-        inc screen
-        inc col
-        if col = WIDTH [screen: screen + 40 - WIDTH col: 0]
-    ]
+  while buffer < BUFFER_START + CELL_COUNT [
+      poke screen peek buffer
+      inc buffer
+      inc screen
+      inc col
+      if col = WIDTH [screen: screen + 40 - WIDTH col: 0]
+  ]
 ]
 
 'get_num_alive_old :['index Number
@@ -81,6 +78,7 @@ define DEAD_CHAR [32 !<]
 
 define add_one_if_alive_asm [
   asm [
+      "; START CAZZ ASM"
       "LDA V_index"
       "STA STACKACCESS"
       "LDA V_index + 1"
@@ -91,6 +89,7 @@ define add_one_if_alive_asm [
       "BNE dead_@"
       "INC !n"
       "dead_@:"
+      "; END CAZZ ASM"
   ]  
 ]
 
@@ -191,3 +190,4 @@ prin "ELAPSED: " print end - start
 ; 155 add_one_if_alive_asm as asm
 ; 154 n = 0 as asm in get_num_alive
 ; 152 'buffer 'screen 'col as global 
+; 207 after introduction of static context

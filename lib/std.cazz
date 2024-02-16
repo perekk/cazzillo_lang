@@ -112,5 +112,3 @@ struct Stack [
 'max :['x Number 'y Number 
   if x > y [return x] y
 ]
-
-
