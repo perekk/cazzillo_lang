@@ -1,0 +1,112 @@
+; see https://gist.github.com/Joker-vD/cc5372a349559b9d1a3b220d5eaf2b01
+
+include "lib/c64.cazz"
+
+def SCREEN_WIDTH 40
+def SCREEN_HEIGHT 25
+
+define TILE_VOID [32 !<]
+define TILE_FLOOR [46 !<]
+define TILE_WALL [102 !<]
+define TILE_CORNER [160 !<]
+define TILE_DOOR [43 !<]
+
+'field array 1000 Byte
+
+'init_field :[
+  loop i 1000 [
+    change field i TILE_VOID
+  ]
+]
+
+'show_field :[
+  loop i 1000 [ poke i + 1024 field at i ]
+]
+
+'for_each_tile :[
+  'left Word
+  'top Word
+  'width Word
+  'height Word
+  'body array Word
+  '[
+    'x left - 1
+    while x < left + width + 2 [
+      'y top - 1
+      while y < top + height + 2 [
+        'loc y * SCREEN_WIDTH + x
+        {body}
+        inc y
+      ]
+      inc x
+    ]    
+  ]
+]
+
+'is_good_cave :[
+  'left Number
+  'top Number
+  'width Number
+  'height Number
+  for_each_tile left top width height [
+    if field at loc = TILE_FLOOR [return false]
+  ]
+  true
+]
+
+'gen_cave :[
+  'with_player Bool
+  'width 3 + rnd 10
+  'height 3 + rnd 10
+  'left 1 + rnd [SCREEN_WIDTH - width - 2]
+  'top 1 + rnd [SCREEN_HEIGHT - height - 2]
+
+  ;'ok is_good_cave left top width height
+  if [is_good_cave left top width height] ! [return 0]
+  print si "CAVE: ({left},{top}) {width}x{height}"
+
+  'doors 0
+  'door_x 0
+  'door_y 0
+  if with_player ! [
+    for_each_tile left top width height [
+      'at_vertical_wall x < left or x > left + width
+      'at_horizontal_wall y < top or y > top + height
+      'at_wall_but_not_at_corner [at_vertical_wall or at_horizontal_wall] and [at_vertical_wall and at_horizontal_wall] !
+      if at_wall_but_not_at_corner and field at loc = TILE_WALL [
+        inc doors
+        if [rnd doors] = 0 [
+          door_x: x
+          door_y: y
+        ]
+      ]
+    ]
+    if doors = 0 [return 0]
+  ]
+
+  for_each_tile left top width height [
+      'tile TILE_FLOOR
+      'at_vertical_wall x < left or x > left + width
+      'at_horizontal_wall y < top or y > top + height      
+      if at_vertical_wall or at_horizontal_wall [tile: TILE_WALL]
+      if at_vertical_wall and at_horizontal_wall [tile: TILE_CORNER]
+      print loc
+      change field loc tile
+  ]
+
+  if with_player ! [ change field door_y * SCREEN_WIDTH + door_x TILE_DOOR ]
+  return 1
+]
+
+start_random
+init_field
+'i 0
+while i < 10 [
+  if 0 < gen_cave [i = 0] [inc i]
+]
+show_field
+
+
+
+
+

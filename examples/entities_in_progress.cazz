@@ -1,37 +1,59 @@
-struct Entity [
-  'x Number
-  'y Number
+include "lib/c64.cazz"
+
+struct Entity [  
+  'pos Number
   'life Number
-  'label String
+  'label Byte
   'active Bool
 ]
 
-'init_entities :[
-  'entities array 10 Entity
-  'i 0
-  while i < 10 [
-    change entities i new Entity [
-        'x i * 3
-        'y 3
-        'life 100
-        'label "ENEMY"
-        'active true
-    ]
-    inc i
-  ]
-  entities
-]
+start_random
+'N 30
+'mobs array N Entity
 
-'display_entities :['entities array Entity
-  'i 0
-  while i < 10 [
-    prin entities at i
-    print ""
-    inc i
+'init_entities :[  
+  loop i N [
+    change mobs i new Entity [
+        'pos 1024 + 40 * 10 + 20
+        'life 100
+        'label i !<
+        'active true
+    ]    
   ]  
 ]
 
+'remove_entities :[
+  loop i N [
+    poke [mobs at i] -> pos 32 !<
+  ]  
+]
 
-'mobs init_entities
-display_entities mobs
+'display_entities :[  
+  loop i N [
+    poke [mobs at i] -> pos [mobs at i] -> label !<
+  ]  
+]
+
+'move_entities :[
+  loop i N [
+    'mob mobs at i
+    'dir rand_byte / 64
+    'incr 0
+    if dir = 0 [incr: 0 - 40]
+    if dir = 1 [incr: 0 - 1]
+    if dir = 2 [incr: 1]
+    if dir = 3 [incr: 40]
+    poke mob -> pos 32 !<
+    mob -> pos: mob -> pos + incr
+    if mob -> pos < 1024 [mob -> pos: mob -> pos + 40]
+    if mob -> pos > 2024 [mob -> pos: mob -> pos - 40]
+    poke mob -> pos mob -> label
+  ] 
+]
+
+init_entities
+while true [
+  move_entities  
+]
+
 

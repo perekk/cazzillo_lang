@@ -138,10 +138,7 @@ while i < 10 [
     step
     inc i
 ]
-'end time
-print start
-print end
-prin "ELAPSED: " print end - start
+prin "ELAPSED: " print time - start
 
 ; timing: 
 ; 686 
@@ -164,3 +161,4 @@ prin "ELAPSED: " print end - start
 ; 220 optimized SUM with literal (as first child)
 ; 210 precalculate offset, separate ctx stack
 ; 286 using static context stack
+; 283 static context optimized

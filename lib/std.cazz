@@ -53,9 +53,20 @@ struct Stack [
   ]
 ]
 
-'asc :['s String 
-  peek s !addr
+; 'asc :['s String 
+;   peek s !addr
+; ]
+
+; 2024-02-20 ASC macro with optimized path for literals
+'asc :['s Word
+  'addr s !addr
+  if [peek addr] = 34 [
+    'code peek addr + 1
+    return '[{code}]
+  ]
+  '[peek {s} !addr]
 ]
+
 
 ; String interpolation
 'si :[

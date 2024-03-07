@@ -3,7 +3,7 @@ include "lib/std.cazz"
 def SCREEN_START 1024
 def SCREEN_SIZE 1000
 
-define clr [emit 147 !<]
+define cls [emit 147 !<]
 
 'time :[[ 256 * peek 161] + peek 162]
 
@@ -22,25 +22,36 @@ define start_random [
   r
 ]
 
+'rand_bool :[
+  'r 0 !<
+  'a 0
+  a: r !addr
+  asm ["LDA $D41B" "AND #1" "STA !a"]
+  r !bool
+]
+
+
 define rand_byte [[peek 0xD41B]]
-define rand_word [rand_byte * 256 + rand_byte]
-'rnd :['limit Number
-  either limit < 257 [
-    'r rand_byte 
-    while true [
-      if r < limit [return r !n]
-      r: rand_byte
-    ]
-    0
-  ] [
-    'r rand_word 
-    while true [
-      if r < limit [return r]
-      r: rand_word
-    ]
-    0
-  ]
-]  
+define rand_word [[rand_byte * 256 + rand_byte]]
+'rnd :['limit Number rand_word % limit]
+
+; 'rnd :['limit Number
+;   either limit < 257 [
+;     'r rand_byte 
+;     while true [
+;       if r < limit [return r !n]
+;       r: rand_byte
+;     ]
+;     0
+;   ] [
+;     'r rand_word 
+;     while true [
+;       if r < limit [return r]
+;       r: rand_word
+;     ]
+;     0
+;   ]
+; ]  
 
 'gotoxy :['col Byte 'row Byte
   either col >= 0 !< and col <= 39 !< and row >= 0 !< and row <= 25 !< [
@@ -105,3 +116,10 @@ define rand_word [rand_byte * 256 + rand_byte]
 ]
 
 define scroll_up [asm "JSR SCROLL_UP"]
+
+; 2024-02-27 decrement byte
+'dec :[
+  'w Word
+  'str_asm si "DEC !{w}"
+  '[ asm "{str_asm}"]  
+]

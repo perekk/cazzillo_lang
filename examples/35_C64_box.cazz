@@ -1,5 +1,10 @@
 //include "lib/c64.cazz"
 
+
+; first version: 80 
+; keeping screen_loc and color_loc as variable: 54 
+; xx and yy as bytes: 53
+
 'def :['w Word 'n Word
   '['{w} :[ '{n}' ]]
 ]
@@ -12,26 +17,29 @@
 
 
 def SCREEN_START 1024
-define clr [emit 147 !<]
+define cls [emit 147 !<]
 
 'box :['x Number 'y Number 'w Number 'h Number 'ch Byte 'col Byte 
-    'pos SCREEN_START + x + y * 40
-    'yy 0
+    'screen_pos SCREEN_START + x + y * 40
+    'color_pos screen_pos + 54272
+    'delta_y 40 - w
+    'yy 0 !<
     while yy < h [
-      'xx 0 
+      'xx 0 !<
       while xx < w [
-        'ps pos + xx
-        'cp ps + 54272 
-        poke ps ch
-        poke cp col
+        poke screen_pos ch
+        poke color_pos col
         inc xx
+        inc screen_pos
+        inc color_pos
       ]
       inc yy
-      pos: pos + 40
+      screen_pos: screen_pos + delta_y
+      color_pos: color_pos + delta_y
     ]
 ]
 
-clr
+cls
 't_start time
 box 1 1 38 23 160 !< 1 !<
 prin "ELAPSED:" print time - t_start

@@ -1,11 +1,7 @@
+'fun :[
+  'w Word
+  print typeof w
+  '[ "CACCA"]
+]
 
-  'value 240 !<
-  'r 69 !<
-  'a r !addr  
-  print a
-  print peek a
-  asm ["LDA !value" "STA !a"]  
-  ;debug
-  prin "CHANGED (SHOULD BE 240): " print peek a
-  print value
-
+print fun 69
