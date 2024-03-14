@@ -1,7 +1,7 @@
-'fun :[
-  'w Word
-  print typeof w
-  '[ "CACCA"]
+'define :['w Word 'n array Word
+  '[ '{w} :[ '[{n}] ] ]  
 ]
 
-print fun 69
+define a [100 !<]
+
+print a
