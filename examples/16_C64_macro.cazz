@@ -1,8 +1,8 @@
 include "lib/std.cazz"
 
-def SCREEN_START 1024
-def SCREEN_SIZE 1000
-define SCREEN_END [SCREEN_START + SCREEN_SIZE]
+def 'SCREEN_START' '1024'
+def 'SCREEN_SIZE' '1000'
+define 'SCREEN_END' '[SCREEN_START + SCREEN_SIZE]
 
 'inc_var :['w Word
   '[{w}: {w} + 1]
@@ -18,7 +18,7 @@ define SCREEN_END [SCREEN_START + SCREEN_SIZE]
     'i SCREEN_START
     while i < SCREEN_END [
         poke i i !<
-        inc_var i
+        inc_var 'i'
     ]
 ]
 
@@ -29,6 +29,6 @@ print "              "
 print " FALSIFY BOOL "
 print "              "
 prin " BEFORE: " prin c print "    "
-falsify_bool c
+falsify_bool 'c'
 prin " AFTER : " prin c print "    "
 print "              "

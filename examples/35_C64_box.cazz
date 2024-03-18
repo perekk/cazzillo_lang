@@ -16,8 +16,8 @@
 'time :[[ 256 * peek 161] + peek 162]
 
 
-def SCREEN_START 1024
-define cls [emit 147 !<]
+def 'SCREEN_START' '1024'
+define 'cls' '[emit 147 !<]
 
 'box :['x Number 'y Number 'w Number 'h Number 'ch Byte 'col Byte 
     'screen_pos SCREEN_START + x + y * 40

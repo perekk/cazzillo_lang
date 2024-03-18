@@ -6,10 +6,10 @@
   '['{w} :[ '[{n}] ]]
 ]
 
-def a 10
-define b [a + 1]
-define c [a + b + 2]
-define time_expr [[ 256 * peek 161] + peek 162]
+def 'a' '10'
+define 'b' '[a + 1]
+define 'c' '[a + b + 2]
+define 'time_expr' '[[ 256 * peek 161] + peek 162]
 
 'time time_expr
 

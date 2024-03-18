@@ -1,18 +1,18 @@
 include "lib/std.cazz"
 
 'spaces :['n Number
-  loop i n [prin " "]
+  loop 'i' 'n' '[prin " "]
 ]
 
 'star :['n Number
-  loop i n [
+  loop 'i' 'n' '[
     prin "*"
     prin " "
   ]
 ]
 
 'triangle :['n Number
-  loop i n [
+  loop 'i' 'n' '[
     spaces n - i
     star i + 1
     print ""

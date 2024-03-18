@@ -4,29 +4,32 @@ include "lib/c64.cazz"
   '[peek 197]
 ]
 
-define SPACE_CHAR [32 !<]
-define HEAD_CHAR [81 !<]
+define 'SPACE_CHAR' '[32 !<]
+define 'HEAD_CHAR' '[81 !<]
 
-def KEY_W 9
-def KEY_A 10
-def KEY_S 13
-def KEY_D 18
-def KEY_ESC 63
-def KEY_SPACE 60
+def 'KEY_W' '9'
+def 'KEY_A' '10'
+def 'KEY_S' '13'
+def 'KEY_D' '18'
+def 'KEY_ESC' '63'
+def 'KEY_SPACE' '60'
 
 cls
 'head 1024 + 12 * 40 + 20
+poke head HEAD_CHAR
 while true [    
   'old_pos head
   'key inkey
   if key = KEY_W [ head: head - 40 ]
-  if key = KEY_A [ dec head ]
+  if key = KEY_A [ head: head - 1 ]
   if key = KEY_S [ head: head + 40 ]
   if key = KEY_D [ head: head + 1 ]
   if head < 1024 [ head: head + 40]
-  if head > 2024 [ head: head - 40]
-  poke old_pos SPACE_CHAR
-  poke head HEAD_CHAR
+  if head > 2023 [ head: head - 40]
+  if [old_pos = head] ! [
+    poke old_pos SPACE_CHAR
+    poke head HEAD_CHAR
+  ] 
 ]
 
 

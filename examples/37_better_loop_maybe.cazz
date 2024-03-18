@@ -5,4 +5,4 @@
 ]
 
 'N 4
-betterloop? k N [prin k prin ") " print k * 7]
+betterloop? 'k' 'N' '[prin k prin ") " print k * 7]

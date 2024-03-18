@@ -1,7 +1,9 @@
-'define :['w Word 'n array Word
-  '[ '{w} :[ '[{n}] ] ]  
+'dec :[
+  'w word Number
+  'str_asm "DEC !" . w !str
+  '[ asm "{str_asm}"]  
 ]
 
-define a [100 !<]
-
+'a 70
+dec 'a'
 print a

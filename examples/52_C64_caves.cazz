@@ -2,25 +2,25 @@
 
 include "lib/c64.cazz"
 
-def SCREEN_WIDTH 40
-def SCREEN_HEIGHT 25
+def 'SCREEN_WIDTH' '40'
+def 'SCREEN_HEIGHT' '25'
 
-define TILE_VOID [32 !<]
-define TILE_FLOOR [46 !<]
-define TILE_WALL [102 !<]
-define TILE_CORNER [160 !<]
-define TILE_DOOR [43 !<]
+define 'TILE_VOID' '[32 !<]
+define 'TILE_FLOOR' '[46 !<]
+define 'TILE_WALL' '[102 !<]
+define 'TILE_CORNER' '[160 !<]
+define 'TILE_DOOR' '[43 !<]
 
 'field array 1000 Byte
 
 'init_field :[
-  loop i 1000 [
+  loop 'i' '1000' '[
     change field i TILE_VOID
   ]
 ]
 
 'show_field :[
-  loop i 1000 [ poke i + 1024 field at i ]
+  loop 'i' '1000' '[ poke i + 1024 field at i ]
 ]
 
 'for_each_tile :[
@@ -48,7 +48,7 @@ define TILE_DOOR [43 !<]
   'top Number
   'width Number
   'height Number
-  for_each_tile left top width height [
+  for_each_tile 'left' 'top' 'width' 'height' '[
     if field at loc = TILE_FLOOR [return false]
   ]
   true
@@ -84,7 +84,7 @@ define TILE_DOOR [43 !<]
     if doors = 0 [return 0]
   ]
 
-  for_each_tile left top width height [
+  for_each_tile 'left' 'top' 'width' 'height' '[
       'tile TILE_FLOOR
       'at_vertical_wall x < left or x > left + width
       'at_horizontal_wall y < top or y > top + height      

@@ -228,7 +228,8 @@ function sizeOfValueType(context: Context, t: ValueType, target: Target): number
     exit();
 }
 
-function isABlock(type: TokenType): boolean {
+function isABlock(token: Token): boolean {
+    const type = token.type;
     return type === TokenType.BLOCK ||
         type === TokenType.REF_BLOCK ||
         type === TokenType.RECORD ||
@@ -364,7 +365,10 @@ function getArity(token: Token, vocabulary: Vocabulary): number {
             logError(token.loc, `Unnkown word '${token.txt}'`);
             exit();
         }
-        return varDef.type === "function" ? varDef.arity : varDef.type === "struct" ? 1 : 0;        
+        //return varDef.type === "function" ? varDef.arity : varDef.type === "struct" ? 1 : 0;        
+        if (varDef.type === "function") return varDef.arity;
+        if (varDef.type === "value") return 0;
+        if (varDef.type === "struct") return 0;
     }
     if (token.ins !== undefined) return token.ins.length;
     if (token.expectedArity !== undefined) return token.expectedArity;
@@ -381,7 +385,8 @@ function findSignature(tokenChilds: Array<Token>, signatures: Array<FunctionSign
         const currentParameters = currentSignature.ins;
         let currentSignatureOk = true;
         for (let j = 0; j < currentParameters.length; j++) {
-            if (!areTypesCompatible(currentParameters[j], tokenChilds[j])) {
+            //if (!areTypesCompatible(currentParameters[j], tokenChilds[j])) {
+            if (!areTypesEqual(currentParameters[j], getReturnTypeOfAWord(tokenChilds[j]))) {
                 currentSignatureOk = false;
                 break;
             }
@@ -414,12 +419,14 @@ function storeSignatureThatMatches(token: Token): FunctionSignature | undefined 
             token.functionSignature = signature;
             token.ins = signature.ins;
         } else {
-            // no signature found !
+            // no signature found !            
             const strSignatures = varDef.signatures.map(
-                signature => signature.ins.map(type => humanReadableType(type)).join(",")
+                signature => "    " + token.txt + "(" + signature.ins.map(type => humanReadableType(type)).join(", ") + ")"
             ).join("\n");
-            logError(token.loc, `the word '${token.txt}' expects one of the following signatures:\n${strSignatures}, no one found!`);
+            const actualSignature = token.txt + "(" + token.childs.map(child => humanReadableType(child.out)).join(", ") + ")";
+            logError(token.loc, `the word '${token.txt}' expects one of the following signatures:\n${strSignatures}\nbut it was given:\n    ${actualSignature}`);
             exit();
+
         }
 
     } else {
@@ -439,25 +446,30 @@ function storeSignatureThatMatches(token: Token): FunctionSignature | undefined 
     }
 
     // If there are some parameters of type Word then convert them as word literal so they are not executed
-    for (let i = 0; i < token.ins.length; i++) {
-        if (token.ins[i] === "word") {
-            const child = token.childs[i]
-            if (child.type !== TokenType.WORD && child.type !== TokenType.LITERAL && child.type !== TokenType.WORD_TYPE) {
-                logError(child.loc, `the parameter '${child.txt}' could not be converted to a literal word because it is a '${humanReadableToken(child.type)}'`);
-                exit();
-            }
-            createLiteralFromToken(child, "word");
-            token.txt = token.sourceTxt
-        }
-        if (areTypesEqual(token.ins[i], ["array", "word"])) {
-            const child = token.childs[i]
-            if (child.type !== TokenType.BLOCK) {
-                logError(child.loc, `the parameter '${child.txt}' could not be converted to an array of word because it is a '${humanReadableToken(child.type)}'`);
-                exit();
-            }            
-            child.type = TokenType.WORD_BLOCK;
-        }
-    }
+    // for (let i = 0; i < token.ins.length; i++) {
+    //     const currentInType = token.ins[i];
+    //     const child = token.childs[i]
+
+    //     if (currentInType === "word") {
+    //         if (child.type === TokenType.WORD_TYPE) continue;
+    //         if (child.type !== TokenType.WORD && child.type !== TokenType.LITERAL) {
+    //             logError(child.loc, `the parameter '${child.txt}' could not be converted to a literal word because it is a '${humanReadableToken(child.type)}'`);
+    //             exit();
+    //         }
+    //         createLiteralFromToken(child, "word");
+    //         token.txt = token.sourceTxt
+    //     }
+
+    //     if (areTypesEqual(currentInType, ["array", "word"])) {
+    //         if (child.type === TokenType.ARRAY_TYPE) continue;
+    //         if (child.type === TokenType.WORD_BLOCK) continue;
+    //         if (child.type !== TokenType.BLOCK) {
+    //             logError(child.loc, `the parameter '${child.txt}' could not be converted to an array of word because it is a '${humanReadableToken(child.type)}'`);
+    //             exit();
+    //         }
+    //         child.type = TokenType.WORD_BLOCK;
+    //     }
+    // }
 
 }
 
@@ -497,28 +509,39 @@ function getWordOffset(context: Context | undefined, varName: string, target: Ta
     exit();
 }
 
-function getWordOffsetAndLevel(context: Context | undefined, varName: string, target: Target): { offset: number, levelToSkip: number } {
+function getWordOffsetAndLevel(token: Token, varName: string, target: Target): { offset: number, levelToSkip: number } {
 
-    if (context === undefined) {
+    if (token.context === undefined) {
         console.log(`cannot find offset for word '${varName}' the context is undefined`);
         exit();
     }
 
     let offset = 0;
     let levelToSkip = 0;
-    let currentContext: Context | undefined = context;
+    let currentContext: Context | undefined = token.context;
     while (currentContext !== undefined) {
         for (const [key, varDef] of Object.entries(currentContext.varsDefinition)) {
             if (varDef.type === "struct") continue;
-            if (key === varName) return { offset, levelToSkip };
-            offset += sizeOfValueType(currentContext, varDef.internalType, target);
+            if (key === varName) {
+                if (varDef.type === "value") return { offset, levelToSkip };
+                // function
+                const index = token.functionSignature?.index;
+                if (index === undefined) {
+                    logError(token.loc, `Cannot compute the offset of the function ${varName}, token signature is undefined`);
+                    exit();
+                }
+                offset += index * sizeOfValueType(currentContext, varDef.internalType, target);
+                return { offset, levelToSkip };
+            }
+            if (varDef.type === "value") offset += sizeOfValueType(currentContext, varDef.internalType, target);
+            if (varDef.type === "function") offset += sizeOfValueType(currentContext, varDef.internalType, target) * varDef.signatures.length;
         }
         offset = 0;
         currentContext = currentContext.parent;
         levelToSkip++;
     }
 
-    logError(context.element!.loc, `cannot find offset for word '${varName}'`);
+    logError(token.context.element!.loc, `cannot find offset for word '${varName}'`);
     exit();
 }
 
@@ -546,7 +569,8 @@ function sizeOfContext(context: Context, target: Target): number {
 function sizeOfRecord(context: Context, target: Target): number {
     let size = 0;
     Object.values(context.varsDefinition).forEach(varDef => {
-        if (varDef.type !== "struct") size += sizeOfValueType(context, varDef.internalType, target);
+        if (varDef.type === "value") size += sizeOfValueType(context, varDef.internalType, target);
+        if (varDef.type === "function") size += sizeOfValueType(context, varDef.internalType, target) * varDef.signatures.length;
     });
     return size;
 }
@@ -2004,7 +2028,7 @@ function simGetWordValue(simEnv: SimEnvironment, token: Token, context: Context)
         }
     } else {
         // const offset = getWordOffset(context, varName, "sim");
-        const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, "sim");
+        const { offset, levelToSkip } = getWordOffsetAndLevel(token, varName, "sim");
         const addressInStack = simGetIndexFromOffsetAndLevel(simEnv, token.context!, offset, levelToSkip);
         switch (varType) {
             case "number":
@@ -2411,7 +2435,7 @@ function getAsmAddressOfWord(token: Token, varDef: { isGlobalContext: boolean } 
         console.log(`target system '${target}' unknown`);
         exit();
     } else {
-        const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, target);
+        const { offset, levelToSkip } = getWordOffsetAndLevel(token, varName, target);
         if (target === "c64") {            
             switch (varDef.internalType) {
                 case "addr":
@@ -2435,7 +2459,32 @@ function getAsmAddressOfWord(token: Token, varDef: { isGlobalContext: boolean } 
                         "STX SP16",
                     ]);
                     return ret;
+                case "void":
+                    console.log(`unable to get address for word '${token.txt}' of type 'void'`);
+                    exit();                    
                 default:
+                    switch (varDef.internalType[0]) {
+                        case "addr":
+                            break;
+                        case "array":
+                            const ret = getAsmPutWordAddressOnTOS(varDef.internalType, token, varDef.token, offset, false, target);
+                            ret.push(...getAsmForGetWordPointedByTOS(varDef.internalType, 0, target));
+                            ret.push(...[
+                                "LDX SP16",
+                                "LDA STACKBASE + 1,X",
+                                "STA STACKBASE + 3,X",
+                                "LDA STACKBASE + 2,X",
+                                "STA STACKBASE + 4,X",
+                                "INX",
+                                "INX",
+                                "STX SP16",
+                            ]);
+                            return ret;
+                            break;
+                        case "usertype":
+                            return getAsmPutWordAddressOnTOS(varDef.internalType, token, varDef.token, offset, false, target);
+                            break;
+                    }
                     console.log(`unable to get address for word '${token.txt}' of type ${humanReadableType(varDef.internalType)}`);
                     exit();
             }
@@ -4090,9 +4139,20 @@ function createVocabulary(): Vocabulary {
 
             const strVariables = Object.entries(context.varsDefinition)
                 .filter(([_name, varDef]) => varDef.type !== "struct")
-                .map(
-                    ([name, varDef]) => name + ` (${sizeOfContextWithMetadata(context, target) - getWordOffsetAndLevel(token.context, name, target).offset - 1
-                        }: ${humanReadableType(varDef.internalType)})`
+                .map(                    
+                    ([name, varDef]) => {
+                        if (varDef.type === "value") {
+                            const addr = sizeOfContextWithMetadata(context, target) - getWordOffsetAndLevel(token, name, target).offset - 1;
+                            return name + ` (${addr}: ${humanReadableType(varDef.internalType)})`;
+                        } else if (varDef.type === "function") {
+                            return varDef.signatures.map(
+                                sig => {
+                                    const addr = sizeOfContextWithMetadata(context, target) - getWordOffsetAndLevel(sig.token, name, target).offset - 1
+                                    return name + ` (${addr}: ${humanReadableType(varDef.internalType)})`;
+                                }
+                            ).join(", ");
+                        }
+                    } 
                 ).join(", ");
             if (sizeToReserve === 0) return ["; no stack memory to reserve"];
 
@@ -4199,8 +4259,19 @@ function createVocabulary(): Vocabulary {
             const strVariables = Object.entries(token.context.varsDefinition)
                 .filter(([_name, varDef]) => varDef.type !== "struct")
                 .map(
-                    ([name, varDef]) => name + ` (${sizeOfContextWithMetadata(token.context!, target) - getWordOffsetAndLevel(token.context, name, target).offset - 1
-                        }: ${humanReadableType(varDef.internalType)})`
+                    ([name, varDef]) => {
+                        if (varDef.type === "value") {
+                            const addr = sizeOfContextWithMetadata(token.context!, target) - getWordOffsetAndLevel(token, name, target).offset - 1;
+                            return name + ` (${addr}: ${humanReadableType(varDef.internalType)})`;
+                        } else if (varDef.type === "function") {
+                            return varDef.signatures.map(
+                                sig => {
+                                    const addr = sizeOfContextWithMetadata(token.context!, target) - getWordOffsetAndLevel(sig.token, name, target).offset - 1
+                                    return name + ` (${addr}: ${humanReadableType(varDef.internalType)})`;
+                                }
+                            ).join(", ");
+                        }
+                    }
                 ).join(", ");
 
             token.functionIndex = getFunctionIndex();
@@ -4566,7 +4637,7 @@ function createVocabulary(): Vocabulary {
             if (varDef.isGlobalContext) return simSetWordGlobal(simEnv, varDef.internalType, varName);
 
             //const offset = getWordOffset(token.context, varName, "sim");
-            const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, "sim");
+            const { offset, levelToSkip } = getWordOffsetAndLevel(token, varName, "sim");
             const addressInStack = simGetIndexFromOffsetAndLevel(simEnv, token.context!, offset, levelToSkip);
             return simSetWordLocal(simEnv, varDef.internalType, addressInStack);
         }
@@ -4610,7 +4681,7 @@ function createVocabulary(): Vocabulary {
 
             //const offset = getWordOffset(token.context, varName, target);
             //return getAsmForSetWordLocal(varDef.internalType, offset, target);
-            const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, target);
+            const { offset, levelToSkip } = getWordOffsetAndLevel(token, varName, target);
 
             const ret: Assembly = [];
             const callee = varDef.type === "function" ? token.functionSignature?.token : varDef.token;
@@ -4635,7 +4706,7 @@ function createVocabulary(): Vocabulary {
             if (varDef.isGlobalContext) {
                 simSetWordGlobal(simEnv, varDef.internalType, getAsmVarName(token));
             } else {                
-                const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, "sim");
+                const { offset, levelToSkip } = getWordOffsetAndLevel(token, varName, "sim");
                 const addressInStack = simGetIndexFromOffsetAndLevel(simEnv, token.context!, offset, levelToSkip);
                 simSetWordLocal(simEnv, varDef.internalType, addressInStack);
             }
@@ -4660,11 +4731,12 @@ function createVocabulary(): Vocabulary {
                 const signature = findSignature(token.childs, varDef.signatures);
                 if (signature === undefined) {
                     const strSignatures = varDef.signatures.map(
-                        signature => signature.ins.map(type => humanReadableType(type)).join(",")
+                        signature => "    " + token.txt + "(" + signature.ins.map(type => humanReadableType(type)).join(", ") + ")"
                     ).join("\n");
-                    logError(token.loc, `the word '${token.txt}' expects one of the following signatures:\n${strSignatures}, no one found!`);
+                    const actualSignature = token.txt + "(" + token.childs.map(child => humanReadableType(child.out)).join(", ") + ")";
+                    logError(token.loc, `the word '${token.txt}' expects one of the following signatures:\n${strSignatures}\nbut it was given:\n    ${actualSignature}`);
                     exit();
-                }                
+                }
                 return signature.ins;
             }
             return [];
@@ -4717,7 +4789,7 @@ function createVocabulary(): Vocabulary {
             if (varDef.isGlobalContext) return getAsmForGetWordGlobal(token, valueType, asmVarName, varDef.type === "function", target);
 
             //const offset = getWordOffset(token.context, varName, target);
-            const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, target);
+            const { offset, levelToSkip } = getWordOffsetAndLevel(token, varName, target);
             const callee = varDef.type === "function" ? token.functionSignature?.token : varDef.token;
             if (callee === undefined) {
                 logError(token.loc, `cannot determine the callee of the word '${varName}', compiler error`);
@@ -4747,7 +4819,7 @@ function createVocabulary(): Vocabulary {
                 if (varDef.type === "function") {
                     const addr = simEnv.vars[getAsmVarName(token)];
                     if (addr === undefined) {
-                        logError(token.loc, `'${token.txt}' vars is undefined`);
+                        logError(token.loc, `'${token.txt}' word is undefined`);
                         exit();
                     }
                     const addressIndex = readNumberFromHeap(simEnv, addr);
@@ -4767,7 +4839,7 @@ function createVocabulary(): Vocabulary {
                 }
 
             } else {                
-                const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, getAsmVarName(token), "sim");
+                const { offset, levelToSkip } = getWordOffsetAndLevel(token, varName, "sim");
                 if (varDef.type === "function") {
                     const addressIndex = simGetValueFromOffsetAndLevel(simEnv, token.context!, offset, levelToSkip);
                     const functionToken = simEnv.addresses[addressIndex];
@@ -4784,36 +4856,36 @@ function createVocabulary(): Vocabulary {
                 }
             }
         },
-        preprocessTokens: (sequence, _createVocabulary) => {
-            const varName = sequence[0].txt;
-            const varDef = getWordDefinition(sequence[0].context, varName);
+        // preprocessTokens: (sequence, _createVocabulary) => {
+        //     const varName = sequence[0].txt;
+        //     const varDef = getWordDefinition(sequence[0].context, varName);
 
-            //if (varDef === undefined || varDef.type !== "function" || !varDef.isMacro) return;
-            if (varDef?.type === "function" && varDef?.isMacro) {
-                sequence[0].priority = 1000;                
+        //     //if (varDef === undefined || varDef.type !== "function" || !varDef.isMacro) return;
+        //     if (varDef?.type === "function" && varDef?.isMacro) {
+        //         sequence[0].priority = 1000;
 
-                const signature = findSignature(sequence.slice(1), varDef.signatures);
-                const parameterList = signature?.ins;
+        //         const signature = findSignature(sequence.slice(1), varDef.signatures);
+        //         const parameterList = signature?.ins;
 
-                if (parameterList === undefined) {
-                    logError(sequence[0].loc, `cannot determine the parameter list of function '${varName}', compiler error`);
-                    exit();
-                }
-                for (let i = 0; i < parameterList.length; i++) {
-                    const paramType = parameterList[i];
-                    const token = sequence[1 + i];
-                    if (paramType === "word" && token.type === TokenType.WORD) {
-                        // try to convert word to word literal
-                        createLiteralFromToken(token, "word");
-                    } else if (paramType === "word" && (token.type === TokenType.LITERAL && token.internalValueType !== "word")) {
-                        createLiteralFromToken(token, "word");
-                        token.txt = token.sourceTxt;
-                    } else if (areTypesEqual(paramType, ["array", "word"]) && token.type === TokenType.BLOCK) {
-                        token.type = TokenType.WORD_BLOCK;
-                    }
-                }
-            }
-        }
+        //         if (parameterList === undefined) {
+        //             logError(sequence[0].loc, `cannot determine the parameter list of function '${varName}', compiler error`);
+        //             exit();
+        //         }
+        //         for (let i = 0; i < parameterList.length; i++) {
+        //             const paramType = parameterList[i];
+        //             const token = sequence[1 + i];
+        //             if (paramType === "word" && token.type === TokenType.WORD) {
+        //                 // try to convert word to word literal
+        //                 createLiteralFromToken(token, "word");
+        //             } else if (paramType === "word" && (token.type === TokenType.LITERAL && token.internalValueType !== "word")) {
+        //                 createLiteralFromToken(token, "word");
+        //                 token.txt = token.sourceTxt;
+        //             } else if (areTypesEqual(paramType, ["array", "word"]) && token.type === TokenType.BLOCK) {
+        //                 token.type = TokenType.WORD_BLOCK;
+        //             }
+        //         }
+        //     }
+        // }
     };
     voc[TokenType.WHILE] = {
         txt: "while",
@@ -5261,7 +5333,7 @@ function createVocabulary(): Vocabulary {
                 exit();
             }
 
-            return getAsmAddressOfWord(token, varDef, varName, target);
+            return getAsmAddressOfWord(tokenVar, varDef, varName, target);
         },
         sim: (simEnv, token) => {
             const childReturnType = getReturnTypeOfAWord(token.childs[0]);
@@ -5431,9 +5503,9 @@ function createVocabulary(): Vocabulary {
         generateAsm: (_token, target) => {
             if (target === "c64") {
                 return [
-                    "LDA SP16",
+                    "LDA CTX_SP16",
                     "STA STACKACCESS",
-                    "LDA #0",
+                    "LDA #3",
                     "STA STACKACCESS+1",
                     "JSR PUSH16",
                 ];
@@ -6346,7 +6418,7 @@ function createVocabulary(): Vocabulary {
                                 const variableName = getAsmVarName(varDef.signatures[i].token);
                                 vars.push(`${variableName} DS ${size}`);
                             }
-                        } else {
+                        } else if (varDef.type === "value") {
                             const variableName = getAsmVarName(varDef.token);
                             const size = sizeOfValueType(token.context, varDef.out, target);
                             vars.push(`${variableName} DS ${size}`);
@@ -6444,7 +6516,7 @@ function createVocabulary(): Vocabulary {
                                 const variableName = getAsmVarName(varDef.signatures[i].token);
                                 vars.push(`${variableName}: resb ${size}`);
                             }
-                        } else {
+                        } else if (varDef.type === "value") {
                             const variableName = getAsmVarName(varDef.token);
                             const size = sizeOfValueType(token.context, varDef.out, target);
                             vars.push(`${variableName}: resb ${size}`);
@@ -6555,7 +6627,7 @@ function createVocabulary(): Vocabulary {
                 // const offset = getWordOffset(token.context, varName, "sim");
                 // const indexOnCtxStack = simEnv.ctxStack.length - 1 - offset;
 
-                const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, "sim");
+                const { offset, levelToSkip } = getWordOffsetAndLevel(token, varName, "sim");
                 const addressInStack = simGetIndexFromOffsetAndLevel(simEnv, token.context!, offset, levelToSkip);
                 simEnv.ctxStack[addressInStack]++;
             }
@@ -6573,7 +6645,7 @@ function createVocabulary(): Vocabulary {
                 logError(child.loc, `Cannot increment a function '${varName}', compiler error`);
                 exit();
             }
-            const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, target);
+            const { offset, levelToSkip } = getWordOffsetAndLevel(token, varName, target);
             if (target === "c64") {
                 if (varDef.isGlobalContext) {
                     const asmVarName = getAsmVarName(child);
@@ -6935,6 +7007,11 @@ function createVocabulary(): Vocabulary {
                 logError(structChild.loc, `cannot find definition for '${structChild.txt}'`);
                 exit();
             }
+            if (varDef.type === "function") {
+                logError(structChild.loc, `cannot assign to a method '${structChild.txt}'`);
+                exit();
+            }
+
 
             const structName = structChild.out[1];
             const structDef = getWordDefinition(structChild.context, structName);
@@ -6973,7 +7050,7 @@ function createVocabulary(): Vocabulary {
                 ].concat(getAsmForSetWordPointedByTOS(type.internalType, offset, "NO", target));
             }
 
-            return getAsmPutWordAddressOnTOS("addr", structChild, structDef.token, 0, false, target)
+            return getAsmPutWordAddressOnTOS("addr", structChild, varDef.token, 0, false, target)
                 .concat(getAsmForSetWordPointedByTOS(type.internalType, offset, "YES", target));
         },
         simPreludeChild: (_simEnv, _token, n) => {
@@ -7144,10 +7221,23 @@ function createVocabulary(): Vocabulary {
             const context = token.context;
             if (context.parent === undefined) return []; // the global context
             const sizeToReserve = sizeOfContextWithMetadata(context, target);
-            const strVariables = Object.entries(context.varsDefinition).map(
-                ([name, varDef]) => name + ` (${sizeOfContextWithMetadata(context, target) - getWordOffsetAndLevel(token.context, name, target).offset - 1
-                    }: ${humanReadableType(varDef.internalType)})`
-            ).join(", ");
+            const strVariables = Object.entries(context.varsDefinition)
+                .filter(([_name, varDef]) => varDef.type !== "struct")
+                .map(
+                    ([name, varDef]) => {
+                        if (varDef.type === "value") {
+                            const addr = sizeOfContextWithMetadata(context, target) - getWordOffsetAndLevel(token, name, target).offset - 1;
+                            return name + ` (${addr}: ${humanReadableType(varDef.internalType)})`;
+                        } else if (varDef.type === "function") {
+                            return varDef.signatures.map(
+                                sig => {
+                                    const addr = sizeOfContextWithMetadata(context, target) - getWordOffsetAndLevel(sig.token, name, target).offset - 1
+                                    return name + ` (${addr}: ${humanReadableType(varDef.internalType)})`;
+                                }
+                            ).join(", ");
+                        }
+                    }
+                ).join(", ");
             if (sizeToReserve === 0) return ["; no stack memory to reserve"];
 
             const sizeOfParentContext = sizeOfContextWithMetadata(context.parent, target);
@@ -7242,20 +7332,20 @@ function createVocabulary(): Vocabulary {
     };
     voc[TokenType.ARRAY] = {
         txt: "array",
-        expectedArity: 1,
+        expectedArity: 2,
         expectedArityOut: 1,
         grabFromStack: false,
         position: InstructionPosition.PREFIX,
         priority: 15,
         userFunction: false,
-        ins: token => {
+        ins: token => {            
             if (token.childs.length === 1) {
-                const firstChild = token.childs[0];
-                if (firstChild.type !== TokenType.ARRAY_BLOCK && firstChild.type !== TokenType.WORD_TYPE) {
-                    logError(firstChild.loc, `'${firstChild.txt}' should be an array block ora a word type, but it's a ${humanReadableToken(firstChild.type)}`);
-                    exit();
-                }
-                return ["addr"];
+                const child = token.childs[0];
+                if (child.type === TokenType.ARRAY_BLOCK) return ["addr"];
+                if (child.type === TokenType.WORD_TYPE) return [getReturnTypeOfAWord(child)];
+
+                logError(child.loc, `'${child.txt}' should be an array block ora a word type, but it's a ${humanReadableToken(child.type)}`);
+                exit();
             } else if (token.childs.length === 2) {
                 const firstChild = token.childs[0];
                 const firstChildType = getReturnTypeOfAWord(firstChild);
@@ -7274,7 +7364,7 @@ function createVocabulary(): Vocabulary {
                 exit();
             }
         },
-        out: (token) => {
+        out: (token) => {            
             if (token.childs.length === 1) {
                 const firstChild = token.childs[0].childs[0];
                 return ["array", getReturnTypeOfAWord(firstChild)];
@@ -7287,23 +7377,30 @@ function createVocabulary(): Vocabulary {
             }
         },
         preprocessTokens: (sequence, vocabulary) => {
-            if (sequence.length < 1) {
+            if (sequence.length < 2) {
                 logError(sequence[0].loc, `'${sequence[0].txt}' expects at least one parameter but none found`);
                 exit();
             }
-            if (sequence[1].type === TokenType.BLOCK) {
-                sequence[0].expectedArity = 1;
-                sequence[1].type = TokenType.ARRAY_BLOCK;
-                addInstrData(sequence[1], vocabulary);
+            const currentToken = sequence[0];
+            const nextToken = sequence[1];
+            if (nextToken.type === TokenType.BLOCK) {
+                currentToken.expectedArity = 1;
+                nextToken.type = TokenType.ARRAY_BLOCK;
+                addInstrData(nextToken, vocabulary);
                 return;
             }
 
-            if (sequence.length < 2) {
+            if (isTypeToken(nextToken)) {
+                currentToken.type = TokenType.ARRAY_TYPE;
+                addInstrData(currentToken, vocabulary);
+            }
+
+            if (sequence.length < 3) {
                 logError(sequence[0].loc, `'${sequence[0].txt}' expects at least two parameter but one found`);
                 exit();
             }
-            const nextToken = sequence[1];
-            if (isTypeToken(nextToken) || nextToken.type === TokenType.ARRAY) {
+
+            if (nextToken.type === TokenType.ARRAY) {
                 sequence[0].type = TokenType.ARRAY_TYPE;
                 addInstrData(sequence[0], vocabulary);
             }
@@ -7935,14 +8032,18 @@ function createVocabulary(): Vocabulary {
 
                 ret.push(`; ASM FOR '${code}'`);
                 const varName = result[1];
-                const varDef = getValueDefinition(token);
+                const varDef = getWordDefinition(token.context, varName);
                 if (varDef === undefined) {
                     logError(token.loc, `Cannot find declaration for word '${varName}' inside ASM instruction '${code}', compiler error`);
                     exit();
                 }
+                if (varDef.type !== "value") {
+                    logError(token.loc, `the word '${varName}' inside ASM instruction '${code}' refers to a '${varDef.type}', compiler error`);
+                    exit();
+                }
                 //const offset = getWordOffset(token.context, varName, target);        
 
-                const { offset, levelToSkip } = getWordOffsetAndLevel(token.context, varName, target);
+                const { offset, levelToSkip } = getWordOffsetAndLevel(token, varName, target);
                 if (target === "c64") {
                     const instruction = code.trim().substring(0, 3).toUpperCase();
                     if (varDef.isGlobalContext) {
@@ -8413,6 +8514,14 @@ function resetRecurFunctionIndex(token: Token) {
     refBlocks.forEach(refBlock => refBlock.functionIndex = undefined);
 }
 
+function assignTopContext(token: Token, context: Context) {
+    if (isABlock(token)) return;
+    token.context = context;
+    for (let i = 0; i < token.childs.length; i++) {
+        assignTopContext(token.childs[i], context);
+    }
+}
+
 async function doMacro(vocabulary: Vocabulary, sequence: AST, macroCall: Token): Promise<AST> {
     const prog: Token = {
         loc: { col: 1, row: 1, filename: macroCall.loc.filename },
@@ -8433,7 +8542,7 @@ async function doMacro(vocabulary: Vocabulary, sequence: AST, macroCall: Token):
     // copy the ast
     const copyOfCode = structuredClone(sequence) as AST;
 
-    const completeCode = copyOfCode
+    let completeCode = copyOfCode
         .filter(token =>
             // we take every lit word of struct and function
             // and take only values with literal
@@ -8444,16 +8553,21 @@ async function doMacro(vocabulary: Vocabulary, sequence: AST, macroCall: Token):
                 token.childs[0].type === TokenType.LITERAL
             )
         );
+    completeCode = completeCode.filter((token, index) => completeCode.find((t, i) => i > index && t.txt === token.txt && t.context !== token.context) === undefined);
+
+
     //const completeCode = getDefinitionNeeded(macroCall, sequence);
 
     // adjust the context of the child (context of recursive childs is ok)
     // and define every lit word
     completeCode.forEach(token => {
-        token.context = prog.context;
+        assignTopContext(token, prog.context!);
         setWordDefinition(token);
     });
+
     const newCall = structuredClone(macroCall) as Token;
-    newCall.context = prog.context;    
+    assignTopContext(newCall, prog.context!);
+    typeCheck(newCall, vocabulary);
     completeCode.push(newCall);
     prog.childs = completeCode;
 
@@ -8504,7 +8618,7 @@ async function groupFunctionToken(ast: AST, index: number, vocabulary: Vocabular
     const functionElement = ast[index];    
     const functionPosition = getInstructionPosition(functionElement);
     const arity = getArity(functionElement, vocabulary);
-    const currentNumOfChilds = isABlock(functionElement.type) ? 0 : functionElement.childs.length;
+    const currentNumOfChilds = isABlock(functionElement) ? 0 : functionElement.childs.length;
 
     // already grouped
     //if (currentNumOfChilds === arity) return functionElement;
@@ -8618,6 +8732,11 @@ async function groupFunctionToken(ast: AST, index: number, vocabulary: Vocabular
             logError(functionElement.loc, `'${functionElement.txt}' expansion produced empty block`);
             exit();
         }
+        for (let i = 0; i < tokensExpanded.length; i++) {
+            typeCheck(tokensExpanded[i], vocabulary);
+            optimize(tokensExpanded[i]);
+        }
+
         ast.splice(startPos, childs.length + 1, ...tokensExpanded);
         return lastToken;
     }
@@ -8748,7 +8867,7 @@ function typeCheckBlock(block: Token) {
 
 }
 
-function typeCheckDataBlock(block: Token) {
+function typeCheckArrayBlock(block: Token) {
     if (block.type !== TokenType.ARRAY_BLOCK) {
         logError(block.loc, `the token '${block.txt}' is not a '${humanReadableToken(TokenType.ARRAY_BLOCK)}'`);
         exit();
@@ -8900,7 +9019,6 @@ function areTypesCompatible(t1: ValueType, token2: Token): boolean {
     return areTypesEqual(t1, t2);
 }
 
-
 function getTokenByName(name: string, tokens: Token[]): Token | undefined {
     for (let i = 0; i < tokens.length; i++) {
         if (tokens[i].txt === name) return tokens[i];
@@ -8931,7 +9049,7 @@ function typeCheck(token: Token, vocabulary: Vocabulary) {
     }
 
     const arity = getArity(token, vocabulary);
-    if (isABlock(token.type)) {
+    if (isABlock(token)) {
         // in block the number of ins is not the number of childs
     } else {
         if (arity !== token.childs.length) {
@@ -9343,19 +9461,6 @@ function getWordUsedButNotDefinedInABlock(token: Token): string[] {
     return freeWords;
 }
 
-function getNumTokensInAst(ast: AST): number {
-    let ret = 0;
-    for (let i = 0; i < ast.length; i++) {
-        if (isABlock(ast[i].type)) {
-            ret += 2;
-        } else {
-            ret++;
-        }
-        ret += getNumTokensInAst(ast[i].childs);
-    }
-    return ret;
-}
-
 async function groupByExpectedArityOutZero(sequence: AST, vocabulary: Vocabulary, definitions: AST) {    
     let childLeft = 0;
     let lastPointer = 0;
@@ -9365,8 +9470,8 @@ async function groupByExpectedArityOutZero(sequence: AST, vocabulary: Vocabulary
         let token = sequence[j];
 
         // preprocess token
-        // changeTokenTypeOnContext(vocabulary, token, sequence.slice(token.position === InstructionPosition.PREFIX ? j : j - 1));
-        // token = sequence[j];
+        changeTokenTypeOnContext(vocabulary, token, sequence.slice(token.position === InstructionPosition.PREFIX ? j : j - 1));
+        token = sequence[j];
 
         let { ins, out } = getInsOutArity(token);
         if (token.type === TokenType.REF_BLOCK || token.type === TokenType.BLOCK || token.type === TokenType.RECORD) {
@@ -9377,7 +9482,7 @@ async function groupByExpectedArityOutZero(sequence: AST, vocabulary: Vocabulary
         if (token.type === TokenType.ARRAY_BLOCK) {
             const childs = token.childs;
             await groupByExpectedArityOutZero(childs, vocabulary, definitions.concat(currentDefinitions));
-            typeCheckDataBlock(token);
+            typeCheckArrayBlock(token);
         }
         if (token.type === TokenType.WORD_BLOCK) {
             const childs = token.childs;

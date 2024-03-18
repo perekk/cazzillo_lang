@@ -4,7 +4,7 @@ include "lib/c64.cazz"
   'buf ""
   'i 2024 - 40
   buf: buf . '"'
-  buf: buf . si "LDA #32" 
+  buf: buf . "LDA #32"
   buf: buf . '"'
   buf: buf . " "
   while i < 2024 [
@@ -14,6 +14,7 @@ include "lib/c64.cazz"
     buf: buf . " "
     inc i
   ]  
+  prin "BUF: " print buf
   buf !word
 ]
 
@@ -70,28 +71,28 @@ include "lib/c64.cazz"
   ]
 ]
 
-def N 30
+def 'N' '30'
 start_random
 'start1 time
-loop i N [  
+loop 'i' 'N' '[  
   poke 1024 + 24 * 40 + rnd 40 1 !<
   scroll
 ]
 
 'start2 time
-loop i N [
+loop 'i' 'N' '[
   poke 1024 + 24 * 40 + rnd 40 1 !<
   scroll2  
 ]
 
 'start3 time
-loop i N [
+loop 'i' 'N' '[
   poke 1024 + 24 * 40 + rnd 40 1 !<  
   asm ["JSR SCROLL_UP"]  
 ]
 
 'start4 time
-loop i N [
+loop 'i' 'N' '[
   poke 1024 + 24 * 40 + rnd 40 1 !<  
   scroll3
 ]
@@ -102,4 +103,3 @@ prin "SCROLL  :" print  start2   - start1
 prin "SCROLL2 :" print  start3   - start2
 prin "SCROLL4 :" print  start4   - start3
 prin "SCROLL3 :" print  end_time - start4
-

@@ -1,10 +1,10 @@
 include "lib/std.cazz"
-def N 8
-def DEBUG false
+def 'N' '8'
+def 'DEBUG' 'false'
 
 'board array N Number
 
-'init_board :['k 0 - 1 loop i N [change board i k] if DEBUG [print "BOARD OK"]]
+'init_board :['k 0 - 1 loop 'i' 'N' '[change board i k] if DEBUG [print "BOARD OK"]]
 
 'is_safe :[
   'x Number
@@ -23,7 +23,7 @@ def DEBUG false
 ]
 
 'print_board :[
-  loop i N [prin board at i]
+  loop 'i' 'N' '[prin board at i]
   print ""
 ]
 

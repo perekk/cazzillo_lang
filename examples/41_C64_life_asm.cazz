@@ -1,12 +1,12 @@
 include "lib/std.cazz"
 
-def HEIGHT 10
-def WIDTH 10
-define CELL_COUNT [HEIGHT * WIDTH]
-def SCREEN_START 1024
-def BUFFER_START 10000
-define LIFE_CHAR [81 !<]
-define DEAD_CHAR [32 !<]
+def 'HEIGHT' '10'
+def 'WIDTH' '10'
+define 'CELL_COUNT' '[HEIGHT * WIDTH]
+def 'SCREEN_START' '1024'
+def 'BUFFER_START' '10000'
+define 'LIFE_CHAR' '[81 !<]
+define 'DEAD_CHAR' '[32 !<]
 
 'time :[[ 256 * peek 161] + peek 162]
 
@@ -76,7 +76,7 @@ define DEAD_CHAR [32 !<]
 ;   if LIFE_CHAR = peek index [inc n]  
 ; ]
 
-define add_one_if_alive_asm [
+define 'add_one_if_alive_asm' '[
   asm [
       "; START CAZZ ASM"
       "LDA V_index"

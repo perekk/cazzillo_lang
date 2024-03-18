@@ -1,14 +1,14 @@
 include "lib/std.cazz"
 
-def SCREEN_START 1024
-def SCREEN_SIZE 1000
+def 'SCREEN_START' '1024'
+def 'SCREEN_SIZE' '1000'
 
-define cls [emit 147 !<]
+define 'cls' '[emit 147 !<]
 
 'time :[[ 256 * peek 161] + peek 162]
 
 // RANDOM
-define start_random [
+define 'start_random' '[
   poke 0xd40e 0xff
   poke 0xd40f 0xff
   poke 0xd412 0x80
@@ -31,8 +31,8 @@ define start_random [
 ]
 
 
-define rand_byte [[peek 0xD41B]]
-define rand_word [[rand_byte * 256 + rand_byte]]
+define 'rand_byte' '[[peek 0xD41B]]
+define 'rand_word' '[[rand_byte * 256 + rand_byte]]
 'rnd :['limit Number rand_word % limit]
 
 ; 'rnd :['limit Number
@@ -88,34 +88,34 @@ define rand_word [[rand_byte * 256 + rand_byte]]
   emit quote
   prin concat
   'w2 w - 2
-  loop i w2 '[emit quote emit hor_char emit quote prin concat]
+  loop 'i' 'w2' '[emit quote emit hor_char emit quote prin concat]
   emit quote
   emit nw_char 
   emit quote
 ]
 
 'box :['x Number 'y Number 'w Number 'h Number
-  define hor_char [99 !<]
-  define ver_char [194 !<]
-  define nw_char  [213 !<]
-  define ne_char  [201 !<]
-  define sw_char  [202 !<]
-  define se_char  [203 !<]
+  define 'hor_char' '[99 !<]
+  define 'ver_char' '[194 !<]
+  define 'nw_char'  '[213 !<]
+  define 'ne_char'  '[201 !<]
+  define 'sw_char'  '[202 !<]
+  define 'se_char'  '[203 !<]
 
   'x2 [x + w - 1] !<
   'y2 [y + h - 1] !<
   
   'ww w - 2
   'hh h - 2
-  loop i ww [ 'xx [x + i + 1] !< gotoxy xx y !< emit hor_char gotoxy xx y2 emit hor_char ]
-  loop i hh [ 'yy [y + i + 1] !< gotoxy x !< yy emit ver_char gotoxy x2 yy emit ver_char ]
+  loop 'i' 'ww' '[ 'xx [x + i + 1] !< gotoxy xx y !< emit hor_char gotoxy xx y2 emit hor_char ]
+  loop 'i' 'hh' '[ 'yy [y + i + 1] !< gotoxy x !< yy emit ver_char gotoxy x2 yy emit ver_char ]
   gotoxy x !< y !< emit nw_char
   gotoxy [x + w - 1] !< y !< emit ne_char
   gotoxy x !< [y + h - 1] !< emit sw_char
   gotoxy [x + w - 1] !< [y + h - 1] !< emit se_char
 ]
 
-define scroll_up [asm "JSR SCROLL_UP"]
+define 'scroll_up' '[asm "JSR SCROLL_UP"]
 
 ; 2024-02-27 decrement byte
 'dec :[
