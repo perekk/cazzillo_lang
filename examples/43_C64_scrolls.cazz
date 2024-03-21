@@ -2,19 +2,12 @@ include "lib/c64.cazz"
 
 'asm_clear_bottom_line :[
   'buf ""
-  'i 2024 - 40
-  buf: buf . '"'
-  buf: buf . "LDA #32"
-  buf: buf . '"'
-  buf: buf . " "
-  while i < 2024 [
-    buf: buf . '"'
-    buf: buf . si "STA {i}" 
-    buf: buf . '"'
-    buf: buf . " "
+  'i 2024 - 40  
+  buf: buf . "\"LDA #32\" "
+  while i < 2024 [    
+    buf: buf . "\"STA " . i !str . "\" "
     inc i
-  ]  
-  prin "BUF: " print buf
+  ]
   buf !word
 ]
 
@@ -49,15 +42,8 @@ include "lib/c64.cazz"
   'i 1064
   'buffer ""
   while i < 2024 [
-    'dest i - 40
-    buffer: buffer . '"'    
-    buffer: buffer . si "LDA {i}"
-    buffer: buffer . '"'
-    buffer: buffer . " "
-    buffer: buffer . '"'
-    buffer: buffer . si "STA {dest}"
-    buffer: buffer . '"'
-    buffer: buffer . " "
+    'dest i - 40    
+    buffer: buffer . "\"LDA " . i !str . "\" \"STA " . dest !str . "\" "    
     inc i
   ]
   buffer !word
@@ -71,10 +57,10 @@ include "lib/c64.cazz"
   ]
 ]
 
-def 'N' '30'
+'N 30
 start_random
 'start1 time
-loop 'i' 'N' '[  
+loop 'i' 'N' '[
   poke 1024 + 24 * 40 + rnd 40 1 !<
   scroll
 ]

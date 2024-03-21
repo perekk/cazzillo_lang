@@ -7662,44 +7662,121 @@ function createVocabulary(): Vocabulary {
             exit();
         },
         generateChildPreludeAsm: () => undefined,
-        generateChildEpilogueAsm: (ast, childIndex, target) => {
-            const child = ast.childs[childIndex];
-            assertChildNumber(child, 1);
-            const component = child.childs[0];
-            const type = getReturnTypeOfAWord(component);
-            const size = type?.[0] === "usertype" ? 2 : sizeOfValueType(child.context!, type, target);
-            const code = compile(vocabulary, component, target);
-            const transferStackToHeap = getAsmCtxToHeap(size, target);
-            return [
-                "; save the current heapadd",
-                "LDA HEAPADD",
-                "PHA",
-                "LDA HEAPADD + 1",
-                "PHA",
-            ].concat(
-                code
-            ).concat([
-                "PLA",
-                "STA HEAPADD + 1",
-                "PLA",
-                "STA HEAPADD",
-            ]).concat(
-                transferStackToHeap
-            ).concat([
-                `; END GENERATING CHILD ${childIndex}, COMPONENT ${child.txt}:${humanReadableType(type)} (size ${size})`
-            ]);
-        },
         generateAsm: (token, target) => {
+            const typeOfRecord = token.parent?.out!;
+            if (typeof typeOfRecord === "string" || typeOfRecord?.[0] !== "usertype") {
+                logError(token.loc, `Type not correct for a struct ${humanReadableType(typeOfRecord)}, compiler error`);
+                exit();
+            }
+            const structName = typeOfRecord[1];
+            const structDef = getWordDefinition(token.context, structName);
+            if (structDef?.type !== "struct") {
+                logError(token.loc, `Cannot find the definition of ${structName}, compiler error`);
+                exit();
+            }
+            let ret: Assembly = [];
+            for (let i = 0; i < structDef.elements.length; i++) {
+                const component = structDef.elements[i];
+                const child = token.childs.find(child => child.txt === component.name);
+                const type = component.def.out;
+                const size = type?.[0] === "usertype" ? 2 : sizeOfValueType(token.context!, type, target);
+                if (child) {
+                    assertChildNumber(child, 1);
+                    const componentElement = child.childs[0];
+                    if (!areTypesEqual(type, getReturnTypeOfAWord(componentElement))) {
+                        logError(child.loc, `Component should be of type ${humanReadableType(type)}, instead is ${humanReadableType(getReturnTypeOfAWord(componentElement))}`);
+                        exit();
+                    }
+
+                    const code = compile(vocabulary, componentElement, target);
+                    const transferStackToHeap = getAsmCtxToHeap(size, target);
+                    ret = ret.concat([
+                        "; save the current heapadd",
+                        "LDA HEAPADD",
+                        "PHA",
+                        "LDA HEAPADD + 1",
+                        "PHA",
+                    ].concat(
+                        code
+                    ).concat([
+                        "PLA",
+                        "STA HEAPADD + 1",
+                        "PLA",
+                        "STA HEAPADD",
+                    ]).concat(
+                        transferStackToHeap
+                    ).concat([
+                        `; END GENERATING CHILD ${i}, COMPONENT ${component.name}:${humanReadableType(type)} (size ${size})`
+                    ]));
+                } else {
+                    // If the component is not here, fill it with zeroes
+                    if (size === 1) {
+                        ret = ret.concat([
+                            "LDY #0",
+                            "LDA #0",
+                            "STA (HEAPADD),Y",
+                            "INC HEAPADD",
+                            "BNE NO_CARRY_@",
+                            "INC HEAPADD+1",
+                            "NO_CARRY_@:"
+                        ]);
+                    } else if (size === 2) {
+                        ret = ret.concat([
+                            "LDY #0",
+                            "LDA #0",
+                            "STA (HEAPADD),Y",
+                            "INY",
+                            "STA (HEAPADD),Y",
+                            "LDA HEAPADD",
+                            "CLC",
+                            "ADC #2",
+                            "STA HEAPADD",
+                            "LDA HEAPADD + 1",
+                            "ADC #0",
+                            "STA HEAPADD + 1",
+                        ]);
+                    } else if (size === 4) {
+                        ret = ret.concat([
+                            "LDY #0",
+                            "LDA #0",
+                            "STA (HEAPADD),Y",
+                            "INY",
+                            "STA (HEAPADD),Y",
+                            "INY",
+                            "STA (HEAPADD),Y",
+                            "INY",
+                            "STA (HEAPADD),Y",
+                            "LDA HEAPADD",
+                            "CLC",
+                            "ADC #4",
+                            "STA HEAPADD",
+                            "LDA HEAPADD + 1",
+                            "ADC #0",
+                            "STA HEAPADD + 1",
+                        ]);
+                    } else {
+                        console.log(`Error compiling RECORD, size of ${size} is not handled!`);
+                        exit();
+                    }
+                }
+            }
+
+            const childNotRecognized = token.childs.find(child => !structDef.elements.map(component => component.name).includes(child.txt));
+            if (childNotRecognized) {
+                logError(childNotRecognized.loc, `${childNotRecognized.txt} is not a part of '${structName}'`);
+                exit();
+            }
+
             if (token.context === undefined) {
                 logError(token.loc, `can't find context for ${token.txt}, compiler error`);
                 exit();
             }
             if (token.context.parent === undefined) return []; // the global context
             if (target === "c64") {
-                return [                    
+                return ret.concat([                    
                     `; this is a record, release one byte on the stack`,
-                    "INC CTX_SP16"                    
-                ];
+                    "INC CTX_SP16"
+                ]);
             }
             console.log(`target system '${target}' unknown`);
             exit();

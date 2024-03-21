@@ -1,11 +1,8 @@
 struct Point [
-    'x Number
+    'x Byte
     'y Number
-    'z Number
+    'z String 
 ]
 
-'a new Point [
-    'y 69
-]
-
+'a new Point []
 print a
