@@ -1,8 +1,17 @@
-'def :['w Word 'n Word
-  '['{w} :[ '{n}' ]]
+'def :['w Word any 'n Number
+  '['{w} :[ '[ {n} ] ] ]
+]
+'def :['w Word any 'n String
+  '['{w} :[ '[ "{n}" ] ] ]
+]
+'def :['w Word any 'n Bool  
+  '['{w} :[ '[ {n} ] ] ]
+]
+'def :['w Word any 'n Word any
+  '['{w} :[ '[ {n} ] ] ]
 ]
 
-'define :['w Word 'n array Word
+'define :['w Word any 'n array Word any
   '[ '{w} :[ '[{n}] ] ]  
 ]
 
@@ -10,9 +19,14 @@
 ; def loop [( 'i 0 while ( i < ]
 ; def do [ ) ( ]
 
-'loop :['var Word 'n Word 'body array Word 
+'loop :['var Word any 'n Word Number 'body array Word any
   '[ [ '{var} 0 while {var} < {n} [{body} inc {var}] ]]
 ]
+
+'loop :['var Word any 'n Number 'body array Word any
+  '[ [ '{var} 0 while {var} < {n} [{body} inc {var}] ]]
+]
+
 
 ; 'nanosleep :['msec Number  
 ;   struct timespec [
@@ -68,7 +82,7 @@ struct Stack [
 ; ]
 
 ; 2024-03-17 ASC MACRO with two signature
-'asc :['s Word
+'asc :['s Word String
   '[peek {s} !addr]
 ]
 
@@ -82,8 +96,7 @@ struct Stack [
   'txt String
   'i 0
   'interpol false
-  'buffer ""  
-  buffer: buffer . '"'
+  'buffer "\""    
   while i < txt # [
     'cc txt at i
     'code asc 'cc'
@@ -93,17 +106,15 @@ struct Stack [
       ] [
         either code = 125 [ ; }
           interpol: false
-          buffer: buffer . " !str . "
-          buffer: buffer . '"'
+          buffer: buffer . " !str . " . "\""          
         ] [
           buffer: buffer . cc
         ]
       ]
     ] [
       either code = 123 [ ; {
-        interpol: true
-        buffer: buffer . '"'
-        buffer: buffer . " . "
+        interpol: true        
+        buffer: buffer . "\" . "
       ] [
         buffer: buffer . cc
       ]
@@ -113,7 +124,7 @@ struct Stack [
   either interpol [
     buffer: buffer . " !str"
   ] [
-    buffer: buffer . '"'
+    buffer: buffer . "\""
   ]
   buffer !word
 ]

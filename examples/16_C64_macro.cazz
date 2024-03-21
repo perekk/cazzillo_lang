@@ -4,11 +4,11 @@ def 'SCREEN_START' '1024'
 def 'SCREEN_SIZE' '1000'
 define 'SCREEN_END' '[SCREEN_START + SCREEN_SIZE]
 
-'inc_var :['w Word
+'inc_var :['w Word Number
   '[{w}: {w} + 1]
 ] 
 
-'falsify_bool :['w Word
+'falsify_bool :['w Word Bool
   prin "CHANGE WORD: " print w
   '[if {w} [{w}: false]]
 ]

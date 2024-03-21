@@ -1,0 +1,26 @@
+struct Point [
+    'x Number
+    'y Number
+    'z Number
+]
+
+; 'a array [
+;     new Point ['x 1 !< 'y 11 !< 'z 69 !<]
+;     new Point ['x 2 !< 'y 22 !< 'z 69 !<]
+;     new Point ['x 3 !< 'y 33 !< 'z 69 !<]
+;     new Point ['x 4 !< 'y 44 !< 'z 69 !<]
+;     new Point ['x 5 !< 'y 55 !< 'z 69 !<]
+; ]
+
+'a array 1000 Point
+'i 0
+while i < 1000 [
+    change a i new Point ['x i 'y i * 2 'z i * 3]
+    inc i
+]
+
+i: 0
+while i < 1000 [
+    prin a at i nl 
+    inc i
+]

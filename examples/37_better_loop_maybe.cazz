@@ -1,6 +1,6 @@
 //include "lib/std.cazz"
 
-'betterloop? :['var Word 'n Word 'body array Word 
+'betterloop? :['var Word any 'n Word any 'body array Word any
   '[['{var} 0 while {var} < {n} [{body} inc {var}]]]
 ]
 

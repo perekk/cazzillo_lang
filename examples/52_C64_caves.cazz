@@ -14,21 +14,21 @@ define 'TILE_DOOR' '[43 !<]
 'field array 1000 Byte
 
 'init_field :[
-  loop 'i' '1000' '[
+  loop 'i' 1000 '[
     change field i TILE_VOID
   ]
 ]
 
 'show_field :[
-  loop 'i' '1000' '[ poke i + 1024 field at i ]
+  loop 'i' 1000 '[ poke i + 1024 field at i ]
 ]
 
 'for_each_tile :[
-  'left Word
-  'top Word
-  'width Word
-  'height Word
-  'body array Word
+  'left Word Number
+  'top Word Number
+  'width Word Number
+  'height Word Number
+  'body array Word any
   '[
     'x left - 1
     while x < left + width + 2 [

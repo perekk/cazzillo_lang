@@ -24,16 +24,16 @@ include "lib/c64.cazz"
 
 
 'start_time time
-def 'N' '10000'
+def 'N' 3000
 
 start_random
 'h 0
-loop 'i' 'N' '[
+loop 'i' N '[
   if rand_byte < 128 [inc h]
 ]
 'end_time time
 't N - h
 prin ""
-prin "HEAD: " prin h prin " " prin h * 100 / N  print "%"
-prin "TAIL: " prin t prin " " prin t * 100 / N  print "%"
+prin "HEAD: " prin h prin " " prin h / [N / 100] print "%"
+prin "TAIL: " prin t prin " " prin t / [N / 100] print "%"
 prin "TIME: " prin [end_time - start_time] * 100 / 6 print " MSEC"

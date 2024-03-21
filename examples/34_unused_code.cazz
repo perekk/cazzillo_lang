@@ -1,8 +1,8 @@
-'def :['w Word 'n Word
+'def :['w Word any 'n Word any
   '['{w} :[ '{n}' ]]
 ]
 
-'define :['w Word 'n array Word
+'define :['w Word any 'n array Word any
   '['{w} :[ '[{n}] ]]
 ]
 

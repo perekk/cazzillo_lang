@@ -1,9 +1,11 @@
-'dec :[
-  'w word Number
-  'str_asm "DEC !" . w !str
-  '[ asm "{str_asm}"]  
+struct Point [
+    'x Number
+    'y Number
+    'z Number
 ]
 
-'a 70
-dec 'a'
+'a new Point [
+    'y 69
+]
+
 print a

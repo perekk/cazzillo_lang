@@ -1,2 +1,2 @@
 include "lib/c64.cazz"
-loop 'i' '256' '[if i < 16 [prin "0"] prin hex i prin " " if i % 8 = 7 [nl] ]
+loop 'i' 256 '[if i < 16 [prin "0"] prin hex i prin " " if i % 8 = 7 [nl] ]

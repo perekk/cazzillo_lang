@@ -23,24 +23,23 @@
     0x8c 0x89 0x86 0x83
  ]
 
+
 'hex :['n Number
   'ret ""
-  if n = 0 [return "0"]
+  if n = 0 [return "00"]
   while n > 0 [
     ret: "0123456789ABCDEF" at [n % 16] . ret
     n: n / 16
   ]
+  if ret # = 1 [ret: "0" . ret]
   ret
 ]
 
-;'sinustable "ABCD"
-print sinustable #
+prin "BIG ARRAY OF BYTE LEN: " print sinustable #
 'i 0
 while i < sinustable # [
   prin hex sinustable at i !n
-  prin " "
+  prin " "  
   inc i
+  if i % 12 = 0 [nl]
 ]
-
-print ""
-print [array ["A" "B" "C"]] at 2

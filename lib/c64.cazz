@@ -118,8 +118,49 @@ define 'rand_word' '[[rand_byte * 256 + rand_byte]]
 define 'scroll_up' '[asm "JSR SCROLL_UP"]
 
 ; 2024-02-27 decrement byte
+; 'dec :[
+;   'w Word Number
+;   'str_asm si "DEC !{w}"
+;   '[ asm "{str_asm}"]  
+; ]
+
+; 2024-03-19 decrement with word typing
 'dec :[
-  'w Word
-  'str_asm si "DEC !{w}"
+  'w Word Number
+  'addr_on_tos "ADR !" . w !str  
+  '[ asm [
+    "{addr_on_tos}"
+    "JSR POP16"
+    "LDY #0"
+    "SEC"
+    "LDA (STACKACCESS),Y"
+    "SBC #1"
+    "STA (STACKACCESS),Y"
+    "BPL positive_@"
+    "INY"
+    "LDA (STACKACCESS),Y"
+    "SEC"
+    "SBC #1"
+    "STA (STACKACCESS),Y"
+    "positive_@:"
+  ]]  
+]
+
+'dec :[
+  'w Word Byte
+  'str_asm "DEC !" . w !str
   '[ asm "{str_asm}"]  
+]
+
+; 2024-03-20
+'print_heap :[ 
+    '[ asm [
+        "LDA HEAPTOP"        
+        "STA STACKACCESS"
+        "LDA HEAPTOP + 1"        
+        "STA STACKACCESS + 1"        
+        "JSR PRINT_INT"
+        "LDA #13"
+        "JSR EMIT"
+    ]]
 ]

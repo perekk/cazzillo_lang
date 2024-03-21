@@ -16,10 +16,13 @@
   asm "STA 53280"
   asm "STA 53281"
 
-  k: 1024
-  while k < 2024 [
-    asm "LDA !k"
-    asm "STA !k"
-    inc k
-  ]
+
+]
+
+; global context
+'k 1024
+while k < 2024 [
+  asm "LDA !k"
+  asm "STA !k"
+  inc k
 ]
