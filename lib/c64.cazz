@@ -164,3 +164,29 @@ define 'scroll_up' '[asm "JSR SCROLL_UP"]
         "JSR EMIT"
     ]]
 ]
+
+; 2024-04-03 heap dump
+'dump_heap :[
+    'hex :['n Number
+        'ret ""
+        if n = 0 [ret: "00"]
+        while n > 0 [
+            ret: "0123456789ABCDEF" at [n % 16] . ret
+            n: n / 16
+        ]
+        if ret # = 1 [ret: "0" . ret]
+        ret
+    ]
+
+    'i stack 2 ; - 64 ; heap start
+    'end stack 3 ; heap top
+    'j 0
+    'buff ""
+    while i < end [
+        if j % 8 = 0 [nl prin hex i prin ": "]
+        prin hex [peek i] !n prin " "
+        inc j
+        inc i
+    ]
+    nl
+]

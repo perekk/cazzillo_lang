@@ -96,7 +96,7 @@ struct Stack [
   'txt String
   'i 0
   'interpol false
-  'buffer "\""    
+  'buffer "\""
   while i < txt # [
     'cc txt at i
     'code asc 'cc'

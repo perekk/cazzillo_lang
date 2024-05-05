@@ -1,26 +1,22 @@
 struct Point [
+    'index Byte
     'x Number
     'y Number
     'z Number
+    'txt String
 ]
 
-; 'a array [
-;     new Point ['x 1 !< 'y 11 !< 'z 69 !<]
-;     new Point ['x 2 !< 'y 22 !< 'z 69 !<]
-;     new Point ['x 3 !< 'y 33 !< 'z 69 !<]
-;     new Point ['x 4 !< 'y 44 !< 'z 69 !<]
-;     new Point ['x 5 !< 'y 55 !< 'z 69 !<]
-; ]
-
-'a array 1000 Point
+'N 1000
+'a array N Point
 'i 0
-while i < 1000 [
-    change a i new Point ['x i 'y i * 2 'z i * 3]
+while i < N [    
+    ; index component is left out
+    change a i new Point ['txt "ITER. " . i !str 'y i * 2 'z i * 3 'x i  ]
     inc i
 ]
 
 i: 0
-while i < 1000 [
+while i < N [
     prin a at i nl 
     inc i
 ]

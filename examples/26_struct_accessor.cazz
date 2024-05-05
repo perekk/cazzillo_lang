@@ -22,7 +22,7 @@ struct Point [
   p -> label: "ZEROED"
 ]
 
-prin "STACK:" print stack
+prin "STACK:" print stack 0
 print_point pt1
 
 pt1 -> label: "CHANGED!"
@@ -49,6 +49,9 @@ struct Couple_of_point [
   'p2 pt2
 ]
 
+print "P2"
+print points -> p2
+
 prin "P2->X=" print [points -> p2] -> x
-prin "STACK:" print stack
+prin "STACK:" print stack 0
 ]

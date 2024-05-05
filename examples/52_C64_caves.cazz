@@ -69,7 +69,7 @@ define 'TILE_DOOR' '[43 !<]
   'door_x 0
   'door_y 0
   if with_player ! [
-    for_each_tile left top width height [
+    for_each_tile 'left' 'top' 'width' 'height' '[
       'at_vertical_wall x < left or x > left + width
       'at_horizontal_wall y < top or y > top + height
       'at_wall_but_not_at_corner [at_vertical_wall or at_horizontal_wall] and [at_vertical_wall and at_horizontal_wall] !

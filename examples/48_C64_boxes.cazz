@@ -1,9 +1,8 @@
 include "lib/c64.cazz"
 
-'asc :['s String 
+'ascfun :['s String 
   peek s !addr
 ]
-
 
 'start_time time
 loop 'i' 10 '[box i i 20 10]
@@ -14,7 +13,7 @@ loop 'i' 'N' '[
   gotoxy x y 
   ;'char 
   ;emit asc 'char'
-  emit asc "HELLO FROM CAZZILLO " at [i % 20]
+  emit ascfun "HELLO FROM CAZZILLO " at [i % 20]
 ]
 gotoxy 1 !< 23 !<
 prin "TIME:" print time - start_time

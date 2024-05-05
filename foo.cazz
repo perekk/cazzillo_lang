@@ -1,8 +1,31 @@
-struct Point [
-    'x Byte
-    'y Number
-    'z String 
+'gotoxy :['col Word Byte 'row Word Byte    
+    '[ [
+        'cursor 1024 + {row} * 40 + {col}
+        'cursorlo cursor !<
+        'cursorhi [cursor / 256] !<
+        asm [
+            "; GOTOXY"
+            "LDA !{col}"
+            "STA CURX"
+            "LDA !{row}"
+            "STA CURY"
+            "LDA !cursorlo"
+            "STA CURSOR"
+            "LDA !cursorhi"
+            "STA CURSOR+1"            
+        ]
+    ] ]
 ]
 
-'a new Point []
-print a
+'j 0
+while j < 40 [
+    'i 0 !<
+    while i < 25 [
+        'x i + j !<
+        'y i
+        gotoxy 'x' 'y'
+        prin "CIAO"
+        inc i 
+    ]
+    j: j + 4
+]

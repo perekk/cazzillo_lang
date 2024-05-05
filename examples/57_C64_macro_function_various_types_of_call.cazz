@@ -1,0 +1,33 @@
+'asc :['s Word String
+    prin "WS "
+  '[peek [{s}] !addr]
+]
+
+'asc :['s array Word any
+    prin "AW "
+  '[peek [{s}] !addr]
+]
+
+'asc :['s String     
+    'code peek s !addr
+    '[{code} !<]
+]
+
+'ascf :['s String     
+    'code peek s !addr
+    code !<
+]
+
+'i 0
+while i < 5 [
+    's i !str
+    prin asc "A" prin " "          ; Literal String
+    prin asc 's' prin " "          ; String Word
+    prin asc '[s . " "] prin " "   ; String (expression)
+    prin ascf s . " " nl           ; String (expression) at runtime
+    inc i
+]
+
+
+
+

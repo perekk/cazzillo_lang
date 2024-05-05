@@ -8,13 +8,13 @@ struct Entity [
 ]
 
 start_random
-'N 30
+'N 1
 'mobs array N Entity
 
-'init_entities :[  
-  loop i N [
+'init_entities :[
+  loop 'i' N '[
     change mobs i new Entity [
-        'pos 1024 + 40 * 10 + 20
+        'pos 1024 + 40 * rnd 25 + rnd 40
         'life 100
         'label i !<
         'active true
@@ -23,32 +23,38 @@ start_random
 ]
 
 'remove_entities :[
-  loop i N [
+  loop 'i' N '[
     poke [mobs at i] -> pos 32 !<
   ]  
 ]
 
 'display_entities :[  
-  loop i N [
+  loop 'i' N '[
     poke [mobs at i] -> pos [mobs at i] -> label !<
-  ]  
+  ]
 ]
 
 'move_entities :[
-  loop i N [
-    'mob mobs at i
-    'dir rand_byte / 64
-    'incr 0
-    if dir = 0 [incr: 0 - 40]
-    if dir = 1 [incr: 0 - 1]
-    if dir = 2 [incr: 1]
-    if dir = 3 [incr: 40]
-    poke mob -> pos 32 !<
-    mob -> pos: mob -> pos + incr
-    if mob -> pos < 1024 [mob -> pos: mob -> pos + 40]
-    if mob -> pos > 2024 [mob -> pos: mob -> pos - 40]
-    poke mob -> pos mob -> label
-  ] 
+    'i 0
+    while i < N [
+        'mob mobs at i
+        'incr 0
+        while [peek [mob -> pos + incr]] = 32 ! [
+            'dir rand_byte / 64
+            if dir = 0 [incr: 0 - 40]
+            if dir = 1 [incr: 0 - 1]
+            if dir = 2 [incr: 1]
+            if dir = 3 [incr: 40]
+        ]
+        gotoxy 0 !< 0 !<
+        print incr
+        poke mob -> pos 32 !<
+        mob -> pos: mob -> pos + incr
+        if mob -> pos < 1024 [mob -> pos: mob -> pos + 40]
+        if mob -> pos > 2024 [mob -> pos: mob -> pos - 40]
+        poke mob -> pos mob -> label
+        inc i
+    ]
 ]
 
 init_entities

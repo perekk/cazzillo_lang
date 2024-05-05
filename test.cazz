@@ -1,14 +1,29 @@
-'def :['w Word 'n Word
-  '[ '{w} :[ '{n}' ]]
+'j 0 
+while j < 12 [
+    'i 0 !< 
+    while i < 25 [
+        'x [i + j] !< 
+        'y i 
+        [
+            'cursor 1024 + y * 40 + x 
+            'cursorlo cursor !< 
+            'cursorhi [cursor / 256] !< 
+            asm [
+                "; GOTOXY" 
+                "LDA !x" 
+                "STA CURX" 
+                "LDA !y" 
+                "STA CURY" 
+                "LDA !cursorlo" 
+                "STA CURSOR" 
+                "LDA !cursorhi" 
+                "STA CURSOR+1"
+            ]
+        ] 
+        prin "CIAO" 
+        inc i
+    ] 
+    j: j + 4
 ]
 
-'define :['w Word 'n array Word
-  '[ '{w} :[ '[{n}] ] ]
-]
-
-def HEIGHT 10
-def WIDTH 10
-print HEIGHT * WIDTH 
-
-define CELL_COUNT [HEIGHT * WIDTH]
-print CELL_COUNT
+prin "END"

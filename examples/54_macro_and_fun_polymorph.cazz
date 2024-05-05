@@ -1,38 +1,36 @@
 ; local stack 
 [
   'fun :['a Number  
-    '[{a} + 1]
+    '["MACRO NUMB " . [{a} + 1] !str ]
   ]  
   'fun :['a String
-    '["{a}" . "XXX"]
+    '["MACRO STRING " . "{a}" . "XXX"]
   ]
-  'fun :['a Word
-    '['{a}' . "XXX"]
+  'fun :['a Word String
+    '["MACRO WORD STRING " . {a} . "XXX"]
   ]
   
   'k "ZXY"
   print fun 69
   print fun "ABC"
-  print fun k
+  print fun 'k'
 ]
 
 ; global memory
   'fun :['a Number  
-    '[{a} + 1]
-  ]
-
+    '["MACRO NUMB " . [{a} + 1] !str ]
+  ]  
   'fun :['a String
-    '["{a}" . "XXX"]
+    '["MACRO STRING " . "{a}" . "XXX"]
   ]
-
-  'fun :['a Word
-    '['{a}' . "XXX"]
+  'fun :['a Word String
+    '["MACRO WORD STRING " . {a} . "XXX"]
   ]
 
   'k "ZXY"
   print fun 69
   print fun "ABC"
-  print fun k
+  print fun 'k'
 
 
 [

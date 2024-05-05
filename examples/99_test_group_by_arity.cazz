@@ -51,7 +51,7 @@ struct Point ['y Number]
 
 'test :[] test
 
-def byte [81 !<]
+'byte :[ '[81 !<] ] 
 
 [
 'f :['a Number 'c Bool either c [a + 1] [a + 2]]
