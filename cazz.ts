@@ -9444,7 +9444,6 @@ async function doMacro(vocabulary: Vocabulary, sequence: AST, macroCall: Token):
     return ast.childs;
 }
 
-
 async function checkForMacroCall(functionElement: Token, vocabulary: Vocabulary, sequence: AST) {
 
     if (functionElement.type === TokenType.WORD) {
@@ -10154,7 +10153,6 @@ function setStructDefinition(token: Token) {
     token.context.varsDefinition[name] = structDef;
     console.log("created struct word " + name);
 }
-
 
 async function parseBlock(ast: AST, vocabulary: Vocabulary, sequence: AST, doTypeCheck: boolean): Promise<AST> {
 
@@ -11369,7 +11367,7 @@ async function main() {
     const astProgram = await parse(vocabulary, program, filename);
     checkForUnusedCode(astProgram);
     buildLinks(astProgram, undefined);
-    dumpAst(astProgram);    
+    dumpAst(astProgram);
     console.log(tokenToString(astProgram));
     //Deno.exit(0);
     if (action === "sim") {

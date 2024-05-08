@@ -1,5 +1,5 @@
 'j 0 
-while j < 12 [
+while j < 8 [
     'i 0 !< 
     while i < 25 [
         'x [i + j] !< 
