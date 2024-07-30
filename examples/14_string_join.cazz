@@ -6,8 +6,8 @@ while a < 10 [
     a: a + 1
 ]
 
-print stack
+print stack 0
 prin "DISPLAY " prin a print " X'S"
 prin "HERE WE GO => " prin b print " !"
 prin "LEN = " prin b # print " #"
-print stack
+print stack 0

@@ -162,3 +162,4 @@ prin "ELAPSED: " print time - start
 ; 210 precalculate offset, separate ctx stack
 ; 286 using static context stack
 ; 283 static context optimized
+; 202 using WORDADD = FIXED

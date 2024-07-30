@@ -101,7 +101,7 @@ define 'TILE_DOOR' '[43 !<]
 start_random
 init_field
 'i 0
-while i < 10 [
+while i < 5 [
   if 0 < gen_cave [i = 0] [inc i]
 ]
 show_field

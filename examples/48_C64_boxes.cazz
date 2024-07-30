@@ -23,3 +23,6 @@ prin "TIME:" print time - start_time
 ; time 201 gotoxy optimized compare bytes for >= and > 
 ; time 156 optimize division by powers of two as shift
 ; time 204 after introducing static context
+; time 150 after WORDADD = FIXED
+; time 66 after gotoxy as ASM macro
+; time 76 gotoxy as ASM function 

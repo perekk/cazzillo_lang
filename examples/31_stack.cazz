@@ -2,7 +2,7 @@ include "lib/std.cazz"
 
 'stk new_stack 100
 
-prin "STACK: " print stack
+prin "STACK: " print stack 0
 
 ;print stack
 'i 0 
@@ -14,8 +14,8 @@ while i < 100 [
 i: 0 
 while [is_empty stk] ! [
   prin i prin "): " print pop stk
-  //nanosleep 100
+  ; nanosleep 100
   inc i
 ]
 
-prin "STACK: " print stack
+prin "STACK: " print stack 0

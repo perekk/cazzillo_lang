@@ -1,29 +1,104 @@
-'j 0 
-while j < 8 [
-    'i 0 !< 
-    while i < 25 [
-        'x [i + j] !< 
-        'y i 
-        [
-            'cursor 1024 + y * 40 + x 
-            'cursorlo cursor !< 
-            'cursorhi [cursor / 256] !< 
-            asm [
-                "; GOTOXY" 
-                "LDA !x" 
-                "STA CURX" 
-                "LDA !y" 
-                "STA CURY" 
-                "LDA !cursorlo" 
-                "STA CURSOR" 
-                "LDA !cursorhi" 
-                "STA CURSOR+1"
-            ]
-        ] 
-        prin "CIAO" 
-        inc i
-    ] 
-    j: j + 4
-]
+'time :[[256 * peek 161] + peek 162] 
 
-prin "END"
+'gotoxy :[ '[ asm [            
+    "; ins: byte byte"
+    "; out:"
+    "JSR POP16"
+    "LDA STACKACCESS"
+    "STA CURX" 
+    "JSR POP16"
+    "LDA STACKACCESS"
+    "STA CURY"    
+    "LDA #0"
+    "STA STACKACCESS+1"
+
+    "; multiply by 32"
+    "ASL STACKACCESS"
+    "ROL STACKACCESS+1"
+    "ASL STACKACCESS"
+    "ROL STACKACCESS+1"
+    "ASL STACKACCESS"
+    "ROL STACKACCESS+1"
+    "ASL STACKACCESS"
+    "ROL STACKACCESS+1"
+    "ASL STACKACCESS"
+    "ROL STACKACCESS+1"
+    
+    "; multipy by 8"
+    "LDA CURY"
+    "STA AUX"
+    "LDA #0"
+    "STA AUX+1"
+    "ASL AUX"
+    "ROL AUX+1"
+    "ASL AUX"
+    "ROL AUX+1"
+    "ASL AUX"
+    "ROL AUX+1"
+    
+    "; add 1024 and aux to stackaccess"
+    "CLC"
+    "LDA STACKACCESS"
+    "ADC AUX"
+    "ADC CURX"
+    "STA CURSOR"
+    "LDA STACKACCESS+1"
+    "ADC #4"
+    "ADC AUX+1"
+    "STA CURSOR+1"
+]]] 
+
+
+'box :['h Number 'w Number 'y Number 'x Number 
+    'x2 [x + w - 1] !< 
+    'y2 [y + h - 1] !< 
+    'ww w - 2 
+    'hh h - 2 
+    [
+        'i 0 
+        while i < ww [
+            'xx [x + i + 1] !< 
+            gotoxy xx y !< emit 99 !< 
+            gotoxy xx y2 emit 99 !< 
+            inc i
+        ]
+    ] 
+    [
+        'i 0 
+        while i < hh [
+            'yy [y + i + 1] !< 
+            gotoxy x !< yy emit 194 !< 
+            gotoxy x2 yy emit 194 !< 
+            inc i
+        ]
+    ] 
+    gotoxy x !< y !< emit 213 !< 
+    gotoxy [x + w - 1] !< y !< emit 201 !< 
+    gotoxy x !< [y + h - 1] !< emit 202 !< 
+    gotoxy [x + w - 1] !< [y + h - 1] !< emit 203 !<
+] 
+
+'ascfun :['s String peek s !addr] 
+    
+'start_time time 
+[
+    'i 0 
+    while i < 10 [
+        box i i 20 10 
+        inc i
+    ]
+] 
+'N 144 
+[
+    'i 0 
+    while i < N [
+        'x [i % 18 + 10] !< 
+        'y [i / 18 + 10] !< 
+        gotoxy x y 
+        emit ascfun "HELLO FROM CAZZILLO " at [i % 20] 
+        inc i
+    ]
+] 
+gotoxy 1 !< 23 !<
+prin "TIME:" print time - start_time
+

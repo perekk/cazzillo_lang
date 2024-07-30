@@ -8,7 +8,7 @@ struct Entity [
 ]
 
 start_random
-'N 1
+'N 100
 'mobs array N Entity
 
 'init_entities :[
@@ -34,32 +34,58 @@ start_random
   ]
 ]
 
+; 'move_entities :[
+;     'i 0
+;     while i < N [
+;         'mob mobs at i
+;         'incr 0
+;         while [peek [mob -> pos + incr]] = 32 ! [
+;             'dir rand_byte / 64
+;             if dir = 0 [incr: 0 - 40]
+;             if dir = 1 [incr: 0 - 1]
+;             if dir = 2 [incr: 1]
+;             if dir = 3 [incr: 40]
+;             ; gotoxy 0 !< 0 !<
+;             print dir
+;         ]
+;         poke mob -> pos 32 !<
+;         mob -> pos: mob -> pos + incr
+;         if mob -> pos < 1024 [mob -> pos: mob -> pos + 40]
+;         if mob -> pos > 2024 [mob -> pos: mob -> pos - 40]
+;         poke mob -> pos mob -> label
+;         inc i
+;     ]
+; ]
+
+'get_rand_increment :[
+    'dir rand_byte / 64
+    if dir = 0 [return -40]
+    if dir = 1 [return -1]
+    if dir = 2 [return 1]
+    return  40    
+]
+
 'move_entities :[
-    'i 0
-    while i < N [
+     'i 0
+     while i < N [
         'mob mobs at i
-        'incr 0
-        while [peek [mob -> pos + incr]] = 32 ! [
-            'dir rand_byte / 64
-            if dir = 0 [incr: 0 - 40]
-            if dir = 1 [incr: 0 - 1]
-            if dir = 2 [incr: 1]
-            if dir = 3 [incr: 40]
-        ]
-        gotoxy 0 !< 0 !<
-        print incr
-        poke mob -> pos 32 !<
-        mob -> pos: mob -> pos + incr
-        if mob -> pos < 1024 [mob -> pos: mob -> pos + 40]
-        if mob -> pos > 2024 [mob -> pos: mob -> pos - 40]
-        poke mob -> pos mob -> label
+        'pos mob -> pos
+        'incr get_rand_increment
+        while [peek pos + incr] = 32 ! [
+            incr: get_rand_increment
+        ]        
+        'new_pos pos + incr
+        if new_pos < 1024 [new_pos: new_pos + 40]
+        if new_pos > 2024 [new_pos: new_pos - 40]
+        poke pos 32 !<
+        mob -> pos: new_pos        
+        poke new_pos mob -> label
         inc i
     ]
 ]
 
 init_entities
+display_entities
 while true [
   move_entities  
 ]
-
-

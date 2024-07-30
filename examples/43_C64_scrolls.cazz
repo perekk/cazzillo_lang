@@ -87,5 +87,5 @@ loop 'i' 'N' '[
 
 prin "SCROLL  :" print  start2   - start1
 prin "SCROLL2 :" print  start3   - start2
-prin "SCROLL4 :" print  start4   - start3
-prin "SCROLL3 :" print  end_time - start4
+prin "SCROLL3 :" print  start4   - start3
+prin "SCROLL4 :" print  end_time - start4

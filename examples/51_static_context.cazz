@@ -1,5 +1,5 @@
 [
-  print stack
+  print stack 0
   'a 10  
   'sum_one :[    
     prin "A=" prin a + 1 print " <-- THIS SHOULD BE 11"
@@ -24,7 +24,7 @@
   ]
   sum_one  
   call_sum
-  print stack
+  print stack 0
 ]
 
 ; [

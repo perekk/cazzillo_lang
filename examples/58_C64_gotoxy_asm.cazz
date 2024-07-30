@@ -1,0 +1,54 @@
+'gotoxy :['col Word Byte 'row Word Byte    
+    '[ [
+        'cursor 1024 + {row} * 40 + {col}
+        'cursorlo cursor !<
+        'cursorhi [cursor / 256] !<
+        asm [
+            "; GOTOXY"
+            "LDA &{col}"
+            "STA CURX"
+            "LDA &{row}"
+            "STA CURY"
+            "LDA &cursorlo"
+            "STA CURSOR"
+            "LDA &cursorhi"
+            "STA CURSOR+1"            
+        ]
+    ]]
+]
+
+; 'gotoxy :['col Byte 'row Byte
+;   if col >= 0 !< and col <= 39 !< and row >= 0 !< and row <= 25 !< [
+;     'cursor 1024 + row * 40 + col     
+;     'cursorlo cursor !<
+;     'cursorhi [cursor / 256] !<
+;     asm [
+;       "; GOTOXY"
+;       "LDA #!col"
+;       "STA CURX"
+;       "LDA #!row"
+;       "STA CURY"
+;       "LDA #!cursorlo"
+;       "STA CURSOR"
+;       "LDA #!cursorhi"
+;       "STA CURSOR+1"
+;     ]    
+;     cursorlo: 0 !<
+;     cursorhi: 0 !<  
+;   ]
+; ]
+
+
+'j 0
+while j < 12 [
+    'i 0 !<
+    while i < 25 [
+        'x i + j !<
+        'y i 
+        gotoxy 'x' 'y'
+        prin "CIAO"
+        inc i 
+    ]
+    j: j + 4
+]
+

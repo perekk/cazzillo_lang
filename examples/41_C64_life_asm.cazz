@@ -78,26 +78,21 @@ define 'DEAD_CHAR' '[32 !<]
 
 define 'add_one_if_alive_asm' '[
   asm [
-      "; START CAZZ ASM"
-      "LDA V_index"
-      "STA STACKACCESS"
-      "LDA V_index + 1"
-	    "STA STACKACCESS + 1"
-	    "LDY #0"
-	    "LDA (STACKACCESS),Y"
-      "CMP #81"
-      "BNE dead_@"
-      "INC !n"
-      "dead_@:"
-      "; END CAZZ ASM"
+    "; START CAZZ ASM"
+    "LDA !index"
+    "CMP #81"
+    "BNE dead_@"
+    "INC !n"
+    "dead_@:"
+    "; END CAZZ ASM"
   ]  
 ]
 
 'n 0 !<
 'index 0
 'get_num_alive :['index_to_check Number
-    ;n: 0 !<
-    asm ["LDA #0" "STA V_n"]
+    n: 0 !<
+    ;asm ["LDA #0" "STA !n"]
 
     index: index_to_check - 41
     add_one_if_alive_asm    
@@ -192,3 +187,4 @@ prin "ELAPSED: " print end - start
 ; 152 'buffer 'screen 'col as global 
 ; 207 after introduction of static context
 ; 204 optimization of getAsmPutWordAddressOnTOS
+; 148 after WORDADD = FIXED

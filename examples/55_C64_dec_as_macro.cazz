@@ -1,28 +1,36 @@
+; 'dec :[
+;   'w Word Number
+;   'addr_on_tos "ADR !" . w !str  
+;   '[ asm [
+;     "{addr_on_tos}"
+;     "LDY #0"
+;     "SEC"
+;     "LDA (STACKACCESS),Y"
+;     "SBC #1"
+;     "STA (STACKACCESS),Y"    
+;     "INY"
+;     "LDA (STACKACCESS),Y"    
+;     "SBC #0"
+;     "STA (STACKACCESS),Y"    
+;   ]]  
+; ]
+
 'dec :[
-  'w Word Number
-  'addr_on_tos "ADR !" . w !str  
-  '[ asm [
-    "{addr_on_tos}"
-    "JSR POP16"
-    "LDY #0"
-    "SEC"
-    "LDA (STACKACCESS),Y"
-    "SBC #1"
-    "STA (STACKACCESS),Y"
-    "BPL positive_@"
-    "INY"
-    "LDA (STACKACCESS),Y"
-    "SEC"
-    "SBC #1"
-    "STA (STACKACCESS),Y"
-    "positive_@:"
-  ]]  
+    'w Word Number    
+    '[asm [    
+        "SEC"
+        "LDA &{w}"
+        "SBC #1"
+        "STA &{w}"
+        "LDA &{w} + 1"    
+        "SBC #0"
+        "STA &{w} + 1"
+    ]]
 ]
 
 'dec :[
-  'w Word Byte
-  'str_asm "DEC !" . w !str
-  '[ asm "{str_asm}"]  
+  'w Word Byte  
+  '[ asm "DEC !{w}"]  
 ]
 
 'num 512

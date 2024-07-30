@@ -1,0 +1,73 @@
+include "lib/c64.cazz"
+
+'poke4 :[
+    '[ asm [
+        "; ins: number byte" 
+        "; out:" 
+        "JSR POP16"
+        "LDY STACKACCESS"
+        "JSR POP16"
+        "TYA"
+        "LDY #0"
+        "STA (STACKACCESS),Y"
+    ]]
+]
+
+'peek4 :[
+    '[ asm [
+        "; ins: number" 
+        "; out: byte" 
+        "JSR POP16"
+        "LDY #0"
+        "LDA (STACKACCESS),Y"
+        "STA STACKACCESS"
+        "STY STACKACCESS+1"
+        "JSR PUSH16"
+    ]]
+]
+
+'start time
+[
+    'i 1024 
+    while i < 2024 [
+        ; poke4 i j !<
+        poke4 i 0 !<
+        inc i
+    ]
+
+    loop 'j' 10 '[
+        'i 1024 
+        while i < 2024 [
+            ; poke4 i j !<
+            poke4 i [peek4 i] + 1 !<
+            inc i
+        ]
+    ] 
+]
+    
+'end time
+
+
+'start2 time
+[
+    'i 1024 
+    while i < 2024 [    
+        poke i 0 !<
+        inc i
+    ]
+
+    loop 'j' 10 '[
+        'i 1024 
+        while i < 2024 [        
+            poke i [peek i] + 1 !<
+            inc i
+        ]
+    ] 
+]
+    
+'end2 time
+
+cls
+prin "POKE MACRO" prin ": " prin [end - start] * 16 print " MS"
+prin "POKE NATIVE" prin ": " prin [end2 - start2] * 16 print " MS"
+

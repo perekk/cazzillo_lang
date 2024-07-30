@@ -1,4 +1,4 @@
-'initial_stack stack
+'initial_stack stack 0
 prin "STARTING STACK:" print initial_stack
 struct Point ['y Number]
 'pt1 new Point ['y 420]
@@ -61,7 +61,7 @@ prin "G:" print g
 prin "H:" print h
 ]
 
-'stk stack
+'stk stack 0
 prin "STACK:" print stk
 print either stk = initial_stack ["LOOKS GOOD TO ME!"] ["NO BUENO"]
 

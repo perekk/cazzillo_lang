@@ -1,4 +1,4 @@
-print stack
+print stack 0
 'txt "CAZZILLO"
 'i 0
 while i < txt # [
@@ -6,4 +6,4 @@ while i < txt # [
   inc i
 ]
 print ""
-print stack
+print stack 0

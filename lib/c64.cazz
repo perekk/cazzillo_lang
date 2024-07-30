@@ -7,6 +7,17 @@ define 'cls' '[emit 147 !<]
 
 'time :[[ 256 * peek 161] + peek 162]
 
+'profile :['code array Word any
+    '[[
+        'start time
+        [{code}]
+        'end time
+        //prin "{name}" prin ": " prin [end - start] * 16 print " MS"
+        [end - start] * 16
+    ]]
+]
+
+
 // RANDOM
 define 'start_random' '[
   poke 0xd40e 0xff
@@ -14,21 +25,27 @@ define 'start_random' '[
   poke 0xd412 0x80
 ]
 
-'rand_bit :[
-  'r 0 !<
-  'a 0
-  a: r !addr
-  asm ["LDA $D41B" "AND #1" "STA !a"]
-  r
-]
+'rand_bit :[ '[ asm [
+    "; ins:"
+    "; out: number"
+    "LDA $D41B" 
+    "AND #1" 
+    "STA STACKACCESS"
+    "LDA #$0" 
+    "STA STACKACCESS+1"
+    "JSR PUSH16"
+]]]
 
-'rand_bool :[
-  'r 0 !<
-  'a 0
-  a: r !addr
-  asm ["LDA $D41B" "AND #1" "STA !a"]
-  r !bool
-]
+'rand_bool :['[ asm [
+    "; ins:"
+    "; out: bool"
+    "LDA $D41B" 
+    "AND #1" 
+    "STA STACKACCESS"
+    "LDA #$0" 
+    "STA STACKACCESS+1"
+    "JSR PUSH16"
+]]]
 
 
 define 'rand_byte' '[[peek 0xD41B]]
@@ -53,27 +70,115 @@ define 'rand_word' '[[rand_byte * 256 + rand_byte]]
 ;   ]
 ; ]  
 
-'gotoxy :['col Byte 'row Byte
-  either col >= 0 !< and col <= 39 !< and row >= 0 !< and row <= 25 !< [
-    'cursor 1024 + row * 40 + col     
-    'cursorlo cursor !<
-    'cursorhi [cursor / 256] !<
-    asm [
-      "; GOTOXY"
-      "LDA !col"
-      "STA CURX"
-      "LDA !row"
-      "STA CURY"
-      "LDA !cursorlo"
-      "STA CURSOR"
-      "LDA !cursorhi"
-      "STA CURSOR+1"
-    ]    
-    cursorlo: 0 !<
-    cursorhi: 0 !<  
-  ] [
-    print "GOTOXY OUT OF BOUNDS"
-  ]
+; 'gotoxy :['col Byte 'row Byte
+;   if col >= 0 !< and col <= 39 !< and row >= 0 !< and row <= 25 !< [
+;     'cursor 1024 + row * 40 + col     
+;     'cursorlo cursor !<
+;     'cursorhi [cursor / 256] !<
+;     asm [
+;       "; GOTOXY"
+;       "LDA #!col"
+;       "STA CURX"
+;       "LDA #!row"
+;       "STA CURY"
+;       "LDA #!cursorlo"
+;       "STA CURSOR"
+;       "LDA #!cursorhi"
+;       "STA CURSOR+1"
+;     ]    
+;     cursorlo: 0 !<
+;     cursorhi: 0 !<  
+;   ]
+; ]
+
+; 'gotoxy :['col Word Byte 'row Word Byte    
+;     '[ [
+;         'cursor 1024 + {row} * 40 + {col}
+;         'cursorlo cursor !<
+;         'cursorhi [cursor / 256] !<
+;         asm [
+;             "; GOTOXY"
+;             "LDA &{col}"
+;             "STA CURX"
+;             "LDA &{row}"
+;             "STA CURY"
+;             "LDA &cursorlo"
+;             "STA CURSOR"
+;             "LDA &cursorhi"
+;             "STA CURSOR+1"            
+;         ]
+;     ]]
+; ]
+
+'gotoxy :[ 'x Byte 'y Byte 
+    asm [            
+        "; ins: byte byte"
+        "; out:"
+        "JSR POP16"
+        "LDA STACKACCESS"
+        "STA CURY"
+        "JSR POP16"
+        "LDA STACKACCESS"
+        "STA CURX"
+        
+        "; multiply CURY by 32"
+        "LDA CURY"
+        "STA STACKACCESS"
+        "LDA #0"
+        "STA STACKACCESS+1"
+        "ASL STACKACCESS"
+        "ROL STACKACCESS+1"
+        "ASL STACKACCESS"
+        "ROL STACKACCESS+1"
+        "ASL STACKACCESS"
+        "ROL STACKACCESS+1"
+        "ASL STACKACCESS"
+        "ROL STACKACCESS+1"
+        "ASL STACKACCESS"
+        "ROL STACKACCESS+1"
+
+        "; save aux"
+        "LDA AUX"
+        "PHA"
+        "LDA AUX+1"
+        "PHA"    
+
+        "; multipy CURY by 8"
+        "LDA CURY"
+        "STA AUX"
+        "LDA #0"
+        "STA AUX+1"
+        "ASL AUX"
+        "ROL AUX+1"
+        "ASL AUX"
+        "ROL AUX+1"
+        "ASL AUX"
+        "ROL AUX+1"
+
+        "; add aux to stackaccess"
+        "CLC"
+        "LDA STACKACCESS"
+        "ADC AUX"    
+        "STA STACKACCESS"
+        "LDA STACKACCESS+1"    
+        "ADC AUX+1"
+        "STA STACKACCESS+1"
+        
+        "; add 1024 and curx to stackaccess and store it in cursor"
+        "CLC"
+        "LDA STACKACCESS"
+        "ADC CURX"
+        "STA CURSOR"
+        "LDA STACKACCESS+1"
+        "ADC #4"
+        "STA CURSOR+1"
+
+        "; restore aux"
+        "PLA"
+        "STA AUX+1"
+        "PLA"
+        "STA AUX"
+    ] x y
 ]
 
 'box_top :['w Number

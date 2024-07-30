@@ -4,7 +4,7 @@
     'i 0 !<
     while i < 0xFF [
       asm [
-        "LDA !i"
+        "LDA &i"
         "STA 53280"
         "STA 53281"
         "INC !i"
@@ -15,14 +15,12 @@
   asm "LDA #0"
   asm "STA 53280"
   asm "STA 53281"
-
-
 ]
 
 ; global context
 'k 1024
 while k < 2024 [
-  asm "LDA !k"
+  asm "LDA &k"
   asm "STA !k"
   inc k
 ]

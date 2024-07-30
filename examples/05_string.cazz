@@ -1,5 +1,5 @@
-print stack
+print stack 0
 print "HELLO CAZZ"
 print 12345
 print "----------"
-print stack
+print stack 0
