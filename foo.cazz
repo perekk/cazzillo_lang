@@ -1,23 +1,76 @@
 include "lib/c64.cazz"
 
-'ascfun :['s String 
-  peek s !addr
+'gotoxy2 :['col Word Byte 'row Word Byte    
+    '[ [
+        'cursor 1024 + {row} * 40 + {col}
+        'cursorlo cursor !<
+        'cursorhi [cursor / 256] !<
+        asm [
+            "; GOTOXY"
+            "LDA &{col}"
+            "STA CURX"
+            "LDA &{row}"
+            "STA CURY"
+            "LDA &cursorlo"
+            "STA CURSOR"
+            "LDA &cursorhi"
+            "STA CURSOR+1"            
+        ]
+    ]]
 ]
 
-'y 0 !<
-while y < 10 [
-    'x 0 !<
-    while x < 40 [
-        gotoxy x y
-        emit y
-        inc x
+; 'gotoxy :['col Byte 'row Byte
+;   if col >= 0 !< and col <= 39 !< and row >= 0 !< and row <= 25 !< [
+;     'cursor 1024 + row * 40 + col     
+;     'cursorlo cursor !<
+;     'cursorhi [cursor / 256] !<
+;     asm [
+;       "; GOTOXY"
+;       "LDA #!col"
+;       "STA CURX"
+;       "LDA #!row"
+;       "STA CURY"
+;       "LDA #!cursorlo"
+;       "STA CURSOR"
+;       "LDA #!cursorhi"
+;       "STA CURSOR+1"
+;     ]    
+;     cursorlo: 0 !<
+;     cursorhi: 0 !<  
+;   ]
+; ]
+
+
+'t1 profile '[
+    'j 0
+    while j < 16 [
+        'i 0 !<
+        while i < 25 [
+            'x i + j !<
+            'y i 
+            gotoxy x y
+            prin "CIAO"
+            inc i 
+        ]
+        j: j + 4
     ]
-    inc y
-]
+] 
 
-; time 209
-; time 201 box: bring expression out of the loops
-; time 201 gotoxy optimized compare bytes for >= and > 
-; time 156 optimize division by powers of two as shift
-; time 204 after introducing static context
-; time 150 after WORDADD = FIXED
+'t2 profile '[
+    'j 0
+    while j < 16 [
+        'i 0 !<
+        while i < 25 [
+            'x i + j !<
+            'y i 
+            gotoxy2 'x' 'y'
+            prin "CIAO"
+            inc i 
+        ]
+        j: j + 4
+    ]
+] 
+
+prin "TIME 1 " print t1 
+prin "TIME 2 " print t2 
+

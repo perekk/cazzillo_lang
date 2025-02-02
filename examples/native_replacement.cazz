@@ -1,0 +1,42 @@
+'poke :[
+    '[ asm [
+        "; ins: number byte" 
+        "; out:" 
+        "JSR POP16"
+        "LDY STACKACCESS"
+        "JSR POP16"
+        "TYA"
+        "LDY #0"
+        "STA (STACKACCESS),Y"
+    ]]
+]
+
+'peek :[
+    '[ asm [
+        "; ins: number" 
+        "; out: byte" 
+        "JSR POP16"
+        "LDY #0"
+        "LDA (STACKACCESS),Y"
+        "STA STACKACCESS"
+        "STY STACKACCESS+1"
+        "JSR PUSH16"
+    ]]
+]
+
+'dec :[
+    'w Word Number    
+    '[asm [
+        "LDA &{w}"
+        "BNE no_carry_@"
+        "DEC &{w} + 1"
+        "no_carry_@: "
+        "DEC &{w}"
+    ]]
+]
+
+'dec :[
+  'w Word Byte  
+  '[ asm "DEC !{w}"]  
+]
+

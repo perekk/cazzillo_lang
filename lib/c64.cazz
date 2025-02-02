@@ -7,12 +7,13 @@ define 'cls' '[emit 147 !<]
 
 'time :[[ 256 * peek 161] + peek 162]
 
+; returns the timings in milliseconds
 'profile :['code array Word any
     '[[
         'start time
         [{code}]
         'end time
-        //prin "{name}" prin ": " prin [end - start] * 16 print " MS"
+        ; prin "{name}" prin ": " prin [end - start] * 16 print " MS"
         [end - start] * 16
     ]]
 ]
@@ -230,32 +231,7 @@ define 'scroll_up' '[asm "JSR SCROLL_UP"]
 ; ]
 
 ; 2024-03-19 decrement with word typing
-'dec :[
-  'w Word Number
-  'addr_on_tos "ADR !" . w !str  
-  '[ asm [
-    "{addr_on_tos}"
-    "JSR POP16"
-    "LDY #0"
-    "SEC"
-    "LDA (STACKACCESS),Y"
-    "SBC #1"
-    "STA (STACKACCESS),Y"
-    "BPL positive_@"
-    "INY"
-    "LDA (STACKACCESS),Y"
-    "SEC"
-    "SBC #1"
-    "STA (STACKACCESS),Y"
-    "positive_@:"
-  ]]  
-]
 
-'dec :[
-  'w Word Byte
-  'str_asm "DEC !" . w !str
-  '[ asm "{str_asm}"]  
-]
 
 ; 2024-03-20
 'print_heap :[ 

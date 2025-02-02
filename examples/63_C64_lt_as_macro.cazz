@@ -1,0 +1,87 @@
+include "lib/c64.cazz"
+
+'<< :[ infix 'a Word Byte 'b Word Byte '[
+    {a}
+    asm [
+        "; infix"
+        "; ins: byte byte"
+        "; out: bool"
+        "LDX SP16"
+        "LDA STACKBASE + 3,X"
+        "CMP STACKBASE + 1,X"
+        "BCC less@"
+        "LDA #00"
+        "JMP store@"
+        "less@:"
+        "LDA #01"
+        "store@:"
+        "STA STACKACCESS"
+        "LDA #00"
+        "STA STACKACCESS + 1"
+        "INX"
+        "INX"
+        "INX"
+        "INX"
+        "STX SP16"
+        "JSR PUSH16" 
+    ] 
+    {b}
+] ]
+
+'<< :[ infix 'a Word Number 'b Word Number '[    
+    asm [
+        "; ins: number number"
+        "; out: bool"
+        "LDX SP16"
+        "LDA STACKBASE + 4,X"
+        "CMP STACKBASE + 2,X"
+        "BCC less@"
+        "BNE greaterorequal@"
+        "LDA STACKBASE + 3,X"
+        "CMP STACKBASE + 1,X"
+        "BCC less@"
+        "greaterorequal@:"
+        "LDA #00"
+        "JMP store@"
+        "less@:"
+        "LDA #01"
+        "store@:"
+        "STA STACKACCESS"
+        "LDA #00"
+        "STA STACKACCESS + 1"
+        "INX"
+        "INX"
+        "INX"
+        "INX"
+        "STX SP16"
+        "JSR PUSH16"
+    ]
+    {a} {b}    
+] ]
+
+'lt_profiler :[
+    'lt_inst Word any    
+    '[
+        'k 0
+        'i 0 !<        
+        while i < 100 [
+            if i {lt_inst} 50 !< [inc k]
+            inc i
+        ]
+
+        'j 0
+        while j < 1000 [            
+            if j {lt_inst} 50 [inc k]
+            inc j
+        ]
+    ]
+]
+
+'macro_time profile '[ lt_profiler '<<']    
+'native_time profile '[ lt_profiler '<']
+
+cls
+prin "LT MACRO" prin ": " prin macro_time print " MS"
+prin "LT NATIVE" prin ": " prin native_time print " MS"
+
+

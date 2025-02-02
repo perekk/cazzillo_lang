@@ -1,0 +1,21 @@
+'loop :['var Word any 'n Word Number 'body array Word any priority 8
+  '[ [ '{var} 0 while {var} < {n} [{body} inc {var}] ]]
+]
+
+; 'loop :['var Word any 'n Number 'body array Word any priority 8
+;   '[ [ prin "SECOND: " '{var} 0 while {var} < {n} [{body} inc {var}] ]]
+; ]
+
+'e :['n Number n * 2]
+'f :[10]
+'k [10]
+'j 5 
+'l 2
+'m :['n Number '[{n} * 2]]
+prin "A) FUNCTION WITH PAR: " loop 'i' e 5 '[ prin i ] nl
+prin "B) FUNCTION COSTANT:  " loop 'i' f '[ prin i ] nl
+prin "C) BLOCK RESULT:      " loop 'i' k '[ prin i ] nl
+prin "D) MULTIPLICATION:    " loop 'i' j * l '[ prin i ] nl
+prin "E) MACRO WITH PAR:    " loop 'i' m 2 + 3 '[ prin i ] nl
+prin "F) NUMBER WORD:       " loop 'i' 'k' '[ prin i ] nl
+

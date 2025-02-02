@@ -1,10 +1,10 @@
 ; include "lib/c64.cazz"
 
-
-; first version: 80 
-; keeping screen_loc and color_loc as variable: 54 
-; xx and yy as bytes: 53
-; WORDADD = FIXED 24
+; timing
+; 80 first version
+; 54 keeping screen_loc and color_loc as variable
+; 53 xx and yy as bytes
+; 24 WORDADD = FIXED 
 
 'def :['w Word any 'n Word any
   '['{w} :[ '{n}' ]]
@@ -15,7 +15,6 @@
 ]
 
 'time :[[ 256 * peek 161] + peek 162]
-
 
 def 'SCREEN_START' '1024'
 define 'cls' '[emit 147 !<]

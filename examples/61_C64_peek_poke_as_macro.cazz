@@ -26,48 +26,30 @@ include "lib/c64.cazz"
     ]]
 ]
 
-'start time
-[
-    'i 1024 
-    while i < 2024 [
-        ; poke4 i j !<
-        poke4 i 0 !<
-        inc i
-    ]
-
-    loop 'j' 10 '[
+'peek_poke_profiler :[
+    'poke_inst Word any
+    'peek_inst Word any
+    '[
         'i 1024 
-        while i < 2024 [
-            ; poke4 i j !<
-            poke4 i [peek4 i] + 1 !<
+        while i < 2024 [            
+            {poke_inst} i 0 !<
             inc i
         ]
-    ] 
-]
-    
-'end time
 
-
-'start2 time
-[
-    'i 1024 
-    while i < 2024 [    
-        poke i 0 !<
-        inc i
-    ]
-
-    loop 'j' 10 '[
-        'i 1024 
-        while i < 2024 [        
-            poke i [peek i] + 1 !<
-            inc i
+        loop 'j' 10 '[
+            'i 1024 
+            while i < 2024 [                
+                {poke_inst} i [{peek_inst} i] + 1 !<
+                inc i
+            ]
         ]
-    ] 
+    ]
 ]
-    
-'end2 time
+
+'macro_time profile '[ peek_poke_profiler 'poke4' 'peek4']    
+'native_time profile '[ peek_poke_profiler 'poke' 'peek']
 
 cls
-prin "POKE MACRO" prin ": " prin [end - start] * 16 print " MS"
-prin "POKE NATIVE" prin ": " prin [end2 - start2] * 16 print " MS"
+prin "POKE MACRO" prin ": " prin macro_time print " MS"
+prin "POKE NATIVE" prin ": " prin native_time print " MS"
 
